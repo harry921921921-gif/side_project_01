@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FitTracker - 訓練紀錄</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<div class="container mt-4">
+    <h2 class="mb-4">🏋️ 訓練紀錄</h2>
+
+    <!-- 新增訓練表單 -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">➕ 新增訓練</h5>
+        </div>
+        <div class="card-body">
+            <form id="workoutForm" th:action="@{/workout}" method="post">
+
+                <!-- 基本資訊 -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">日期</label>
+                        <input type="date" name="workoutDate" id="workoutDate"
+                               class="form-control" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">訓練部位</label>
+                        <select name="bodyPart" class="form-select" required>
+                            <option value="">請選擇</option>
+                            <option value="胸">胸</option>
+                            <option value="背">背</option>
+                            <option value="腿">腿</option>
+                            <option value="肩">肩</option>
+                            <option value="手">手 (二頭/三頭)</option>
+                            <option value="核心">核心</option>
+                            <option value="全身">全身</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">備註（選填）</label>
+                        <input type="text" name="note" class="form-control"
+                               placeholder="今天狀態如何？">
+                    </div>
+                </div>
+
+                <!-- 訓練動作列表 -->
+                <h6 class="mb-2">🏋️ 訓練動作</h6>
+                <div class="row g-1 mb-1 text-muted small">
+                    <div class="col-md-4">動作名稱</div>
+                    <div class="col-md-2">重量(kg)</div>
+                    <div class="col-md-2">組數</div>
+                    <div class="col-md-2">次數</div>
+                </div>
+
+                <div id="exerciseContainer">
+                    <!-- 預設一行，讓使用者直接填 -->
+                    <div class="exercise-row row g-2 mb-2 align-items-center">
+                        <div class="col-md-4">
+                            <input type="text" name="exerciseNames" class="form-control"
+                                   placeholder="例：臥推、深蹲..." required>
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" name="weightKgs" class="form-control"
+                                   placeholder="80" step="0.5" min="0">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" name="sets" class="form-control"
+                                   placeholder="4" min="1">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" name="reps" class="form-control"
+                                   placeholder="8" min="1">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                    onclick="removeRow(this)" disabled>✕</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-2">
+                    <button type="button" class="btn btn-outline-secondary"
+                            onclick="addExerciseRow()">＋ 新增動作</button>
+                    <button type="submit" class="btn btn-primary">✔ 儲存訓練</button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- 訓練歷史紀錄 -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">📋 訓練歷史</h5>
+        </div>
+        <div class="card-body">
+            <div th:if="${sessions.empty}" class="text-muted text-center py-3">
+                尚無訓練紀錄，快去汗水！
+            </div>
+
+            <div th:unless="${sessions.empty}">
+                <div th:each="session : ${sessions}" class="card mb-3 border">
+                    <div class="card-header d-flex justify-content-between align-items-center bg-white">
+                        <div>
+                            <strong th:text="${session.workoutDate}"></strong>
+                            <span class="badge bg-primary ms-2"
+                                  th:text="${session.bodyPart}"></span>
+                        </div>
+                        <form th:action="@{/workout/delete/{id}(id=${session.id})}"
+                              method="post"
+                              onsubmit="return confirm('確定刪除這筆訓練紀錄？')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">🗑 刪除</button>
+                        </form>
+                    </div>
+                    <div class="card-body p-0">
+                        <!-- 顯示動作列表 -->
+                        <table class="table table-sm mb-0" th:unless="${session.sets.empty}">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>動作</th>
+                                    <th>重量</th>
+                                    <th>組數</th>
+                                    <th>次數</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="set : ${session.sets}">
+                                    <td th:text="${set.exerciseName}"></td>
+                                    <td th:text="${set.weightKg != null ? set.weightKg + ' kg' : '體重'}"></td>
+                                    <td th:text="${set.sets}"></td>
+                                    <td th:text="${set.reps}"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p class="text-muted p-2 mb-0 small"
+                           th:if="${session.note != null and !session.note.isEmpty()}"
+                           th:text="'📝 ' + ${session.note}"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // 自動設定日期為今天
+    document.getElementById('workoutDate').valueAsDate = new Date();
+
+    // 新增一行訓練動作
+    function addExerciseRow() {
+        const container = document.getElementById('exerciseContainer');
+        const newRow = document.createElement('div');
+        newRow.className = 'exercise-row row g-2 mb-2 align-items-center';
+        newRow.innerHTML = `
+            <div class="col-md-4">
+                <input type="text" name="exerciseNames" class="form-control" placeholder="例：臥推、深蹲...">
+            </div>
+            <div class="col-md-2">
+                <input type="number" name="weightKgs" class="form-control" placeholder="80" step="0.5" min="0">
+            </div>
+            <div class="col-md-2">
+                <input type="number" name="sets" class="form-control" placeholder="4" min="1">
+            </div>
+            <div class="col-md-2">
+                <input type="number" name="reps" class="form-control" placeholder="8" min="1">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeRow(this)">✕</button>
+            </div>
+        `;
+        container.appendChild(newRow);
+    }
+
+    // 移除一行訓練動作
+    function removeRow(btn) {
+        btn.closest('.exercise-row').remove();
+    }
+</script>
+</body>
+</html>

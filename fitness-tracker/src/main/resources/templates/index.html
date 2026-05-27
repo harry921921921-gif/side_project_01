@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FitTracker - 首頁</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<!-- 引入 navbar fragment -->
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<div class="container mt-4">
+    <h2 class="mb-4">📊 Dashboard</h2>
+
+    <!-- 統計卡片 -->
+    <div class="row g-3 mb-4">
+
+        <!-- 最新體重 -->
+        <div class="col-md-4">
+            <div class="card text-white bg-primary h-100">
+                <div class="card-body">
+                    <h6 class="card-title">⚖️ 最新體重</h6>
+                    <!-- th:if：有資料才顯示 -->
+                    <h3 th:if="${lastWeight}" th:text="${lastWeight.weightKg} + ' kg'">-- kg</h3>
+                    <p  th:if="${lastWeight}" th:text="${lastWeight.recordedDate}" class="mb-0 opacity-75"></p>
+                    <!-- th:unless：沒有資料時顯示 -->
+                    <h3 th:unless="${lastWeight}">尚未紀錄</h3>
+                </div>
+                <div class="card-footer">
+                    <a th:href="@{/body-weight}" class="text-white text-decoration-none small">前往記錄 →</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 本週訓練次數 -->
+        <div class="col-md-4">
+            <div class="card text-white bg-success h-100">
+                <div class="card-body">
+                    <h6 class="card-title">🏋️ 本週訓練</h6>
+                    <!-- th:text：輸出變數值 -->
+                    <h3 th:text="${weeklyCount} + ' 次'">0 次</h3>
+                    <p class="mb-0 opacity-75">本週已完成</p>
+                </div>
+                <div class="card-footer">
+                    <a th:href="@{/workout}" class="text-white text-decoration-none small">前往記錄 →</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 訓練計劃（預留位置） -->
+        <div class="col-md-4">
+            <div class="card text-white bg-warning h-100">
+                <div class="card-body">
+                    <h6 class="card-title">🎯 訓練計劃</h6>
+                    <h3>即將推出</h3>
+                    <p class="mb-0 opacity-75">功能開發中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最近訓練紀錄 -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">📋 最近訓練紀錄</h5>
+            <a th:href="@{/workout}" class="btn btn-sm btn-outline-primary">查看全部</a>
+        </div>
+        <div class="card-body">
+            <div th:if="${recentWorkouts.empty}" class="text-muted text-center py-3">
+                <p>尚未有訓練紀錄</p>
+                <a th:href="@{/workout}" class="btn btn-primary">開始記錄 💪</a>
+            </div>
+
+            <!-- th:each：迴圈，類似 for-each -->
+            <div th:unless="${recentWorkouts.empty}">
+                <div th:each="session : ${recentWorkouts}" class="border-bottom pb-2 mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong th:text="${session.workoutDate}">日期</strong>
+                        <span class="badge bg-secondary" th:text="${session.bodyPart}">部位</span>
+                    </div>
+                    <small class="text-muted">
+                        <span th:each="set, iter : ${session.sets}">
+                            <span th:text="${set.exerciseName}
+                                + (${set.weightKg} != null ? ' ' + ${set.weightKg} + 'kg' : ' 徒手')
+                                + '×' + ${set.sets} + '組×' + ${set.reps} + '次'"></span>
+                            <span th:unless="${iter.last}">｜</span>
+                        </span>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
