@@ -1,0 +1,39 @@
+package fitness_tracker.controller;
+
+import fitness_tracker.service.BodyWeightService;
+import fitness_tracker.service.WorkoutService;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+
+@Controller  // 告訴 Spring 這個 class 是 Controller（處理 HTTP 請求）
+public class HomeController {
+
+    private final BodyWeightService bodyWeightService;
+    private final WorkoutService workoutService;
+
+    public HomeController(BodyWeightService bodyWeightService, WorkoutService workoutService) {
+        this.bodyWeightService = bodyWeightService;
+        this.workoutService = workoutService;
+    }
+
+    /**
+     * @GetMapping("/") → 當瀏覽器 GET 請求 http://localhost:8080/ 時執行
+     * Model → 用來把資料傳到 HTML 模板
+     * return "index" → 回傳 templates/index.html
+     */
+    @GetMapping("/")
+    public String home(Model model) {
+        // 查最新體重，放進 model 給 HTML 用
+        bodyWeightService.findLatest()
+                .ifPresent(w -> model.addAttribute("lastWeight", w));
+
+        // 最近 5 筆訓練
+        model.addAttribute("recentWorkouts", workoutService.findRecent(5));
+
+        // 本週訓練次數
+        model.addAttribute("weeklyCount", workoutService.countThisWeek());
+
+        return "index";
+    }
+}

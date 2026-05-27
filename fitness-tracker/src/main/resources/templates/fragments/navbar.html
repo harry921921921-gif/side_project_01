@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  th:fragment="navbar" → 定義這個區塊為可重用的 fragment，名稱叫 navbar
+  其他頁面用 th:replace="~{fragments/navbar :: navbar}" 引入
+-->
+<nav th:fragment="navbar" class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand fw-bold" th:href="@{/}">💪 FitTracker</a>
+        <button class="navbar-toggler" type="button"
+                data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/}">🏠 首頁</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/workout}">🏋️ 訓練紀錄</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/body-weight}">⚖️ 體重紀錄</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+</body>
+</html>

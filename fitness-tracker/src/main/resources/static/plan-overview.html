@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FitTracker 訓練計劃系統</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', '微軟正黑體', sans-serif; background: #f0f4f8; color: #1a202c; }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+      color: white; padding: 28px 40px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .header h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.5px; }
+    .header h1 span { color: #68d391; }
+    .header p { font-size: 0.9rem; color: #a0aec0; margin-top: 4px; }
+    .tech-badge {
+      background: #2b6cb0; color: white; border-radius: 20px;
+      padding: 8px 18px; font-size: 0.82rem; font-weight: 600;
+    }
+
+    /* ── Grid Layout ── */
+    .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; padding: 24px 32px; }
+    .grid-2 { grid-column: span 2; }
+    .grid-3 { grid-column: span 3; }
+
+    /* ── Cards ── */
+    .card {
+      background: white; border-radius: 14px;
+      padding: 20px 22px; box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+    .card-title {
+      font-size: 1rem; font-weight: 700; margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title .num {
+      background: #2b6cb0; color: white; border-radius: 50%;
+      width: 26px; height: 26px; display: flex; align-items: center;
+      justify-content: center; font-size: 0.8rem; flex-shrink: 0;
+    }
+
+    /* ── Section 1：概念 4格 ── */
+    .concept-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .concept-item {
+      background: #ebf8ff; border-left: 4px solid #3182ce;
+      border-radius: 8px; padding: 12px 14px;
+    }
+    .concept-item .icon { font-size: 1.4rem; margin-bottom: 4px; }
+    .concept-item h4 { font-size: 0.88rem; font-weight: 700; color: #2b6cb0; }
+    .concept-item p { font-size: 0.78rem; color: #4a5568; margin-top: 3px; line-height: 1.4; }
+
+    /* ── Section 2：核心功能清單 ── */
+    .feature-list { list-style: none; }
+    .feature-list li {
+      padding: 7px 0; font-size: 0.86rem; border-bottom: 1px solid #edf2f7;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .feature-list li:last-child { border-bottom: none; }
+    .badge-done { background:#c6f6d5; color:#276749; border-radius:4px; padding:1px 7px; font-size:0.72rem; font-weight:700; }
+    .badge-soon { background:#fefcbf; color:#744210; border-radius:4px; padding:1px 7px; font-size:0.72rem; font-weight:700; }
+
+    /* ── 1RM 公式 ── */
+    .formula-box {
+      background: linear-gradient(135deg, #2d3748, #4a5568);
+      color: white; border-radius: 12px; padding: 16px 20px;
+      text-align: center; margin-bottom: 14px;
+    }
+    .formula-box .formula { font-size: 1.2rem; font-weight: 800; color: #68d391; letter-spacing: 1px; }
+    .formula-box .sub { font-size: 0.78rem; color: #a0aec0; margin-top: 4px; }
+    .example-box {
+      background: #f7fafc; border-radius: 8px; padding: 10px 14px;
+      font-size: 0.82rem; color: #4a5568; border: 1px solid #e2e8f0;
+    }
+    .example-box strong { color: #2b6cb0; }
+
+    /* ── 訓練目標表格 ── */
+    .goal-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .goal-table th {
+      background: #2d3748; color: white; padding: 8px 10px;
+      text-align: left; font-weight: 600;
+    }
+    .goal-table td { padding: 8px 10px; border-bottom: 1px solid #edf2f7; }
+    .goal-table tr:hover td { background: #f7fafc; }
+    .pct { font-weight: 800; color: #2b6cb0; }
+    .tag {
+      border-radius: 4px; padding: 2px 8px; font-size: 0.72rem; font-weight: 700;
+      display: inline-block;
+    }
+    .tag-power    { background:#bee3f8; color:#2c5282; }
+    .tag-endurance{ background:#c6f6d5; color:#276749; }
+    .tag-hyper    { background:#fbd38d; color:#744210; }
+    .tag-strength { background:#fed7d7; color:#822727; }
+    .tag-max      { background:#e9d8fd; color:#553c9a; }
+
+    /* ── 週期化四階段 ── */
+    .phase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .phase-item { border-radius: 10px; padding: 12px 14px; }
+    .phase-1 { background: #ebf8ff; border-top: 4px solid #63b3ed; }
+    .phase-2 { background: #f0fff4; border-top: 4px solid #68d391; }
+    .phase-3 { background: #fff5f5; border-top: 4px solid #fc8181; }
+    .phase-4 { background: #faf5ff; border-top: 4px solid #b794f4; }
+    .phase-item h4 { font-size: 0.84rem; font-weight: 700; margin-bottom: 5px; }
+    .phase-item p  { font-size: 0.76rem; color: #4a5568; line-height: 1.5; }
+    .phase-weeks   { font-size: 0.7rem; font-weight: 700; margin-bottom: 4px; opacity: 0.6; }
+
+    /* ── AI 流程 ── */
+    .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .flow-step {
+      background: #ebf8ff; border: 2px solid #bee3f8; border-radius: 8px;
+      padding: 8px 12px; font-size: 0.78rem; font-weight: 600;
+      color: #2b6cb0; text-align: center; min-width: 90px;
+    }
+    .flow-arrow { font-size: 1.2rem; color: #a0aec0; }
+
+    /* ── JSON 輸出格式 ── */
+    .json-box {
+      background: #1a202c; color: #e2e8f0; border-radius: 10px;
+      padding: 16px 20px; font-family: 'Consolas', monospace; font-size: 0.78rem;
+      line-height: 1.7; overflow: auto;
+    }
+    .json-key    { color: #90cdf4; }
+    .json-string { color: #68d391; }
+    .json-num    { color: #fbd38d; }
+
+    /* ── DB Schema ── */
+    .db-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .db-table { border: 2px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+    .db-header { background: #2d3748; color: white; padding: 8px 12px; font-size: 0.82rem; font-weight: 700; }
+    .db-row { padding: 5px 12px; font-size: 0.76rem; border-bottom: 1px solid #edf2f7; display: flex; justify-content: space-between; }
+    .db-row:last-child { border-bottom: none; }
+    .db-pk { color: #d69e2e; font-size: 0.68rem; font-weight: 700; }
+    .db-fk { color: #3182ce; font-size: 0.68rem; font-weight: 700; }
+
+    /* ── 底部 ── */
+    .footer {
+      background: #2d3748; color: #a0aec0;
+      padding: 16px 32px; display: flex; justify-content: space-between;
+      font-size: 0.78rem; align-items: center;
+    }
+    .footer strong { color: #68d391; }
+
+    /* ── MVP 判定 ── */
+    .mvp-box { background: #f0fff4; border: 2px solid #68d391; border-radius: 12px; padding: 16px 20px; }
+    .mvp-check { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; font-size: 0.84rem; }
+    .mvp-check:last-child { margin-bottom: 0; }
+    .mvp-icon { color: #38a169; font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+  </style>
+</head>
+<body>
+
+<!-- ════ HEADER ════ -->
+<div class="header">
+  <div>
+    <h1>💪 FitTracker <span>健身追蹤</span> · 個人版</h1>
+    <p>記錄訓練重量 · 追蹤體重變化 · AI 建議訓練計劃</p>
+  </div>
+  <div class="tech-badge">技術組合：Thymeleaf + Java Spring Boot + MySQL</div>
+</div>
+
+<div class="grid">
+
+  <!-- ① 專案概念 -->
+  <div class="card">
+    <div class="card-title"><span class="num">1</span> 專案概念</div>
+    <div class="concept-grid">
+      <div class="concept-item">
+        <div class="icon">🏋️</div>
+        <h4>訓練重量紀錄</h4>
+        <p>記錄每次訓練的動作、重量、組數與次數</p>
+      </div>
+      <div class="concept-item">
+        <div class="icon">⚖️</div>
+        <h4>體重追蹤</h4>
+        <p>每日紀錄體重，追蹤長期身體變化</p>
+      </div>
+      <div class="concept-item">
+        <div class="icon">📈</div>
+        <h4>進步可視化</h4>
+        <p>查看歷史趨勢，了解自己進步了多少</p>
+      </div>
+      <div class="concept-item">
+        <div class="icon">🎯</div>
+        <h4>AI 訓練建議</h4>
+        <p>根據 1RM 公式自動計算下次建議重量</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 核心功能 -->
+  <div class="card">
+    <div class="card-title"><span class="num">2</span> 核心功能（精簡）</div>
+    <ul class="feature-list">
+      <li><span class="badge-done">✅ 完成</span> 記錄當日體重（kg + 時間點）</li>
+      <li><span class="badge-done">✅ 完成</span> 記錄訓練場次（部位 + 日期）</li>
+      <li><span class="badge-done">✅ 完成</span> 記錄動作（名稱 + 重量 + 組×次）</li>
+      <li><span class="badge-done">✅ 完成</span> 查看 / 刪除歷史紀錄</li>
+      <li><span class="badge-done">✅ 完成</span> 首頁 Dashboard 總覽</li>
+      <li><span class="badge-soon">⏳ 下一步</span> AI 訓練重量建議（1RM 公式）</li>
+      <li><span class="badge-soon">⏳ 下一步</span> 體重趨勢折線圖</li>
+      <li><span class="badge-soon">⏳ 下一步</span> 週期化訓練計劃</li>
+    </ul>
+  </div>
+
+  <!-- 1RM 公式 -->
+  <div class="card">
+    <div class="card-title"><span class="num" style="background:#38a169">🧮</span> 1RM 計算公式</div>
+    <div class="formula-box">
+      <div class="sub">Brzycki 公式（最準確）</div>
+      <div class="formula">1RM = 重量 × (36 ÷ (37 − 次數))</div>
+    </div>
+    <div class="example-box">
+      <strong>範例：</strong>深蹲 80kg × 5下<br/>
+      1RM = 80 × (36 ÷ 32) = <strong style="color:#e53e3e">90 kg</strong>
+    </div>
+    <div style="margin-top:12px; font-size:0.78rem; color:#718096; line-height:1.6">
+      ⚠️ 此公式適合 1–10 下的計算<br/>
+      超過 10 下時誤差會增加
+    </div>
+  </div>
+
+  <!-- ③ 訓練目標對應參數 -->
+  <div class="card grid-3">
+    <div class="card-title"><span class="num">3</span> 各訓練目標對應參數</div>
+    <table class="goal-table">
+      <thead>
+        <tr>
+          <th>訓練目標</th>
+          <th>1RM 百分比</th>
+          <th>每組次數</th>
+          <th>組數</th>
+          <th>休息時間</th>
+          <th>特殊說明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="tag tag-power">⚡ 爆發力</span></td>
+          <td class="pct">50%</td>
+          <td>3–4 下</td>
+          <td>3–6 組</td>
+          <td>2–3 分鐘</td>
+          <td>速度要快，爆發性動作</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-endurance">🔄 肌耐力</span></td>
+          <td class="pct">70%</td>
+          <td>12–20 下</td>
+          <td>4–10 種循環</td>
+          <td>30–60 秒</td>
+          <td>循環訓練，多動作串聯</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-hyper">💪 肌肥大</span></td>
+          <td class="pct">80%</td>
+          <td>8–12 下</td>
+          <td>3–5 組</td>
+          <td>30–60 秒</td>
+          <td>控制速度，感受肌肉</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-strength">🏆 增加力量</span></td>
+          <td class="pct">90%</td>
+          <td>3–4 下</td>
+          <td>3–4 組</td>
+          <td>2–3 分鐘</td>
+          <td>複合動作為主</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-max">🔥 突破極限</span></td>
+          <td class="pct">95%</td>
+          <td>1–3 下</td>
+          <td>2–3 組</td>
+          <td>3–5 分鐘</td>
+          <td>⚠️ 需要保護者協助</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ④ 週期化訓練 -->
+  <div class="card grid-2">
+    <div class="card-title"><span class="num">4</span> 週期化訓練四階段</div>
+    <div class="phase-grid">
+      <div class="phase-item phase-1">
+        <div class="phase-weeks">第 1–6 週</div>
+        <h4>🌱 解剖適應期</h4>
+        <p>輕重量學習動作<br/>每次漸進 5–10%<br/>12–15RM 高次數</p>
+      </div>
+      <div class="phase-item phase-2">
+        <div class="phase-weeks">第 7–14 週</div>
+        <h4>💪 肌肥大期</h4>
+        <p>1RM × 65–80%<br/>每組 8–12 下<br/>全身複合動作為主</p>
+      </div>
+      <div class="phase-item phase-3">
+        <div class="phase-weeks">第 15–20 週</div>
+        <h4>🏋️ 最大肌力期</h4>
+        <p>1RM × 85–95%<br/>每組 3–6 下<br/>深蹲/硬舉/臥推</p>
+      </div>
+      <div class="phase-item phase-4">
+        <div class="phase-weeks">第 21–24 週</div>
+        <h4>😴 恢復期</h4>
+        <p>低強度動態休息<br/>維持訓練習慣<br/>讓身體完全恢復</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 分析流程 -->
+  <div class="card">
+    <div class="card-title"><span class="num" style="background:#d69e2e">🤖</span> AI 分析流程</div>
+    <div class="flow" style="flex-direction:column; align-items:flex-start; gap:6px">
+      <div class="flow-step" style="width:100%">📥 讀取使用者訓練紀錄</div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step" style="width:100%">🧮 Brzycki 公式計算 1RM</div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step" style="width:100%">🎯 依目標算建議重量（%）</div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step" style="width:100%">📊 分析近期進步/停滯狀況</div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step" style="width:100%; background:#f0fff4; border-color:#68d391; color:#276749">✅ 輸出 JSON 建議</div>
+    </div>
+  </div>
+
+  <!-- ⑤ 資料庫設計 -->
+  <div class="card grid-2">
+    <div class="card-title"><span class="num">5</span> 資料庫設計</div>
+    <div class="db-grid">
+      <div class="db-table">
+        <div class="db-header">⚖️ body_weight</div>
+        <div class="db-row">id <span class="db-pk">PK</span></div>
+        <div class="db-row">weight_kg</div>
+        <div class="db-row">recorded_date</div>
+        <div class="db-row">time_of_day</div>
+        <div class="db-row">note</div>
+        <div class="db-row">created_at</div>
+      </div>
+      <div class="db-table">
+        <div class="db-header">🏋️ workout_session</div>
+        <div class="db-row">id <span class="db-pk">PK</span></div>
+        <div class="db-row">workout_date</div>
+        <div class="db-row">body_part</div>
+        <div class="db-row">note</div>
+        <div class="db-row">created_at</div>
+      </div>
+      <div class="db-table">
+        <div class="db-header">💪 workout_set</div>
+        <div class="db-row">id <span class="db-pk">PK</span></div>
+        <div class="db-row">session_id <span class="db-fk">FK</span></div>
+        <div class="db-row">exercise_name</div>
+        <div class="db-row">weight_kg</div>
+        <div class="db-row">sets</div>
+        <div class="db-row">reps</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JSON 輸出格式 -->
+  <div class="card">
+    <div class="card-title"><span class="num" style="background:#553c9a">{ }</span> AI 回應格式</div>
+    <div class="json-box">
+<span class="json-key">"exercises"</span>: [{<br/>
+&nbsp;&nbsp;<span class="json-key">"name"</span>: <span class="json-string">"臥推"</span>,<br/>
+&nbsp;&nbsp;<span class="json-key">"estimated1RM"</span>: <span class="json-num">92.5</span>,<br/>
+&nbsp;&nbsp;<span class="json-key">"suggestedWeight"</span>: <span class="json-num">74</span>,<br/>
+&nbsp;&nbsp;<span class="json-key">"suggestedSets"</span>: <span class="json-num">4</span>,<br/>
+&nbsp;&nbsp;<span class="json-key">"suggestedReps"</span>: <span class="json-string">"8-10"</span>,<br/>
+&nbsp;&nbsp;<span class="json-key">"progressStatus"</span>: <span class="json-string">"進步中"</span>,<br/>
+&nbsp;&nbsp;<span class="json-key">"note"</span>: <span class="json-string">"可嘗試加重"</span><br/>
+}],<br/>
+<span class="json-key">"weeklyPlan"</span>: <span class="json-string">"本週建議..."</span>,<br/>
+<span class="json-key">"generalAdvice"</span>: <span class="json-string">"整體評估..."</span>
+    </div>
+  </div>
+
+  <!-- ③ MVP 範圍 -->
+  <div class="card grid-3">
+    <div class="card-title"><span class="num">3</span> MVP 範圍（已確認）</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px">
+
+      <!-- 必要功能 -->
+      <div class="mvp-box">
+        <div style="font-weight:700; color:#276749; margin-bottom:10px; font-size:0.9rem">✅ MVP 必要功能</div>
+        <div class="mvp-check"><span class="mvp-icon">✅</span> <strong>記錄訓練重量</strong><br/><span style="font-size:0.75rem;color:#4a5568">動作名稱 + 重量 + 組數 + 次數</span></div>
+        <div class="mvp-check"><span class="mvp-icon">✅</span> <strong>自動計算下次重量</strong><br/><span style="font-size:0.75rem;color:#4a5568">用 Brzycki 1RM 公式算建議重量</span></div>
+        <div class="mvp-check"><span class="mvp-icon">✅</span> <strong>查看歷史紀錄</strong><br/><span style="font-size:0.75rem;color:#4a5568">看過去的訓練列表</span></div>
+        <div class="mvp-check"><span class="mvp-icon">✅</span> <strong>記錄體重</strong><br/><span style="font-size:0.75rem;color:#4a5568">每日體重紀錄</span></div>
+      </div>
+
+      <!-- 計算邏輯 -->
+      <div style="background:#ebf8ff; border:2px solid #90cdf4; border-radius:12px; padding:16px 20px">
+        <div style="font-weight:700; color:#2b6cb0; margin-bottom:10px; font-size:0.9rem">🧮 下次重量計算邏輯</div>
+        <div style="font-size:0.8rem; line-height:1.9; color:#2d3748">
+          <b>Step 1</b>　算 1RM<br/>
+          <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">1RM = 重量 × (36÷(37−次數))</code><br/><br/>
+          <b>Step 2</b>　算目標重量<br/>
+          <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">肌肥大 = 1RM × 80%</code><br/><br/>
+          <b>Step 3</b>　漸進超負荷<br/>
+          <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">完成 → 下次 +2.5kg</code>
+        </div>
+      </div>
+
+      <!-- 暫緩 -->
+      <div style="background:#fff5f5; border:2px solid #fc8181; border-radius:12px; padding:16px 20px">
+        <div style="font-weight:700; color:#c53030; margin-bottom:10px; font-size:0.9rem">⏳ 暫緩（MVP 後再做）</div>
+        <div class="mvp-check"><span style="color:#fc8181">○</span> 帳號系統 / 登入</div>
+        <div class="mvp-check"><span style="color:#fc8181">○</span> 體重折線圖</div>
+        <div class="mvp-check"><span style="color:#fc8181">○</span> 訓練動作下拉選單</div>
+        <div class="mvp-check"><span style="color:#fc8181">○</span> 編輯已有紀錄</div>
+        <div class="mvp-check"><span style="color:#fc8181">○</span> 週期化自動排程</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑦ MVP 判定 -->
+  <div class="card grid-3">
+    <div class="card-title"><span class="num">7</span> MVP 判定</div>
+    <div style="display:grid; grid-template-columns:2fr 1fr; gap:12px; align-items:center">
+      <div class="mvp-box">
+        <div class="mvp-check"><span class="mvp-icon">✅</span> 功能極簡：記錄 + 自動建議，不多不少</div>
+        <div class="mvp-check"><span class="mvp-icon">✅</span> 個人使用，無需帳號與複雜權限</div>
+        <div class="mvp-check"><span class="mvp-icon">✅</span> 計算邏輯在後端 Java 完成，不依賴外部 AI API</div>
+        <div class="mvp-check"><span class="mvp-icon">✅</span> Spring Boot + Thymeleaf，單一專案，部署簡單</div>
+        <div class="mvp-check"><span class="mvp-icon">✅</span> 可快速跑起來，之後再疊加功能</div>
+      </div>
+      <div style="text-align:center; background:#f0fff4; border-radius:12px; padding:20px">
+        <div style="font-size:3rem">✅</div>
+        <div style="font-size:1.4rem; font-weight:900; color:#276749; margin-top:8px">是 MVP</div>
+        <div style="font-size:0.78rem; color:#4a5568; margin-top:6px">先跑起來<br/>再慢慢擴充</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end .grid -->
+
+<!-- ════ FOOTER ════ -->
+<div class="footer">
+  <div>💡 <strong>專案價值：</strong>透過每次訓練紀錄 + 1RM 公式，讓 App 自動建議下次重量，培養科學化訓練習慣</div>
+  <div>FitTracker · Spring Boot 3 · MySQL 8 · Thymeleaf</div>
+</div>
+
+</body>
+</html>
