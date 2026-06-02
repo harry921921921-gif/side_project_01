@@ -34,8 +34,13 @@ public class BodyWeightService {
         repository.save(bodyWeight);
     }
 
+    // 查單筆
+    public Optional<BodyWeight> findById(long id) {
+        return repository.findById(id);
+    }
+
     // 刪除
-    public void delete(Long id) {
+    public void delete(long id) {
         repository.deleteById(id);
     }
 }

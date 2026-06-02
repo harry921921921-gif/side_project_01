@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class WorkoutService {
@@ -16,6 +17,11 @@ public class WorkoutService {
 
     public WorkoutService(WorkoutSessionRepository repository) {
         this.repository = repository;
+    }
+
+    // 查單筆訓練紀錄
+    public Optional<WorkoutSession> findById(long id) {
+        return repository.findById(id);
     }
 
     // 查全部訓練紀錄
