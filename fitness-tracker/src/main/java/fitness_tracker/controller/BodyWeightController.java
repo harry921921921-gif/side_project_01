@@ -13,6 +13,7 @@ import java.time.LocalDate;
 @RequestMapping("/body-weight")  // 這個 Controller 底下所有路徑都以 /body-weight 開頭
 public class BodyWeightController {
 
+    private static final String REDIRECT = "redirect:/body-weight";
     private final BodyWeightService service;
 
     public BodyWeightController(BodyWeightService service) {
@@ -42,13 +43,32 @@ public class BodyWeightController {
         service.save(bodyWeight);
 
         // redirect：儲存後跳回列表頁（避免重新整理時重複送出表單）
-        return "redirect:/body-weight";
+        return REDIRECT;
+    }
+
+    // POST /body-weight/update/{id} → 修改指定紀錄
+    @PostMapping("/update/{id}")
+    public String update(
+            @PathVariable Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate recordedDate,
+            @RequestParam Double weightKg,
+            @RequestParam(required = false) String timeOfDay,
+            @RequestParam(required = false) String note) {
+
+        service.findById(id).ifPresent(bodyWeight -> {
+            bodyWeight.setRecordedDate(recordedDate);
+            bodyWeight.setWeightKg(weightKg);
+            bodyWeight.setTimeOfDay(timeOfDay);
+            bodyWeight.setNote(note);
+            service.save(bodyWeight);
+        });
+        return REDIRECT;
     }
 
     // POST /body-weight/delete/{id} → 刪除指定紀錄
     @PostMapping("/delete/{id}")
     public String delete(@PathVariable Long id) {
         service.delete(id);
-        return "redirect:/body-weight";
+        return REDIRECT;
     }
 }

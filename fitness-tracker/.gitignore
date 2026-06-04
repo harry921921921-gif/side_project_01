@@ -33,3 +33,4 @@ build/
 .vscode/
 # 環境變數（密碼）
 .env
+application-local.properties
