@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FitTracker · 資料庫架構介紹</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', '微軟正黑體', sans-serif; background: #f0f4f8; color: #1a202c; }
+
+    .header {
+      background: linear-gradient(135deg, #1a365d, #2a4a8a);
+      color: white; padding: 20px 36px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 4px solid #68d391;
+    }
+    .header h1 { font-size: 1.5rem; font-weight: 900; }
+    .header h1 span { color: #68d391; }
+    .header p { font-size: 0.8rem; color: #90cdf4; margin-top: 4px; }
+    .header-badges { display: flex; gap: 8px; }
+    .badge { border-radius: 14px; padding: 4px 12px; font-size: 0.7rem; font-weight: 800; }
+    .b-g { background:#68d391; color:#1c4532; }
+    .b-b { background:#90cdf4; color:#1a365d; }
+    .b-o { background:#f6ad55; color:#7b341e; }
+
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; }
+
+    .card { background: white; border-radius: 14px; padding: 20px 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+    .card-title {
+      font-size: 1rem; font-weight: 800; margin-bottom: 16px;
+      padding-bottom: 10px; border-bottom: 2px solid #edf2f7;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .num {
+      width: 26px; height: 26px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 900; color: white; flex-shrink: 0;
+    }
+
+    /* ── ERD ── */
+    .erd-grid {
+      display: grid;
+      grid-template-columns: 180px 80px 180px 80px 180px;
+      grid-template-rows: auto auto;
+      align-items: start;
+      gap: 0;
+    }
+    .db-table { border: 2px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+    .db-head  { color: white; padding: 8px 12px; font-weight: 800; font-size: 0.82rem; }
+    .db-h-bw      { background: #553c9a; }
+    .db-h-session { background: #c05621; }
+    .db-h-set     { background: #276749; }
+    .db-h-ex      { background: #2b6cb0; }
+    .db-field {
+      padding: 5px 12px; border-bottom: 1px solid #f0f4f8;
+      font-size: 0.75rem; display: flex; justify-content: space-between; align-items: center;
+    }
+    .db-field:last-child { border-bottom: none; }
+    .pk { color: #d69e2e; font-size: 0.62rem; font-weight: 800; }
+    .fk { color: #3182ce; font-size: 0.62rem; font-weight: 800; }
+    .nn { color: #e53e3e; font-size: 0.62rem; font-weight: 700; }
+    .hl { background: #fffbeb; }
+
+    .erd-arrow {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.68rem; color: #4a5568; text-align: center; flex-direction: column; gap: 3px;
+      padding-top: 30px;
+    }
+    .erd-arrow span { font-size: 1.4rem; color: #a0aec0; line-height: 1; }
+    .erd-arrow small { background: #edf2f7; border-radius: 4px; padding: 2px 6px; font-weight: 700; }
+
+    /* 第二行 (exercise 獨立往下) */
+    .erd-row2 {
+      display: flex; align-items: flex-start; gap: 0;
+      margin-top: 16px;
+    }
+    .erd-down-arrow {
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      font-size: 0.68rem; color: #4a5568; text-align: center; gap: 3px;
+      padding-top: 10px; width: 80px;
+    }
+
+    /* ── 動作表格 ── */
+    .exercise-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .exercise-group { border-radius: 10px; overflow: hidden; border: 2px solid #e2e8f0; }
+    .exercise-group-head {
+      padding: 8px 14px; font-weight: 800; font-size: 0.82rem;
+      color: white; display: flex; justify-content: space-between; align-items: center;
+    }
+    .eg-chest   { background: #c05621; }
+    .eg-back    { background: #276749; }
+    .eg-legs    { background: #553c9a; }
+    .eg-shoulder{ background: #2b6cb0; }
+    .eg-arms    { background: #2c7a7b; }
+    .eg-core    { background: #744210; }
+    .exercise-row {
+      padding: 5px 14px; font-size: 0.76rem;
+      border-bottom: 1px solid #f0f4f8;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .exercise-row:last-child { border-bottom: none; }
+    .exercise-row:nth-child(even) { background: #fafafa; }
+    .tag-compound  { background: #bee3f8; color: #2c5282; border-radius: 3px; padding: 1px 6px; font-size: 0.62rem; font-weight: 800; }
+    .tag-isolation { background: #c6f6d5; color: #276749; border-radius: 3px; padding: 1px 6px; font-size: 0.62rem; font-weight: 800; }
+    .count-badge { background: rgba(255,255,255,0.25); border-radius: 10px; padding: 1px 8px; font-size: 0.68rem; }
+
+    /* ── API 表格 ── */
+    .api-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .api-table th { background: #2d3748; color: white; padding: 8px 12px; text-align: left; font-weight: 700; }
+    .api-table td { padding: 7px 12px; border-bottom: 1px solid #edf2f7; }
+    .api-table tr:hover td { background: #f7fafc; }
+    .m { border-radius: 3px; padding: 2px 7px; font-size: 0.68rem; font-weight: 800; font-family: monospace; }
+    .m-get    { background: #c6f6d5; color: #276749; }
+    .m-post   { background: #bee3f8; color: #2c5282; }
+    code { background: #edf2f7; border-radius: 3px; padding: 1px 6px; font-family: monospace; font-size: 0.75rem; }
+
+    /* ── 欄位說明 ── */
+    .field-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .field-item { border-radius: 8px; padding: 10px 14px; }
+    .fi-name     { background: #fffbeb; border-left: 3px solid #d69e2e; }
+    .fi-bodypart { background: #ebf8ff; border-left: 3px solid #3182ce; }
+    .fi-category { background: #f0fff4; border-left: 3px solid #38a169; }
+    .fi-preset   { background: #faf5ff; border-left: 3px solid #805ad5; }
+    .field-item h4 { font-size: 0.78rem; font-weight: 800; margin-bottom: 4px; }
+    .field-item p  { font-size: 0.72rem; line-height: 1.5; color: #4a5568; }
+
+    /* ── 設計說明 ── */
+    .design-list { display: flex; flex-direction: column; gap: 10px; }
+    .design-item { border-radius: 8px; padding: 12px 16px; border-left: 4px solid; }
+    .di-1 { background: #ebf8ff; border-color: #3182ce; }
+    .di-2 { background: #f0fff4; border-color: #38a169; }
+    .di-3 { background: #faf5ff; border-color: #805ad5; }
+    .design-item h4 { font-size: 0.82rem; font-weight: 800; margin-bottom: 4px; }
+    .design-item p  { font-size: 0.76rem; line-height: 1.6; }
+
+    /* ── Flow ── */
+    .flow-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .flow-step {
+      background: #ebf8ff; border: 2px solid #bee3f8; border-radius: 8px;
+      padding: 8px 14px; font-size: 0.78rem; font-weight: 600; color: #2b6cb0;
+    }
+    .flow-arr { font-size: 1.3rem; color: #a0aec0; }
+
+    .footer {
+      background: #2d3748; color: #a0aec0;
+      padding: 14px 36px; display: flex; justify-content: space-between;
+      font-size: 0.75rem; align-items: center;
+    }
+    .footer strong { color: #68d391; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  </style>
+</head>
+<body>
+
+<!-- ════ HEADER ════ -->
+<div class="header">
+  <div>
+    <h1>💪 FitTracker · <span>資料庫架構介紹</span></h1>
+    <p>4 張資料表 · 預設 50+ 動作 · 支援文字搜尋與下拉選單</p>
+  </div>
+  <div class="header-badges">
+    <span class="badge b-o">exercise 表 ← 新增</span>
+    <span class="badge b-b">MySQL 8 · JPA</span>
+    <span class="badge b-g">Spring Boot 3</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ① ERD 關聯圖 -->
+  <div class="card">
+    <div class="card-title">
+      <div class="num" style="background:#2b6cb0">1</div>
+      資料表關聯圖（ERD）— 現有 3 張表 ＋ 新增 exercise 表
+    </div>
+
+    <!-- 主要三張表橫排 -->
+    <div class="erd-grid">
+
+      <!-- body_weight -->
+      <div class="db-table">
+        <div class="db-head db-h-bw">⚖️ body_weight</div>
+        <div class="db-field"><span>id</span>            <span class="pk">PK</span></div>
+        <div class="db-field"><span>weight_kg</span>     <span class="nn">NOT NULL</span></div>
+        <div class="db-field"><span>recorded_date</span> <span class="nn">NOT NULL</span></div>
+        <div class="db-field"><span>time_of_day</span>   <span style="font-size:0.65rem;color:#718096">MORNING/EVENING</span></div>
+        <div class="db-field"><span>note</span>          <span style="font-size:0.65rem;color:#718096">TEXT</span></div>
+        <div class="db-field"><span>created_at</span>    <span style="font-size:0.65rem;color:#718096">DATETIME</span></div>
+      </div>
+
+      <!-- 空白間隔 -->
+      <div></div>
+
+      <!-- workout_session -->
+      <div class="db-table">
+        <div class="db-head db-h-session">📅 workout_session</div>
+        <div class="db-field"><span>id</span>           <span class="pk">PK</span></div>
+        <div class="db-field"><span>workout_date</span> <span class="nn">NOT NULL</span></div>
+        <div class="db-field"><span>body_part</span>    <span style="font-size:0.65rem;color:#718096">VARCHAR</span></div>
+        <div class="db-field"><span>note</span>         <span style="font-size:0.65rem;color:#718096">TEXT</span></div>
+        <div class="db-field"><span>created_at</span>   <span style="font-size:0.65rem;color:#718096">DATETIME</span></div>
+      </div>
+
+      <!-- 1:N 箭頭 -->
+      <div class="erd-arrow">
+        <span>→</span>
+        <small>1 : N</small>
+      </div>
+
+      <!-- workout_set -->
+      <div class="db-table">
+        <div class="db-head db-h-set">💪 workout_set</div>
+        <div class="db-field"><span>id</span>            <span class="pk">PK</span></div>
+        <div class="db-field hl"><span>session_id</span>   <span class="fk">FK → session</span></div>
+        <div class="db-field"><span>exercise_name</span> <span class="nn">NOT NULL</span></div>
+        <div class="db-field"><span>weight_kg</span>     <span style="font-size:0.65rem;color:#718096">DOUBLE</span></div>
+        <div class="db-field"><span>sets</span>          <span style="font-size:0.65rem;color:#718096">INT</span></div>
+        <div class="db-field"><span>reps</span>          <span style="font-size:0.65rem;color:#718096">INT</span></div>
+      </div>
+    </div>
+
+    <!-- exercise 表往下展示 -->
+    <div class="erd-row2">
+      <div style="width:180px"></div>
+      <div style="width:80px"></div>
+      <div style="width:180px; display:flex; flex-direction:column; align-items:center; gap:6px; padding-top:10px;">
+        <div style="font-size:1.2rem; color:#a0aec0">↓</div>
+        <div style="font-size:0.65rem; color:#4a5568; text-align:center; background:#edf2f7; border-radius:4px; padding:2px 8px; font-weight:700">
+          Phase 2<br/>遷移：exercise_name<br/>→ exercise_id FK
+        </div>
+        <div style="font-size:1.2rem; color:#a0aec0">↓</div>
+      </div>
+      <div class="erd-down-arrow" style="width:80px">
+        <span style="font-size:1rem; color:#a0aec0">←</span>
+        <small style="background:#edf2f7; border-radius:4px; padding:2px 6px; font-weight:700; font-size:0.65rem">1 : N</small>
+      </div>
+      <div class="db-table" style="min-width:180px">
+        <div class="db-head" style="background:#2b6cb0">🏃 exercise ⭐新增</div>
+        <div class="db-field"><span>id</span>        <span class="pk">PK</span></div>
+        <div class="db-field hl"><span>name</span>      <span class="nn">UNIQUE NOT NULL</span></div>
+        <div class="db-field hl"><span>body_part</span> <span class="nn">NOT NULL</span></div>
+        <div class="db-field hl"><span>category</span>  <span class="nn">NOT NULL</span></div>
+        <div class="db-field hl"><span>preset</span>    <span style="font-size:0.65rem;color:#718096">BOOLEAN</span></div>
+      </div>
+    </div>
+
+    <!-- 說明文字 -->
+    <div style="margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div style="background:#fffbeb; border:1px solid #f6e05e; border-radius:8px; padding:10px 14px; font-size:0.76rem; line-height:1.6;">
+        <strong>⭐ 目前狀態（Phase 1）：</strong><br/>
+        <code>workout_set.exercise_name</code> 仍是自由文字 VARCHAR。<br/>
+        exercise 表獨立存在，供前端下拉選單 / 搜尋使用。<br/>
+        使用者選好動作後，名稱寫入 workout_set。
+      </div>
+      <div style="background:#f0fff4; border:1px solid #68d391; border-radius:8px; padding:10px 14px; font-size:0.76rem; line-height:1.6;">
+        <strong>✅ Phase 2 遷移計劃：</strong><br/>
+        加入 <code>workout_set.exercise_id FK</code>，<br/>
+        把字串關聯升級為正式外鍵，<br/>
+        之後可以精確統計每個動作的進步曲線。
+      </div>
+    </div>
+  </div>
+
+  <!-- ② exercise 欄位說明 -->
+  <div class="card">
+    <div class="card-title">
+      <div class="num" style="background:#2b6cb0">2</div>
+      exercise 表 · 欄位說明
+    </div>
+    <div class="field-grid">
+      <div class="field-item fi-name">
+        <h4>🏷️ name（動作名稱）</h4>
+        <p>設為 <code>UNIQUE</code>，確保同一動作不會重複寫入。<br/>
+        前端文字搜尋 <code>LIKE %keyword%</code> 用這個欄位查。</p>
+      </div>
+      <div class="field-item fi-bodypart">
+        <h4>🎯 body_part（訓練部位）</h4>
+        <p>6 個部位：<strong>胸、背、腿、肩、手臂、核心</strong><br/>
+        前端可以用部位做 Tab 篩選，縮小下拉選單範圍。</p>
+      </div>
+      <div class="field-item fi-category">
+        <h4>💡 category（動作分類）</h4>
+        <p><strong>COMPOUND</strong>（複合）：多關節，例如深蹲、臥推<br/>
+        <strong>ISOLATION</strong>（孤立）：單關節，例如二頭彎舉<br/>
+        未來可用來篩選適合當天的訓練類型。</p>
+      </div>
+      <div class="field-item fi-preset">
+        <h4>🔒 preset（是否為預設）</h4>
+        <p><code>true</code>：系統預設的 50 個動作（啟動時自動寫入）<br/>
+        <code>false</code>：用戶自己新增的客製化動作<br/>
+        未來可讓預設動作不可刪除、客製動作可刪除。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 預設動作清單 -->
+  <div class="card">
+    <div class="card-title">
+      <div class="num" style="background:#38a169">3</div>
+      預設動作清單（50 筆 · 應用程式啟動時自動寫入）
+    </div>
+    <div class="exercise-grid">
+
+      <!-- 胸部 -->
+      <div class="exercise-group">
+        <div class="exercise-group-head eg-chest">
+          🫁 胸部 <span class="count-badge">9 個</span>
+        </div>
+        <div class="exercise-row">臥推           <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">上斜臥推        <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">下斜臥推        <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">啞鈴臥推        <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">啞鈴上斜臥推    <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">胸推機          <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">啞鈴飛鳥        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">繩索夾胸        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">蝴蝶機夾胸      <span class="tag-isolation">孤立</span></div>
+      </div>
+
+      <!-- 背部 -->
+      <div class="exercise-group">
+        <div class="exercise-group-head eg-back">
+          🏋️ 背部 <span class="count-badge">9 個</span>
+        </div>
+        <div class="exercise-row">硬舉            <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">引體向上        <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">滑輪下拉        <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">正手滑輪下拉    <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">槓鈴划船        <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">坐姿滑輪划船    <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">啞鈴單臂划船    <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">T槓划船         <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">直臂下壓        <span class="tag-isolation">孤立</span></div>
+      </div>
+
+      <!-- 腿部 -->
+      <div class="exercise-group">
+        <div class="exercise-group-head eg-legs">
+          🦵 腿部 <span class="count-badge">10 個</span>
+        </div>
+        <div class="exercise-row">深蹲            <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">前蹲            <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">羅馬尼亞硬舉    <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">腿推機          <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">保加利亞分腿蹲  <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">弓步蹲          <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">腿彎舉          <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">腿伸展          <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">小腿提升        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">坐姿小腿提升    <span class="tag-isolation">孤立</span></div>
+      </div>
+
+      <!-- 肩部 -->
+      <div class="exercise-group">
+        <div class="exercise-group-head eg-shoulder">
+          💪 肩部 <span class="count-badge">8 個</span>
+        </div>
+        <div class="exercise-row">槓鈴肩推        <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">啞鈴肩推        <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">阿諾德推舉      <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">啞鈴側舉        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">繩索側舉        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">啞鈴前舉        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">反向飛鳥        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">面拉            <span class="tag-isolation">孤立</span></div>
+      </div>
+
+      <!-- 手臂 -->
+      <div class="exercise-group">
+        <div class="exercise-group-head eg-arms">
+          💪 手臂 <span class="count-badge">10 個</span>
+        </div>
+        <div class="exercise-row">槓鈴彎舉        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">啞鈴彎舉        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">鎚式彎舉        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">斜托彎舉        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">繩索彎舉        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">窄距臥推        <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">三頭下壓        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">繩索三頭下壓    <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">過頭三頭伸展    <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">雙槓撐體        <span class="tag-compound">複合</span></div>
+      </div>
+
+      <!-- 核心 -->
+      <div class="exercise-group">
+        <div class="exercise-group-head eg-core">
+          🔥 核心 <span class="count-badge">7 個</span>
+        </div>
+        <div class="exercise-row">棒式            <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">捲腹            <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">仰臥起坐        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">懸垂舉腿        <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">俄羅斯轉體      <span class="tag-isolation">孤立</span></div>
+        <div class="exercise-row">滾輪            <span class="tag-compound">複合</span></div>
+        <div class="exercise-row">側棒式          <span class="tag-isolation">孤立</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ④ API 設計 + 前端使用流程 -->
+  <div class="two-col">
+
+    <div class="card">
+      <div class="card-title">
+        <div class="num" style="background:#319795">4</div>
+        exercise API 設計（3 支）
+      </div>
+      <table class="api-table">
+        <thead>
+          <tr><th>Method</th><th>Endpoint</th><th>說明</th><th>範例</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="m m-get">GET</span></td>
+            <td><code>/api/exercises</code></td>
+            <td>查全部動作（下拉選單用）</td>
+            <td>→ 53 筆</td>
+          </tr>
+          <tr>
+            <td><span class="m m-get">GET</span></td>
+            <td><code>/api/exercises?bodyPart=胸</code></td>
+            <td>依部位篩選</td>
+            <td>→ 9 筆</td>
+          </tr>
+          <tr>
+            <td><span class="m m-get">GET</span></td>
+            <td><code>/api/exercises?q=臥推</code></td>
+            <td>文字模糊搜尋</td>
+            <td>→ 臥推 / 啞鈴臥推...</td>
+          </tr>
+          <tr>
+            <td><span class="m m-post">POST</span></td>
+            <td><code>/api/exercises</code></td>
+            <td>新增用戶自訂動作</td>
+            <td>preset=false</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px; background:#fffbeb; border-radius:8px; padding:10px 14px; font-size:0.76rem; line-height:1.6;">
+        <strong>POST body 範例：</strong><br/>
+        <code>{ "name": "懸吊飛鳥", "bodyPart": "胸", "category": "ISOLATION" }</code><br/>
+        409 Conflict = 動作名稱已存在（不會重複新增）
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <div class="num" style="background:#d69e2e">5</div>
+        前端使用流程
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-weight:700; font-size:0.82rem; margin-bottom:8px;">📋 下拉選單模式</div>
+        <div class="flow-row">
+          <div class="flow-step">選部位 Tab<br/><small>胸/背/腿...</small></div>
+          <div class="flow-arr">→</div>
+          <div class="flow-step">GET /api/exercises<br/>?bodyPart=胸</div>
+          <div class="flow-arr">→</div>
+          <div class="flow-step">渲染下拉<br/>&lt;select&gt;</div>
+          <div class="flow-arr">→</div>
+          <div class="flow-step" style="background:#f0fff4; border-color:#68d391; color:#276749">寫入<br/>exercise_name</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-weight:700; font-size:0.82rem; margin-bottom:8px;">🔍 文字搜尋模式（自動完成）</div>
+        <div class="flow-row">
+          <div class="flow-step">用戶打字<br/>"臥..."</div>
+          <div class="flow-arr">→</div>
+          <div class="flow-step">GET /api/exercises<br/>?q=臥</div>
+          <div class="flow-arr">→</div>
+          <div class="flow-step">即時顯示<br/>候選清單</div>
+          <div class="flow-arr">→</div>
+          <div class="flow-step" style="background:#f0fff4; border-color:#68d391; color:#276749">點選確認<br/>動作名稱</div>
+        </div>
+      </div>
+      <div style="margin-top:12px; background:#faf5ff; border-radius:8px; padding:10px 14px; font-size:0.76rem; line-height:1.6;">
+        <strong>⭐ 兩種模式並存的好處：</strong><br/>
+        熟悉的用戶直接打字快速找到；<br/>
+        新手可以看部位 Tab 探索還不知道名字的動作。
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ⑥ 設計決策說明 -->
+  <div class="card">
+    <div class="card-title">
+      <div class="num" style="background:#805ad5">6</div>
+      設計決策說明 · 為什麼這樣做
+    </div>
+    <div class="design-list">
+      <div class="design-item di-1">
+        <h4>① 為什麼 exercise 是獨立表，而不是 Enum 或 hardcode list？</h4>
+        <p>
+          用資料表的好處：之後可以讓用戶自己新增客製化動作（<code>preset=false</code>），不需要改程式碼。<br/>
+          Enum 的話每次加新動作都要重新部署，資料表只要 INSERT 一筆就好。<br/>
+          而且資料在 DB 裡，前端 API 查詢時可以做分頁、篩選、模糊搜尋，Enum 做不到。
+        </p>
+      </div>
+      <div class="design-item di-2">
+        <h4>② 為什麼 exercise 表現在還沒有 FK 連到 workout_set？</h4>
+        <p>
+          Phase 1 的目標是「快速讓功能跑起來」。如果現在就加 FK，要同時改 <code>WorkoutSet</code> entity、
+          <code>WorkoutService</code> 的存取邏輯、所有 DTO、前端表單……工程量很大。<br/>
+          現在的做法：exercise 表提供正確的動作名稱給前端選，選到的名稱寫進 <code>exercise_name</code> 字串欄位。
+          Phase 2 再做 DB migration 把字串升級為 FK，核心邏輯不用大改。
+        </p>
+      </div>
+      <div class="design-item di-3">
+        <h4>③ 為什麼 preset=true 的動作不讓用戶刪除？</h4>
+        <p>
+          系統預設動作是所有用戶共用的「字典」。如果讓用戶刪掉「深蹲」，
+          其他已有「深蹲」紀錄的 workout_set 資料就會對不上（未來加 FK 後更嚴重）。<br/>
+          <code>preset=false</code> 的自訂動作只有自己的資料在用，刪除比較安全。
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════ FOOTER ════ -->
+<div class="footer">
+  <div>💡 <strong>Phase 1 完成後：</strong>exercise 表獨立可查詢 → Phase 2 加 FK → Phase 3 做動作進步曲線圖</div>
+  <div>FitTracker · Java 17 · Spring Boot 3 · MySQL 8 · JPA/Hibernate</div>
+</div>
+
+</body>
+</html>

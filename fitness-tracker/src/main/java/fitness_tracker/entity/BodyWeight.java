@@ -28,7 +28,7 @@ public class BodyWeight {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
     }
-
+//實務上會用 Lombok 來自動產生 Getter/Setter，這裡為了清楚展示所以手動寫出來
     // ── Getters ──────────────────────────────────────────
     public Long getId()                  { return id; }
     public Double getWeightKg()          { return weightKg; }
