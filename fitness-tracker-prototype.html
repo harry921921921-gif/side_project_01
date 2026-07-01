@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FitTracker - 健身紀錄系統 Prototype</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0d6efd;
+      --dark-bg: #1a1d23;
+      --card-bg: #ffffff;
+    }
+
+    body { background: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
+
+    /* ── Nav ── */
+    .top-nav {
+      background: var(--dark-bg);
+      padding: 0;
+    }
+    .top-nav .navbar-brand { color: #fff; font-weight: 700; font-size: 1.2rem; padding: 14px 20px; }
+    .top-nav .nav-link { color: rgba(255,255,255,.75); padding: 14px 18px; transition: .2s; }
+    .top-nav .nav-link:hover, .top-nav .nav-link.active { color: #fff; background: rgba(255,255,255,.08); }
+
+    /* ── Page sections ── */
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+
+    /* ── Architecture diagram ── */
+    .arch-box {
+      border: 2px solid;
+      border-radius: 12px;
+      padding: 18px 22px;
+      text-align: center;
+      position: relative;
+    }
+    .arch-browser  { border-color: #6c757d; background: #f8f9fa; }
+    .arch-spring   { border-color: #4caf50; background: #f1faf2; }
+    .arch-mysql    { border-color: #2196f3; background: #e8f4fd; }
+    .arch-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #6c757d;
+      font-size: .8rem;
+    }
+    .arch-arrow .line {
+      width: 2px;
+      height: 30px;
+      background: #adb5bd;
+      margin: 2px 0;
+    }
+
+    .layer-badge {
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+      display: inline-block;
+    }
+
+    /* ── DB table ── */
+    .db-table-card {
+      border: 2px solid #dee2e6;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .db-table-header {
+      background: #343a40;
+      color: #fff;
+      padding: 8px 14px;
+      font-weight: 600;
+      font-size: .9rem;
+    }
+    .db-table-header span { font-size: .75rem; font-weight: 400; opacity: .7; margin-left: 6px; }
+    .db-col-row { display: flex; align-items: center; padding: 6px 14px; border-bottom: 1px solid #f0f0f0; font-size: .85rem; }
+    .db-col-row:last-child { border-bottom: none; }
+    .db-col-name { font-family: monospace; font-weight: 600; min-width: 130px; }
+    .db-col-type { color: #0d6efd; min-width: 120px; font-family: monospace; font-size: .8rem; }
+    .db-col-note { color: #6c757d; font-size: .8rem; }
+    .db-pk { color: #fd7e14; font-size: .7rem; font-weight: 700; margin-right: 4px; }
+    .db-fk { color: #6f42c1; font-size: .7rem; font-weight: 700; margin-right: 4px; }
+    .db-nn { color: #dc3545; font-size: .65rem; background: #fdecea; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+    .relation-arrow {
+      text-align: center;
+      font-size: 1.4rem;
+      color: #adb5bd;
+      padding: 4px 0;
+    }
+
+    /* ── API table ── */
+    .method-badge {
+      font-size: .7rem; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+      min-width: 48px; text-align: center; display: inline-block;
+    }
+    .method-get    { background: #d1e7dd; color: #0a3622; }
+    .method-post   { background: #cfe2ff; color: #052c65; }
+    .method-delete { background: #f8d7da; color: #58151c; }
+
+    /* ── Status badge ── */
+    .status-done   { background: #d1e7dd; color: #0a3622; }
+    .status-wip    { background: #fff3cd; color: #664d03; }
+    .status-plan   { background: #e2e3e5; color: #41464b; }
+
+    /* ── Tech stack icons ── */
+    .tech-card {
+      border: 1px solid #dee2e6;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      background: #fff;
+      height: 100%;
+    }
+    .tech-icon { font-size: 2rem; margin-bottom: 8px; }
+    .tech-name { font-weight: 600; font-size: .9rem; }
+    .tech-desc { font-size: .78rem; color: #6c757d; margin-top: 4px; }
+
+    /* ── Demo screens ── */
+    .demo-screen {
+      border: 1px solid #dee2e6;
+      border-radius: 10px;
+      background: #f8f9fa;
+      overflow: hidden;
+    }
+    .demo-titlebar {
+      background: #e9ecef;
+      padding: 6px 14px;
+      font-size: .78rem;
+      color: #6c757d;
+      border-bottom: 1px solid #dee2e6;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .dot-r { background: #ff5f57; }
+    .dot-y { background: #febc2e; }
+    .dot-g { background: #28c840; }
+    .demo-url { background: #fff; border-radius: 4px; padding: 2px 10px; margin-left: 8px; font-family: monospace; font-size: .78rem; color: #343a40; }
+
+    /* ── Section header ── */
+    .section-header {
+      border-left: 4px solid var(--primary);
+      padding-left: 12px;
+      margin-bottom: 24px;
+    }
+    .section-header h4 { margin: 0; font-weight: 700; }
+    .section-header p  { margin: 2px 0 0; color: #6c757d; font-size: .88rem; }
+
+    /* ── Thymeleaf highlight ── */
+    .th-highlight { background: #fff8e1; border-left: 3px solid #ffc107; padding: 2px 8px; border-radius: 0 4px 4px 0; font-family: monospace; font-size: .82rem; }
+
+    .footer-note {
+      background: #1a1d23;
+      color: rgba(255,255,255,.6);
+      text-align: center;
+      padding: 18px;
+      margin-top: 48px;
+      font-size: .82rem;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navigation ── -->
+<nav class="top-nav navbar navbar-expand-lg">
+  <div class="container-fluid">
+    <span class="navbar-brand">💪 FitTracker</span>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+      <span class="navbar-toggler-icon" style="filter:invert(1)"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navMenu">
+      <ul class="navbar-nav">
+        <li class="nav-item"><a class="nav-link active" href="#" onclick="showPage('overview')">專案總覽</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="showPage('architecture')">系統架構</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="showPage('database')">資料庫設計</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="showPage('api')">API 路由</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="showPage('demo')">畫面 Demo</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="showPage('features')">功能進度</a></li>
+      </ul>
+      <div class="ms-auto">
+        <span class="badge bg-success me-2">Spring Boot 3</span>
+        <span class="badge bg-primary">MySQL 8</span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container-lg py-4">
+
+  <!-- ══════════════════════════════════════════════
+       PAGE 1 ｜ 專案總覽
+  ══════════════════════════════════════════════ -->
+  <div id="page-overview" class="page-section active">
+
+    <!-- Hero -->
+    <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg,#1a1d23 0%,#2d3748 100%); color:#fff; border-radius:16px;">
+      <div class="card-body p-4 p-md-5">
+        <div class="row align-items-center">
+          <div class="col-md-7">
+            <span class="badge bg-success mb-3">Prototype &nbsp;·&nbsp; 學生作品</span>
+            <h1 class="fw-bold mb-3">FitTracker<br><span style="color:#60d394">健身訓練紀錄系統</span></h1>
+            <p class="opacity-75 mb-4">個人化健身紀錄管理平台，整合體重追蹤、訓練動作記錄與 Dashboard 數據統計，採 Spring Boot + Thymeleaf + MySQL 全端架構。</p>
+            <div class="d-flex flex-wrap gap-2">
+              <span class="badge bg-light text-dark">Java 17</span>
+              <span class="badge bg-light text-dark">Spring Boot 3</span>
+              <span class="badge bg-light text-dark">Thymeleaf</span>
+              <span class="badge bg-light text-dark">Bootstrap 5</span>
+              <span class="badge bg-light text-dark">MySQL 8</span>
+              <span class="badge bg-light text-dark">Spring Data JPA</span>
+            </div>
+          </div>
+          <div class="col-md-5 text-center mt-4 mt-md-0">
+            <div style="font-size: 5rem; line-height:1.2;">💪<br>📊<br>🏋️</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+          <div style="font-size:2rem; font-weight:700; color:#0d6efd">3</div>
+          <div class="text-muted small">主要頁面</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+          <div style="font-size:2rem; font-weight:700; color:#198754">4</div>
+          <div class="text-muted small">資料庫資料表</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+          <div style="font-size:2rem; font-weight:700; color:#dc3545">10+</div>
+          <div class="text-muted small">REST / MVC 路由</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+          <div style="font-size:2rem; font-weight:700; color:#fd7e14">MVC</div>
+          <div class="text-muted small">設計模式</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tech Stack -->
+    <div class="section-header mb-3">
+      <h4>技術選型</h4>
+      <p>各層技術與選擇原因</p>
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-2">
+        <div class="tech-card">
+          <div class="tech-icon">☕</div>
+          <div class="tech-name">Java 17</div>
+          <div class="tech-desc">後端主語言</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="tech-card">
+          <div class="tech-icon">🌿</div>
+          <div class="tech-name">Spring Boot 3</div>
+          <div class="tech-desc">MVC 框架</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="tech-card">
+          <div class="tech-icon">🍃</div>
+          <div class="tech-name">Thymeleaf</div>
+          <div class="tech-desc">Server-side 模板</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="tech-card">
+          <div class="tech-icon">🗄️</div>
+          <div class="tech-name">MySQL 8</div>
+          <div class="tech-desc">關聯式資料庫</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="tech-card">
+          <div class="tech-icon">🔗</div>
+          <div class="tech-name">Spring JPA</div>
+          <div class="tech-desc">ORM / Repository</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="tech-card">
+          <div class="tech-icon">🎨</div>
+          <div class="tech-name">Bootstrap 5</div>
+          <div class="tech-desc">前端 UI 框架</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notice -->
+    <div class="alert alert-warning d-flex gap-3 align-items-start">
+      <div style="font-size:1.4rem">⚠️</div>
+      <div>
+        <strong>部署說明</strong><br>
+        本專案為全端 Java 應用程式，<strong>無法部署至 GitHub Pages</strong>（僅支援靜態網頁）。<br>
+        正式部署需使用 <strong>Render / Railway</strong> 等雲端平台執行 Spring Boot，並搭配 MySQL 雲端資料庫。<br>
+        此頁為純 HTML Prototype，供課堂展示用。
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       PAGE 2 ｜ 系統架構
+  ══════════════════════════════════════════════ -->
+  <div id="page-architecture" class="page-section">
+
+    <div class="section-header">
+      <h4>系統架構圖</h4>
+      <p>Spring Boot MVC 三層架構 + MySQL 資料庫</p>
+    </div>
+
+    <!-- Flow Diagram -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="row justify-content-center align-items-center g-0" style="max-width:680px; margin:auto;">
+
+          <!-- Browser -->
+          <div class="col-12">
+            <div class="arch-box arch-browser">
+              <span class="layer-badge" style="background:#6c757d;color:#fff">Client</span>
+              <div class="fw-bold">🌐 瀏覽器</div>
+              <div class="text-muted small mt-1">使用者操作 HTML 表單、點擊連結</div>
+            </div>
+          </div>
+
+          <div class="col-12 arch-arrow py-1">
+            <div class="line mx-auto"></div>
+            <div>HTTP Request / Response</div>
+            <div class="line mx-auto"></div>
+          </div>
+
+          <!-- Spring Boot -->
+          <div class="col-12">
+            <div class="arch-box arch-spring">
+              <span class="layer-badge" style="background:#4caf50;color:#fff">Spring Boot 3</span>
+              <div class="fw-bold mb-2">⚙️ 後端伺服器（Port 8080）</div>
+              <div class="row g-2 text-start">
+                <div class="col-4">
+                  <div class="bg-white rounded p-2 border text-center">
+                    <div class="fw-semibold small">Controller</div>
+                    <div class="text-muted" style="font-size:.75rem">接收 HTTP 請求<br>路由分派</div>
+                  </div>
+                </div>
+                <div class="col-4">
+                  <div class="bg-white rounded p-2 border text-center">
+                    <div class="fw-semibold small">Service</div>
+                    <div class="text-muted" style="font-size:.75rem">業務邏輯<br>資料處理</div>
+                  </div>
+                </div>
+                <div class="col-4">
+                  <div class="bg-white rounded p-2 border text-center">
+                    <div class="fw-semibold small">Repository</div>
+                    <div class="text-muted" style="font-size:.75rem">資料庫操作<br>Spring JPA</div>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-2 text-muted small">Thymeleaf 模板引擎 → 渲染 HTML 回傳</div>
+            </div>
+          </div>
+
+          <div class="col-12 arch-arrow py-1">
+            <div class="line mx-auto"></div>
+            <div>JDBC（Spring Data JPA）</div>
+            <div class="line mx-auto"></div>
+          </div>
+
+          <!-- MySQL -->
+          <div class="col-12">
+            <div class="arch-box arch-mysql">
+              <span class="layer-badge" style="background:#2196f3;color:#fff">Database</span>
+              <div class="fw-bold">🗄️ MySQL 8 — fitness_tracker</div>
+              <div class="text-muted small mt-1">workout_session · workout_set · body_weight · exercise</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Package Structure -->
+    <div class="section-header">
+      <h4>套件結構</h4>
+      <p>fitness_tracker 下的 Java 套件分層</p>
+    </div>
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <h6 class="text-muted mb-2">後端套件</h6>
+            <div style="font-family:monospace; font-size:.84rem; line-height:1.9; background:#f8f9fa; border-radius:8px; padding:16px;">
+              <span style="color:#6c757d">fitness_tracker/</span><br>
+              &nbsp;├─ <span style="color:#0d6efd">controller/</span>　← HTTP 路由處理<br>
+              &nbsp;│&nbsp;&nbsp;├─ HomeController<br>
+              &nbsp;│&nbsp;&nbsp;├─ WorkoutController<br>
+              &nbsp;│&nbsp;&nbsp;├─ WorkoutApiController<br>
+              &nbsp;│&nbsp;&nbsp;├─ BodyWeightController<br>
+              &nbsp;│&nbsp;&nbsp;├─ BodyWeightApiController<br>
+              &nbsp;│&nbsp;&nbsp;└─ ExerciseApiController<br>
+              &nbsp;├─ <span style="color:#198754">service/</span>　← 業務邏輯<br>
+              &nbsp;│&nbsp;&nbsp;├─ WorkoutService<br>
+              &nbsp;│&nbsp;&nbsp;├─ BodyWeightService<br>
+              &nbsp;│&nbsp;&nbsp;└─ ExerciseService<br>
+              &nbsp;├─ <span style="color:#dc3545">repository/</span>　← JPA 資料存取<br>
+              &nbsp;│&nbsp;&nbsp;├─ WorkoutSessionRepository<br>
+              &nbsp;│&nbsp;&nbsp;├─ WorkoutSetRepository<br>
+              &nbsp;│&nbsp;&nbsp;├─ BodyWeightRepository<br>
+              &nbsp;│&nbsp;&nbsp;└─ ExerciseRepository<br>
+              &nbsp;├─ <span style="color:#fd7e14">entity/</span>　← JPA 實體（對應資料表）<br>
+              &nbsp;│&nbsp;&nbsp;├─ WorkoutSession<br>
+              &nbsp;│&nbsp;&nbsp;├─ WorkoutSet<br>
+              &nbsp;│&nbsp;&nbsp;├─ BodyWeight<br>
+              &nbsp;│&nbsp;&nbsp;└─ Exercise<br>
+              &nbsp;└─ <span style="color:#6f42c1">dto/</span>　← 資料傳輸物件<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;├─ WorkoutRequest<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;└─ BodyWeightRequest
+            </div>
+          </div>
+          <div class="col-md-6">
+            <h6 class="text-muted mb-2">前端模板（Thymeleaf）</h6>
+            <div style="font-family:monospace; font-size:.84rem; line-height:1.9; background:#f8f9fa; border-radius:8px; padding:16px;">
+              <span style="color:#6c757d">src/main/resources/</span><br>
+              &nbsp;├─ <span style="color:#0d6efd">templates/</span><br>
+              &nbsp;│&nbsp;&nbsp;├─ <span style="color:#198754">fragments/</span><br>
+              &nbsp;│&nbsp;&nbsp;│&nbsp;&nbsp;└─ navbar.html　← 共用導覽列<br>
+              &nbsp;│&nbsp;&nbsp;├─ index.html　← Dashboard<br>
+              &nbsp;│&nbsp;&nbsp;├─ <span style="color:#198754">workout/</span><br>
+              &nbsp;│&nbsp;&nbsp;│&nbsp;&nbsp;└─ index.html　← 訓練紀錄<br>
+              &nbsp;│&nbsp;&nbsp;└─ <span style="color:#198754">body-weight/</span><br>
+              &nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ index.html　← 體重紀錄<br>
+              └─ <span style="color:#dc3545">application.properties</span><br>
+              &nbsp;&nbsp;&nbsp;← 資料庫連線、JPA 設定
+            </div>
+            <h6 class="text-muted mb-2 mt-3">設定檔</h6>
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered" style="font-size:.82rem;">
+                <thead class="table-light">
+                  <tr><th>設定項目</th><th>值</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>server.port</td><td><code>8080</code></td></tr>
+                  <tr><td>資料庫</td><td><code>mysql://localhost:3306/fitness_tracker</code></td></tr>
+                  <tr><td>timezone</td><td><code>Asia/Taipei</code></td></tr>
+                  <tr><td>jpa.ddl-auto</td><td><code>update</code>（自動建/更新資料表）</td></tr>
+                  <tr><td>帳密來源</td><td><code>.env</code> 環境變數</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Request Flow -->
+    <div class="section-header">
+      <h4>Request 流程範例</h4>
+      <p>新增訓練紀錄的完整資料流</p>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <div class="badge bg-primary p-2" style="font-size:.85rem">1. 使用者送出表單<br><small class="fw-normal">POST /workout</small></div>
+          <div style="color:#adb5bd; font-size:1.2rem">→</div>
+          <div class="badge bg-success p-2" style="font-size:.85rem">2. WorkoutController<br><small class="fw-normal">解析 @RequestParam</small></div>
+          <div style="color:#adb5bd; font-size:1.2rem">→</div>
+          <div class="badge bg-success p-2" style="font-size:.85rem">3. WorkoutService<br><small class="fw-normal">建立 Entity 物件</small></div>
+          <div style="color:#adb5bd; font-size:1.2rem">→</div>
+          <div class="badge bg-info text-dark p-2" style="font-size:.85rem">4. WorkoutSessionRepo<br><small class="fw-normal">JPA .save() 寫入 DB</small></div>
+          <div style="color:#adb5bd; font-size:1.2rem">→</div>
+          <div class="badge bg-secondary p-2" style="font-size:.85rem">5. redirect:/workout<br><small class="fw-normal">回到列表頁</small></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       PAGE 3 ｜ 資料庫設計
+  ══════════════════════════════════════════════ -->
+  <div id="page-database" class="page-section">
+
+    <div class="section-header">
+      <h4>資料庫設計</h4>
+      <p>fitness_tracker — 共 4 張資料表，採 Spring Data JPA 自動建表（ddl-auto: update）</p>
+    </div>
+
+    <!-- ER Diagram label -->
+    <div class="alert alert-info mb-4">
+      <strong>資料表關聯：</strong>
+      一場訓練（workout_session）包含多個訓練組（workout_set）<br>
+      體重紀錄（body_weight）獨立管理<br>
+      動作庫（exercise）為預設資料，由系統啟動時自動初始化
+    </div>
+
+    <div class="row g-4">
+
+      <!-- workout_session -->
+      <div class="col-md-6">
+        <div class="db-table-card">
+          <div class="db-table-header">workout_session <span>訓練場次</span></div>
+          <div class="db-col-row">
+            <span class="db-pk">PK</span>
+            <span class="db-col-name">id</span>
+            <span class="db-col-type">BIGINT</span>
+            <span class="db-col-note">AUTO_INCREMENT</span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">workout_date</span>
+            <span class="db-col-type">DATE</span>
+            <span class="db-col-note">訓練日期 <span class="db-nn">NOT NULL</span></span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">body_part</span>
+            <span class="db-col-type">VARCHAR</span>
+            <span class="db-col-note">胸/背/腿/肩/手/核心/全身</span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">note</span>
+            <span class="db-col-type">VARCHAR</span>
+            <span class="db-col-note">備註（選填）</span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">created_at</span>
+            <span class="db-col-type">DATETIME</span>
+            <span class="db-col-note">@PrePersist 自動填入</span>
+          </div>
+        </div>
+
+        <div class="relation-arrow">↕ OneToMany（一場 session 有多個 set）</div>
+
+        <!-- workout_set -->
+        <div class="db-table-card">
+          <div class="db-table-header">workout_set <span>訓練動作組</span></div>
+          <div class="db-col-row">
+            <span class="db-pk">PK</span>
+            <span class="db-col-name">id</span>
+            <span class="db-col-type">BIGINT</span>
+            <span class="db-col-note">AUTO_INCREMENT</span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-fk">FK</span>
+            <span class="db-col-name">session_id</span>
+            <span class="db-col-type">BIGINT</span>
+            <span class="db-col-note">→ workout_session.id</span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">exercise_name</span>
+            <span class="db-col-type">VARCHAR</span>
+            <span class="db-col-note">動作名稱 <span class="db-nn">NOT NULL</span></span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">weight_kg</span>
+            <span class="db-col-type">DOUBLE</span>
+            <span class="db-col-note">重量（null = 徒手）</span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">sets</span>
+            <span class="db-col-type">INT</span>
+            <span class="db-col-note">組數</span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">reps</span>
+            <span class="db-col-type">INT</span>
+            <span class="db-col-note">次數</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+
+        <!-- body_weight -->
+        <div class="db-table-card mb-3">
+          <div class="db-table-header">body_weight <span>體重紀錄</span></div>
+          <div class="db-col-row">
+            <span class="db-pk">PK</span>
+            <span class="db-col-name">id</span>
+            <span class="db-col-type">BIGINT</span>
+            <span class="db-col-note">AUTO_INCREMENT</span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">weight_kg</span>
+            <span class="db-col-type">DOUBLE</span>
+            <span class="db-col-note"><span class="db-nn">NOT NULL</span></span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">recorded_date</span>
+            <span class="db-col-type">DATE</span>
+            <span class="db-col-note"><span class="db-nn">NOT NULL</span></span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">time_of_day</span>
+            <span class="db-col-type">VARCHAR</span>
+            <span class="db-col-note">MORNING / EVENING / OTHER</span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">note</span>
+            <span class="db-col-type">VARCHAR</span>
+            <span class="db-col-note">備註（選填）</span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">created_at</span>
+            <span class="db-col-type">DATETIME</span>
+            <span class="db-col-note">@PrePersist 自動填入</span>
+          </div>
+        </div>
+
+        <!-- exercise -->
+        <div class="db-table-card">
+          <div class="db-table-header">exercise <span>動作庫（預設資料）</span></div>
+          <div class="db-col-row">
+            <span class="db-pk">PK</span>
+            <span class="db-col-name">id</span>
+            <span class="db-col-type">BIGINT</span>
+            <span class="db-col-note">AUTO_INCREMENT</span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">name</span>
+            <span class="db-col-type">VARCHAR</span>
+            <span class="db-col-note">動作名稱（如：臥推）</span>
+          </div>
+          <div class="db-col-row">
+            <span class="db-col-name" style="padding-left:20px">body_part</span>
+            <span class="db-col-type">VARCHAR</span>
+            <span class="db-col-note">適用部位</span>
+          </div>
+          <div class="db-col-row border-0" style="background:#fff8e1;">
+            <span style="font-size:.78rem; color:#664d03">
+              ℹ️ 由 ExerciseDataInitializer 在應用啟動時自動寫入
+            </span>
+          </div>
+        </div>
+
+        <!-- JPA Notes -->
+        <div class="card bg-light border-0 mt-3">
+          <div class="card-body">
+            <h6 class="fw-bold mb-2">JPA 關聯設定</h6>
+            <div class="mb-2">
+              <code style="font-size:.8rem">@OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)</code>
+              <div class="text-muted small mt-1">WorkoutSession → WorkoutSet：刪除 session 時自動刪除所有 set</div>
+            </div>
+            <div>
+              <code style="font-size:.8rem">fetch = FetchType.EAGER</code>
+              <div class="text-muted small mt-1">查詢 session 時同時載入所有 set（避免 LazyInitializationException）</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       PAGE 4 ｜ API 路由
+  ══════════════════════════════════════════════ -->
+  <div id="page-api" class="page-section">
+
+    <div class="section-header">
+      <h4>HTTP 路由清單</h4>
+      <p>MVC 頁面路由 + REST API 路由</p>
+    </div>
+
+    <!-- MVC Routes -->
+    <h6 class="text-muted mb-2">MVC 頁面路由（回傳 HTML）</h6>
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0" style="font-size:.88rem;">
+          <thead class="table-dark">
+            <tr>
+              <th style="width:80px">Method</th>
+              <th>路徑</th>
+              <th>Controller</th>
+              <th>說明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="method-badge method-get">GET</span></td>
+              <td><code>/</code></td>
+              <td>HomeController</td>
+              <td>Dashboard：最新體重、本週訓練次數、最近紀錄</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-get">GET</span></td>
+              <td><code>/workout</code></td>
+              <td>WorkoutController</td>
+              <td>顯示訓練紀錄頁面，傳入所有 session 清單</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-post">POST</span></td>
+              <td><code>/workout</code></td>
+              <td>WorkoutController</td>
+              <td>新增訓練（workoutDate + bodyPart + 多個動作）</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-post">POST</span></td>
+              <td><code>/workout/delete/{id}</code></td>
+              <td>WorkoutController</td>
+              <td>刪除整筆訓練（含所有動作，CascadeType.ALL）</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-get">GET</span></td>
+              <td><code>/body-weight</code></td>
+              <td>BodyWeightController</td>
+              <td>顯示體重紀錄頁面，傳入所有紀錄清單</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-post">POST</span></td>
+              <td><code>/body-weight</code></td>
+              <td>BodyWeightController</td>
+              <td>新增體重（weightKg + recordedDate + timeOfDay）</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-post">POST</span></td>
+              <td><code>/body-weight/delete/{id}</code></td>
+              <td>BodyWeightController</td>
+              <td>刪除一筆體重紀錄</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REST API Routes -->
+    <h6 class="text-muted mb-2">REST API 路由（回傳 JSON）</h6>
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0" style="font-size:.88rem;">
+          <thead class="table-dark">
+            <tr>
+              <th style="width:80px">Method</th>
+              <th>路徑</th>
+              <th>Controller</th>
+              <th>說明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="method-badge method-get">GET</span></td>
+              <td><code>/api/workouts</code></td>
+              <td>WorkoutApiController</td>
+              <td>取得所有訓練紀錄（JSON）</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-post">POST</span></td>
+              <td><code>/api/workouts</code></td>
+              <td>WorkoutApiController</td>
+              <td>新增訓練（JSON body）</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-get">GET</span></td>
+              <td><code>/api/body-weight</code></td>
+              <td>BodyWeightApiController</td>
+              <td>取得所有體重紀錄（JSON）</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-post">POST</span></td>
+              <td><code>/api/body-weight</code></td>
+              <td>BodyWeightApiController</td>
+              <td>新增體重紀錄（JSON body）</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-get">GET</span></td>
+              <td><code>/api/exercises</code></td>
+              <td>ExerciseApiController</td>
+              <td>取得動作庫清單（JSON）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Thymeleaf -->
+    <div class="section-header">
+      <h4>Thymeleaf 模板技術說明</h4>
+      <p>Server-side rendering — 後端填入資料後回傳完整 HTML</p>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <h6 class="fw-bold">使用到的指令</h6>
+            <table class="table table-sm" style="font-size:.84rem;">
+              <tbody>
+                <tr>
+                  <td><code class="th-highlight">th:text</code></td>
+                  <td>輸出變數值到 HTML 元素</td>
+                </tr>
+                <tr>
+                  <td><code class="th-highlight">th:if / th:unless</code></td>
+                  <td>條件顯示/隱藏</td>
+                </tr>
+                <tr>
+                  <td><code class="th-highlight">th:each</code></td>
+                  <td>迴圈渲染清單（for-each）</td>
+                </tr>
+                <tr>
+                  <td><code class="th-highlight">th:action / th:href</code></td>
+                  <td>動態產生 URL（含路徑變數）</td>
+                </tr>
+                <tr>
+                  <td><code class="th-highlight">th:replace</code></td>
+                  <td>引入共用 fragment（navbar）</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="col-md-6">
+            <h6 class="fw-bold">資料傳遞方式</h6>
+            <div style="background:#f8f9fa; border-radius:8px; padding:14px; font-family:monospace; font-size:.82rem; line-height:1.8;">
+              <span style="color:#6c757d">// Controller 端</span><br>
+              model.addAttribute(<span style="color:#198754">"sessions"</span>, list);<br>
+              <br>
+              <span style="color:#6c757d">// Thymeleaf 模板</span><br>
+              &lt;tr <span style="color:#0d6efd">th:each</span>=<span style="color:#198754">"s : ${sessions}"</span>&gt;<br>
+              &nbsp;&nbsp;&lt;td <span style="color:#0d6efd">th:text</span>=<span style="color:#198754">"${s.workoutDate}"</span>&gt;...&lt;/td&gt;<br>
+              &lt;/tr&gt;
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       PAGE 5 ｜ 畫面 Demo
+  ══════════════════════════════════════════════ -->
+  <div id="page-demo" class="page-section">
+
+    <div class="section-header">
+      <h4>畫面 Demo（靜態模擬）</h4>
+      <p>模擬實際執行於 localhost:8080 的畫面</p>
+    </div>
+
+    <!-- Dashboard Demo -->
+    <h6 class="text-muted mb-2">/ &nbsp;— Dashboard 首頁</h6>
+    <div class="demo-screen mb-4">
+      <div class="demo-titlebar">
+        <span class="dot dot-r"></span>
+        <span class="dot dot-y"></span>
+        <span class="dot dot-g"></span>
+        <span class="demo-url">localhost:8080/</span>
+      </div>
+      <div class="p-3" style="background:#f4f6f9;">
+        <!-- Fake navbar -->
+        <div class="d-flex gap-3 bg-dark rounded px-3 py-2 mb-3" style="font-size:.84rem;">
+          <span style="color:#fff; font-weight:700">💪 FitTracker</span>
+          <span class="ms-3" style="color:rgba(255,255,255,.6)">Dashboard</span>
+          <span style="color:rgba(255,255,255,.6)">訓練紀錄</span>
+          <span style="color:rgba(255,255,255,.6)">體重紀錄</span>
+        </div>
+        <h5 class="mb-3">📊 Dashboard</h5>
+        <div class="row g-2 mb-3">
+          <div class="col-4">
+            <div class="card text-white bg-primary p-2">
+              <div style="font-size:.75rem">⚖️ 最新體重</div>
+              <div class="fw-bold">72.5 kg</div>
+              <div style="font-size:.72rem; opacity:.8">2026-06-30</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="card text-white bg-success p-2">
+              <div style="font-size:.75rem">🏋️ 本週訓練</div>
+              <div class="fw-bold">3 次</div>
+              <div style="font-size:.72rem; opacity:.8">本週已完成</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="card text-white bg-warning p-2">
+              <div style="font-size:.75rem">🎯 訓練計劃</div>
+              <div class="fw-bold">即將推出</div>
+              <div style="font-size:.72rem; opacity:.8">功能開發中...</div>
+            </div>
+          </div>
+        </div>
+        <div class="card p-2">
+          <div class="d-flex justify-content-between mb-2">
+            <strong style="font-size:.88rem">📋 最近訓練紀錄</strong>
+            <span class="badge bg-outline-primary border" style="font-size:.72rem">查看全部</span>
+          </div>
+          <div class="border-bottom pb-1 mb-1" style="font-size:.82rem">
+            <div class="d-flex justify-content-between">
+              <strong>2026-06-30</strong><span class="badge bg-secondary" style="font-size:.7rem">胸</span>
+            </div>
+            <span class="text-muted">臥推 80kg×4組×8次｜飛鳥 12kg×3組×12次</span>
+          </div>
+          <div class="border-bottom pb-1 mb-1" style="font-size:.82rem">
+            <div class="d-flex justify-content-between">
+              <strong>2026-06-28</strong><span class="badge bg-secondary" style="font-size:.7rem">腿</span>
+            </div>
+            <span class="text-muted">深蹲 100kg×5組×5次｜腿推 120kg×4組×10次</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workout Demo -->
+    <h6 class="text-muted mb-2">/workout &nbsp;— 訓練紀錄頁</h6>
+    <div class="demo-screen mb-4">
+      <div class="demo-titlebar">
+        <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
+        <span class="demo-url">localhost:8080/workout</span>
+      </div>
+      <div class="p-3" style="background:#f4f6f9;">
+        <h5 class="mb-3">🏋️ 訓練紀錄</h5>
+        <div class="card mb-3 shadow-sm">
+          <div class="card-header bg-white"><strong>➕ 新增訓練</strong></div>
+          <div class="card-body">
+            <div class="row g-2 mb-2">
+              <div class="col-3"><label class="form-label small">日期</label><input class="form-control form-control-sm" type="date" value="2026-07-01" readonly></div>
+              <div class="col-3"><label class="form-label small">訓練部位</label><select class="form-select form-select-sm"><option>背</option></select></div>
+              <div class="col-6"><label class="form-label small">備註</label><input class="form-control form-control-sm" placeholder="今天狀態如何？"></div>
+            </div>
+            <div class="row g-1 mb-1 text-muted" style="font-size:.75rem;">
+              <div class="col-4">動作名稱</div><div class="col-2">重量(kg)</div><div class="col-2">組數</div><div class="col-2">次數</div>
+            </div>
+            <div class="row g-1 mb-1">
+              <div class="col-4"><input class="form-control form-control-sm" value="引體向上"></div>
+              <div class="col-2"><input class="form-control form-control-sm" value=""></div>
+              <div class="col-2"><input class="form-control form-control-sm" value="4"></div>
+              <div class="col-2"><input class="form-control form-control-sm" value="8"></div>
+              <div class="col-2"><button class="btn btn-outline-danger btn-sm" disabled>✕</button></div>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+              <button class="btn btn-outline-secondary btn-sm">＋ 新增動作</button>
+              <button class="btn btn-primary btn-sm">✔ 儲存訓練</button>
+            </div>
+          </div>
+        </div>
+        <div class="card shadow-sm">
+          <div class="card-header bg-white"><strong>📋 訓練歷史</strong></div>
+          <div class="card-body">
+            <div class="card border mb-2">
+              <div class="card-header bg-white d-flex justify-content-between">
+                <div><strong>2026-06-30</strong> <span class="badge bg-primary ms-2">胸</span></div>
+                <button class="btn btn-sm btn-outline-danger">🗑 刪除</button>
+              </div>
+              <table class="table table-sm mb-0">
+                <thead class="table-light"><tr><th>動作</th><th>重量</th><th>組數</th><th>次數</th></tr></thead>
+                <tbody>
+                  <tr><td>臥推</td><td>80 kg</td><td>4</td><td>8</td></tr>
+                  <tr><td>飛鳥</td><td>12 kg</td><td>3</td><td>12</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Body Weight Demo -->
+    <h6 class="text-muted mb-2">/body-weight &nbsp;— 體重紀錄頁</h6>
+    <div class="demo-screen">
+      <div class="demo-titlebar">
+        <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
+        <span class="demo-url">localhost:8080/body-weight</span>
+      </div>
+      <div class="p-3" style="background:#f4f6f9;">
+        <h5 class="mb-3">⚖️ 體重紀錄</h5>
+        <div class="card mb-3 shadow-sm">
+          <div class="card-header bg-white"><strong>➕ 新增今日體重</strong></div>
+          <div class="card-body">
+            <div class="row g-2">
+              <div class="col-3"><label class="form-label small">日期</label><input class="form-control form-control-sm" type="date" value="2026-07-01" readonly></div>
+              <div class="col-2"><label class="form-label small">體重 (kg)</label><input class="form-control form-control-sm" placeholder="72.5"></div>
+              <div class="col-3"><label class="form-label small">時間點</label><select class="form-select form-select-sm"><option>☀️ 早上空腹</option></select></div>
+              <div class="col-4"><label class="form-label small">備註</label><input class="form-control form-control-sm" placeholder="例：運動後"></div>
+            </div>
+            <button class="btn btn-primary btn-sm mt-2">✔ 儲存體重</button>
+          </div>
+        </div>
+        <div class="card shadow-sm">
+          <div class="card-header bg-white"><strong>📋 歷史紀錄</strong></div>
+          <table class="table table-hover mb-0" style="font-size:.84rem;">
+            <thead class="table-dark"><tr><th>日期</th><th>體重</th><th>時間點</th><th>備註</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>2026-06-30</td><td><strong>72.5 kg</strong></td><td>☀️ 早上空腹</td><td>-</td><td><button class="btn btn-sm btn-outline-danger">🗑</button></td></tr>
+              <tr><td>2026-06-28</td><td><strong>73.0 kg</strong></td><td>☀️ 早上空腹</td><td>訓練後</td><td><button class="btn btn-sm btn-outline-danger">🗑</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       PAGE 6 ｜ 功能進度
+  ══════════════════════════════════════════════ -->
+  <div id="page-features" class="page-section">
+
+    <div class="section-header">
+      <h4>功能進度</h4>
+      <p>已完成 / 開發中 / 規劃中</p>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="card border-success h-100">
+          <div class="card-header bg-success text-white">已完成</div>
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-done">Done</span> Dashboard 首頁統計
+            </li>
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-done">Done</span> 訓練紀錄 CRUD
+            </li>
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-done">Done</span> 多動作同時新增
+            </li>
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-done">Done</span> 訓練紀錄刪除（含 Cascade）
+            </li>
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-done">Done</span> 體重紀錄 CRUD
+            </li>
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-done">Done</span> 動作庫（自動初始化）
+            </li>
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-done">Done</span> REST API（JSON）
+            </li>
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-done">Done</span> 共用 Navbar Fragment
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card border-warning h-100">
+          <div class="card-header bg-warning">開發中</div>
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-wip">WIP</span> 體重趨勢折線圖
+            </li>
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-wip">WIP</span> 訓練量統計圖表
+            </li>
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-wip">WIP</span> 動作搜尋 Autocomplete
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card border-secondary h-100">
+          <div class="card-header bg-secondary text-white">規劃中</div>
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-plan">Plan</span> 訓練計劃（週期化）
+            </li>
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-plan">Plan</span> 使用者登入 / 多帳號
+            </li>
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-plan">Plan</span> 雲端部署（Render）
+            </li>
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge status-plan">Plan</span> 個人最佳紀錄追蹤
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Deploy Instructions -->
+    <div class="section-header mt-5">
+      <h4>本機執行方式</h4>
+      <p>工程師接手時的啟動步驟</p>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <h6 class="fw-bold">環境需求</h6>
+            <ul class="list-unstyled" style="font-size:.88rem;">
+              <li>✅ Java 17+</li>
+              <li>✅ Maven（或使用 mvnw）</li>
+              <li>✅ MySQL 8.0+</li>
+              <li>✅ 建立資料庫 <code>fitness_tracker</code></li>
+            </ul>
+          </div>
+          <div class="col-md-6">
+            <h6 class="fw-bold">啟動指令</h6>
+            <div style="background:#1a1d23; color:#60d394; border-radius:8px; padding:14px; font-family:monospace; font-size:.84rem; line-height:1.8;">
+              # 1. 設定環境變數<br>
+              DB_USERNAME=root<br>
+              DB_PASSWORD=yourpassword<br>
+              <br>
+              # 2. 執行<br>
+              ./mvnw spring-boot:run<br>
+              <br>
+              # 3. 開啟瀏覽器<br>
+              http://localhost:8080
+            </div>
+          </div>
+        </div>
+        <div class="alert alert-secondary mt-3 mb-0" style="font-size:.84rem;">
+          <strong>注意：</strong>資料庫帳密存放於 <code>.env</code> 檔案，由 application.properties 以 <code>${DB_USERNAME}</code> 讀取，<strong>不應 commit 至 Git</strong>。
+          <code>ddl-auto=update</code> 會在啟動時自動建立/更新資料表結構，無需手動執行 SQL。
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /container -->
+
+<div class="footer-note">
+  FitTracker &nbsp;·&nbsp; Spring Boot 3 + Thymeleaf + MySQL &nbsp;·&nbsp; 學生作品 Prototype &nbsp;·&nbsp; 2026
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  function showPage(name) {
+    document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.top-nav .nav-link').forEach(el => el.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    event.target.classList.add('active');
+    window.scrollTo(0, 0);
+  }
+</script>
+</body>
+</html>
