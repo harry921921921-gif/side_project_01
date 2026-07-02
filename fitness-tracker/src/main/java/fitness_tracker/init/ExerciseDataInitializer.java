@@ -3,6 +3,7 @@ package fitness_tracker.init;
 import fitness_tracker.entity.Exercise;
 import fitness_tracker.service.ExerciseService;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.List;
  * 之後每次啟動都會先確認是否已有資料，所以不會重複寫入。
  */
 @Component
+@Order(2)
 public class ExerciseDataInitializer implements CommandLineRunner {
 
     private final ExerciseService exerciseService;

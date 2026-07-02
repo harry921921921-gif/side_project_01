@@ -25,6 +25,8 @@ public class WorkoutSet {
 
     private Integer reps;
 
+    private Integer restSeconds;
+
     // ── Getters ──────────────────────────────────────────
     public Long getId()                  { return id; }
     public WorkoutSession getSession()   { return session; }
@@ -32,6 +34,7 @@ public class WorkoutSet {
     public Double getWeightKg()          { return weightKg; }
     public Integer getSets()             { return sets; }
     public Integer getReps()             { return reps; }
+    public Integer getRestSeconds()      { return restSeconds; }
 
     // ── Setters ──────────────────────────────────────────
     public void setId(Long id)                          { this.id = id; }
@@ -40,4 +43,5 @@ public class WorkoutSet {
     public void setWeightKg(Double weightKg)            { this.weightKg = weightKg; }
     public void setSets(Integer sets)                   { this.sets = sets; }
     public void setReps(Integer reps)                   { this.reps = reps; }
+    public void setRestSeconds(Integer restSeconds)     { this.restSeconds = restSeconds; }
 }

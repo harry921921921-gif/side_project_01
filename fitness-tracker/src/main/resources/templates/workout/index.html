@@ -5,6 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FitTracker - 訓練紀錄</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+        .cal-header    { text-align:center; font-weight:600; font-size:.75rem; padding:3px; color:#6c757d; }
+        .cal-day       { min-height:50px; border-radius:5px; padding:3px 4px; background:#fff;
+                         border:1px solid #e9ecef; cursor:pointer; transition:.15s; }
+        .cal-day:hover { background:#f0f4ff; border-color:#adb5bd; }
+        .cal-day.today { border-color:#0d6efd; background:#f0f4ff; }
+        .cal-day.selected { border-color:#0d6efd; background:#dde8ff; box-shadow:0 0 0 2px #0d6efd44; }
+        .cal-day.empty { background:transparent; border-color:transparent; cursor:default; }
+        .cal-day .day-num { font-size:.75rem; font-weight:600; color:#343a40; line-height:1.2; }
+        .cal-day.today .day-num { color:#0d6efd; }
+        .bp-dot { display:inline-block; font-size:.6rem; padding:1px 4px; border-radius:3px;
+                  margin:1px 1px 0 0; white-space:nowrap; line-height:1.4; }
+        .detail-panel { background:#fff; border:1px solid #dee2e6; border-radius:8px; padding:14px; min-height:60px; }
+    </style>
 </head>
 <body class="bg-light">
 
@@ -13,132 +28,192 @@
 <div class="container mt-4">
     <h2 class="mb-4">🏋️ 訓練紀錄</h2>
 
-    <!-- 新增訓練表單 -->
+    <!-- ── 新增訓練 ── -->
     <div class="card mb-4 shadow-sm">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">➕ 新增訓練</h5>
-        </div>
+        <div class="card-header bg-white"><h5 class="mb-0">➕ 新增訓練</h5></div>
         <div class="card-body">
-            <form id="workoutForm" th:action="@{/workout}" method="post">
-
-                <!-- 基本資訊 -->
+            <form th:action="@{/workout}" method="post">
                 <div class="row g-3 mb-3">
                     <div class="col-md-3">
                         <label class="form-label fw-semibold">日期</label>
-                        <input type="date" name="workoutDate" id="workoutDate"
-                               class="form-control" required>
+                        <input type="date" name="workoutDate" id="workoutDate" class="form-control" required>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-semibold">訓練部位</label>
-                        <select name="bodyPart" class="form-select" required>
+                        <select name="bodyPart" id="bodyPartSelect" class="form-select" required
+                                onchange="filterExercisesByBodyPart(this.value)">
                             <option value="">請選擇</option>
-                            <option value="胸">胸</option>
-                            <option value="背">背</option>
-                            <option value="腿">腿</option>
-                            <option value="肩">肩</option>
-                            <option value="手">手 (二頭/三頭)</option>
-                            <option value="核心">核心</option>
-                            <option value="全身">全身</option>
+                            <option th:each="bp : ${bodyParts}" th:value="${bp.name}" th:text="${bp.name}"></option>
                         </select>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">備註（選填）</label>
-                        <input type="text" name="note" class="form-control"
-                               placeholder="今天狀態如何？">
+                        <input type="text" name="note" class="form-control" placeholder="今天狀態如何？">
                     </div>
                 </div>
 
-                <!-- 訓練動作列表 -->
-                <h6 class="mb-2">🏋️ 訓練動作</h6>
-                <div class="row g-1 mb-1 text-muted small">
+                <div class="row g-1 mb-1 text-muted small d-none d-md-flex">
                     <div class="col-md-4">動作名稱</div>
                     <div class="col-md-2">重量(kg)</div>
-                    <div class="col-md-2">組數</div>
-                    <div class="col-md-2">次數</div>
+                    <div class="col-md-1">組數</div>
+                    <div class="col-md-1">次數</div>
+                    <div class="col-md-2">休息(秒)</div>
                 </div>
-
                 <div id="exerciseContainer">
-                    <!-- 預設一行，讓使用者直接填 -->
-                    <div class="exercise-row row g-2 mb-2 align-items-center">
+                    <div class="exercise-row-wrapper row g-2 mb-2 align-items-center">
                         <div class="col-md-4">
-                            <input type="text" name="exerciseNames" class="form-control"
-                                   placeholder="例：臥推、深蹲..." required>
+                            <input type="text" name="exerciseNames" class="form-control exercise-name-input"
+                                   list="exerciseSuggestions" placeholder="輸入或選擇動作..." required>
                         </div>
                         <div class="col-md-2">
-                            <input type="number" name="weightKgs" class="form-control"
-                                   placeholder="80" step="0.5" min="0">
+                            <input type="number" name="weightKgs" class="form-control" placeholder="80" step="0.5" min="0">
+                        </div>
+                        <div class="col-md-1">
+                            <input type="number" name="sets" class="form-control" placeholder="4" min="1">
+                        </div>
+                        <div class="col-md-1">
+                            <input type="number" name="reps" class="form-control" placeholder="8" min="1">
                         </div>
                         <div class="col-md-2">
-                            <input type="number" name="sets" class="form-control"
-                                   placeholder="4" min="1">
+                            <input type="number" name="restSeconds" class="form-control" placeholder="90" min="0" step="10">
                         </div>
                         <div class="col-md-2">
-                            <input type="number" name="reps" class="form-control"
-                                   placeholder="8" min="1">
-                        </div>
-                        <div class="col-md-2">
-                            <button type="button" class="btn btn-outline-danger btn-sm"
-                                    onclick="removeRow(this)" disabled>✕</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeRow(this)" disabled>✕</button>
                         </div>
                     </div>
                 </div>
-
+                <datalist id="exerciseSuggestions"></datalist>
                 <div class="d-flex gap-2 mt-2">
-                    <button type="button" class="btn btn-outline-secondary"
-                            onclick="addExerciseRow()">＋ 新增動作</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="addExerciseRow()">＋ 新增動作</button>
                     <button type="submit" class="btn btn-primary">✔ 儲存訓練</button>
                 </div>
-
             </form>
         </div>
     </div>
 
-    <!-- 訓練歷史紀錄 -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">📋 訓練歷史</h5>
+    <!-- ── 月曆 ── -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+            <button class="btn btn-sm btn-outline-secondary" onclick="prevMonth()">&#8249;</button>
+            <h6 class="mb-0" id="calTitle"></h6>
+            <button class="btn btn-sm btn-outline-secondary" onclick="nextMonth()">&#8250;</button>
         </div>
-        <div class="card-body">
-            <div th:if="${sessions.empty}" class="text-muted text-center py-3">
-                尚無訓練紀錄，快去汗水！
+        <div class="card-body pb-2 pt-3">
+            <div class="calendar-grid mb-1">
+                <div class="cal-header">日</div><div class="cal-header">一</div>
+                <div class="cal-header">二</div><div class="cal-header">三</div>
+                <div class="cal-header">四</div><div class="cal-header">五</div>
+                <div class="cal-header">六</div>
             </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+        <div class="card-body border-top pt-3 pb-2" id="dayDetail" style="display:none">
+            <h6 id="dayDetailTitle" class="mb-2 text-muted"></h6>
+            <div id="dayDetailContent" class="detail-panel"></div>
+        </div>
+    </div>
 
+    <!-- ── 訓練歷史 ── -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white"><h5 class="mb-0">📋 訓練歷史</h5></div>
+        <div class="card-body">
+            <div th:if="${sessions.empty}" class="text-muted text-center py-3">尚無訓練紀錄，快去流汗！</div>
             <div th:unless="${sessions.empty}">
                 <div th:each="ws : ${sessions}" class="card mb-3 border">
-                    <div class="card-header d-flex justify-content-between align-items-center bg-white">
-                        <div>
-                            <strong th:text="${ws.workoutDate}"></strong>
-                            <span class="badge bg-primary ms-2"
-                                  th:text="${ws.bodyPart}"></span>
+                    <!-- 顯示模式 -->
+                    <div th:id="'view-' + ${ws.id}">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong th:text="${ws.workoutDate}"></strong>
+                                <span class="badge bg-primary ms-2" th:text="${ws.bodyPart}"></span>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        th:onclick="'toggleEdit(' + ${ws.id} + ')'">✏️ 編輯</button>
+                                <form th:action="@{/workout/delete/{id}(id=${ws.id})}" method="post"
+                                      onsubmit="return confirm('確定刪除這筆訓練紀錄？')">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">🗑 刪除</button>
+                                </form>
+                            </div>
                         </div>
-                        <form th:action="@{/workout/delete/{id}(id=${ws.id})}"
-                              method="post"
-                              onsubmit="return confirm('確定刪除這筆訓練紀錄？')">
-                            <button type="submit" class="btn btn-sm btn-outline-danger">🗑 刪除</button>
-                        </form>
+                        <div class="card-body p-0">
+                            <table class="table table-sm mb-0" th:unless="${ws.sets.empty}">
+                                <thead class="table-light">
+                                    <tr><th>動作</th><th>重量</th><th>組數</th><th>次數</th><th>休息</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="set : ${ws.sets}">
+                                        <td th:text="${set.exerciseName}"></td>
+                                        <td th:text="${set.weightKg != null ? set.weightKg + ' kg' : '體重'}"></td>
+                                        <td th:text="${set.sets}"></td>
+                                        <td th:text="${set.reps}"></td>
+                                        <td th:text="${set.restSeconds != null ? set.restSeconds + '秒' : '-'}"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <p class="text-muted p-2 mb-0 small"
+                               th:if="${ws.note != null and !ws.note.isEmpty()}"
+                               th:text="'📝 ' + ${ws.note}"></p>
+                        </div>
                     </div>
-                    <div class="card-body p-0">
-                        <table class="table table-sm mb-0" th:unless="${ws.sets.empty}">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>動作</th>
-                                    <th>重量</th>
-                                    <th>組數</th>
-                                    <th>次數</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr th:each="set : ${ws.sets}">
-                                    <td th:text="${set.exerciseName}"></td>
-                                    <td th:text="${set.weightKg != null ? set.weightKg + ' kg' : '體重'}"></td>
-                                    <td th:text="${set.sets}"></td>
-                                    <td th:text="${set.reps}"></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <p class="text-muted p-2 mb-0 small"
-                           th:if="${ws.note != null and !ws.note.isEmpty()}"
-                           th:text="'📝 ' + ${ws.note}"></p>
+                    <!-- 編輯模式 -->
+                    <div th:id="'edit-' + ${ws.id}" style="display:none">
+                        <div class="card-header bg-warning bg-opacity-10"><strong>✏️ 編輯訓練</strong></div>
+                        <div class="card-body">
+                            <form th:action="@{/workout/update/{id}(id=${ws.id})}" method="post">
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label small">日期</label>
+                                        <input type="date" name="workoutDate" class="form-control form-control-sm"
+                                               th:value="${ws.workoutDate}" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">訓練部位</label>
+                                        <select name="bodyPart" class="form-select form-select-sm" required>
+                                            <option th:each="bp : ${bodyParts}"
+                                                    th:value="${bp.name}" th:text="${bp.name}"
+                                                    th:selected="${bp.name == ws.bodyPart}"></option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small">備註</label>
+                                        <input type="text" name="note" class="form-control form-control-sm"
+                                               th:value="${ws.note}">
+                                    </div>
+                                </div>
+                                <div class="row g-1 mb-1 text-muted" style="font-size:.75rem">
+                                    <div class="col-4">動作</div><div class="col-2">重量</div>
+                                    <div class="col-1">組</div><div class="col-1">次</div><div class="col-2">休息(秒)</div>
+                                </div>
+                                <div th:each="set : ${ws.sets}" class="row g-2 mb-2 align-items-center">
+                                    <div class="col-4">
+                                        <input type="text" name="exerciseNames" class="form-control form-control-sm"
+                                               th:value="${set.exerciseName}" required>
+                                    </div>
+                                    <div class="col-2">
+                                        <input type="number" name="weightKgs" class="form-control form-control-sm"
+                                               th:value="${set.weightKg}" step="0.5" min="0">
+                                    </div>
+                                    <div class="col-1">
+                                        <input type="number" name="sets" class="form-control form-control-sm"
+                                               th:value="${set.sets}" min="1">
+                                    </div>
+                                    <div class="col-1">
+                                        <input type="number" name="reps" class="form-control form-control-sm"
+                                               th:value="${set.reps}" min="1">
+                                    </div>
+                                    <div class="col-2">
+                                        <input type="number" name="restSeconds" class="form-control form-control-sm"
+                                               th:value="${set.restSeconds}" min="0" step="10">
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2 mt-2">
+                                    <button type="submit" class="btn btn-success btn-sm">💾 儲存修改</button>
+                                    <button type="button" class="btn btn-secondary btn-sm"
+                                            th:onclick="'toggleEdit(' + ${ws.id} + ')'">取消</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -147,38 +222,175 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-    // 自動設定日期為今天
+<script th:inline="javascript">
     document.getElementById('workoutDate').valueAsDate = new Date();
 
-    // 新增一行訓練動作
+    // Thymeleaf 直接轉 JS 物件（不是字串）
+    const calendarData  = /*[[${calendarData}]]*/ {};
+    const sessionsData  = /*[[${sessionsData}]]*/ [];
+    const allExercises  = /*[[${exercisesData}]]*/ [];
+
+    const bpColors = {
+        '胸':'#cfe2ff','背':'#d1e7dd','腿':'#fff3cd','肩':'#f8d7da',
+        '手臂':'#e2d9f3','核心':'#fde8d8','全身':'#dee2e6'
+    };
+    function bpColor(bp) { return bpColors[bp] || '#e9ecef'; }
+
+    // ── 月曆 ──────────────────────────────────────────────
+    let curYear = new Date().getFullYear();
+    let curMonth = new Date().getMonth();
+    let selectedDate = null;
+
+    function renderCalendar() {
+        document.getElementById('calTitle').textContent =
+            curYear + ' 年 ' + (curMonth + 1) + ' 月';
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+
+        const firstDay    = new Date(curYear, curMonth, 1).getDay();
+        const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
+        const today       = new Date();
+
+        for (let i = 0; i < firstDay; i++) {
+            const e = document.createElement('div');
+            e.className = 'cal-day empty';
+            grid.appendChild(e);
+        }
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = curYear + '-'
+                + String(curMonth + 1).padStart(2, '0') + '-'
+                + String(d).padStart(2, '0');
+            const cell = document.createElement('div');
+            cell.className = 'cal-day';
+            if (today.getFullYear() === curYear && today.getMonth() === curMonth && today.getDate() === d)
+                cell.classList.add('today');
+            if (selectedDate === dateStr)
+                cell.classList.add('selected');
+
+            const numEl = document.createElement('div');
+            numEl.className = 'day-num';
+            numEl.textContent = d;
+            cell.appendChild(numEl);
+
+            // 顯示當天訓練部位標籤
+            const workouts = calendarData[dateStr] || [];
+            workouts.forEach(bp => {
+                if (!bp) return;
+                const dot = document.createElement('span');
+                dot.className = 'bp-dot';
+                dot.style.background = bpColor(bp);
+                dot.textContent = bp;
+                cell.appendChild(dot);
+            });
+
+            cell.addEventListener('click', () => selectDate(dateStr));
+            grid.appendChild(cell);
+        }
+    }
+
+    function selectDate(dateStr) {
+        selectedDate = dateStr;
+        renderCalendar();
+
+        const panel   = document.getElementById('dayDetail');
+        const title   = document.getElementById('dayDetailTitle');
+        const content = document.getElementById('dayDetailContent');
+        panel.style.display = 'block';
+        title.textContent   = dateStr + ' 的訓練';
+
+        const daySessions = sessionsData.filter(s => s.workoutDate === dateStr);
+        if (!daySessions.length) {
+            content.innerHTML = '<p class="text-muted mb-0">這天沒有訓練紀錄</p>';
+            return;
+        }
+        let html = '';
+        daySessions.forEach(s => {
+            html += `<div class="mb-2">
+                <span class="badge bg-primary me-2">${s.bodyPart || ''}</span>
+                ${s.note ? '<small class="text-muted">📝 ' + s.note + '</small>' : ''}
+            </div>`;
+            if (s.sets && s.sets.length) {
+                html += `<table class="table table-sm table-bordered mb-2">
+                    <thead class="table-light"><tr><th>動作</th><th>重量</th><th>組</th><th>次</th><th>休息</th></tr></thead><tbody>`;
+                s.sets.forEach(set => {
+                    html += `<tr>
+                        <td>${set.exerciseName}</td>
+                        <td>${set.weightKg != null ? set.weightKg + ' kg' : '體重'}</td>
+                        <td>${set.sets != null ? set.sets : '-'}</td>
+                        <td>${set.reps != null ? set.reps : '-'}</td>
+                        <td>${set.restSeconds != null ? set.restSeconds + '秒' : '-'}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+            }
+        });
+        content.innerHTML = html;
+    }
+
+    function prevMonth() {
+        if (--curMonth < 0) { curMonth = 11; curYear--; }
+        renderCalendar();
+        document.getElementById('dayDetail').style.display = 'none';
+        selectedDate = null;
+    }
+    function nextMonth() {
+        if (++curMonth > 11) { curMonth = 0; curYear++; }
+        renderCalendar();
+        document.getElementById('dayDetail').style.display = 'none';
+        selectedDate = null;
+    }
+
+    renderCalendar();
+
+    // ── 動作自動補全 ──────────────────────────────────────
+    function filterExercisesByBodyPart(bp) {
+        const dl = document.getElementById('exerciseSuggestions');
+        dl.innerHTML = '';
+        const filtered = bp ? allExercises.filter(e => e.bodyPart === bp) : allExercises;
+        filtered.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.name;
+            dl.appendChild(opt);
+        });
+    }
+
+    // ── 新增/移除動作列 ───────────────────────────────────
     function addExerciseRow() {
         const container = document.getElementById('exerciseContainer');
-        const newRow = document.createElement('div');
-        newRow.className = 'exercise-row row g-2 mb-2 align-items-center';
-        newRow.innerHTML = `
+        const div = document.createElement('div');
+        div.className = 'exercise-row-wrapper row g-2 mb-2 align-items-center';
+        div.innerHTML = `
             <div class="col-md-4">
-                <input type="text" name="exerciseNames" class="form-control" placeholder="例：臥推、深蹲...">
+                <input type="text" name="exerciseNames" class="form-control exercise-name-input"
+                       list="exerciseSuggestions" placeholder="輸入或選擇動作...">
             </div>
             <div class="col-md-2">
                 <input type="number" name="weightKgs" class="form-control" placeholder="80" step="0.5" min="0">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <input type="number" name="sets" class="form-control" placeholder="4" min="1">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <input type="number" name="reps" class="form-control" placeholder="8" min="1">
             </div>
             <div class="col-md-2">
-                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeRow(this)">✕</button>
+                <input type="number" name="restSeconds" class="form-control" placeholder="90" min="0" step="10">
             </div>
-        `;
-        container.appendChild(newRow);
+            <div class="col-md-2">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeRow(this)">✕</button>
+            </div>`;
+        container.appendChild(div);
+        filterExercisesByBodyPart(document.getElementById('bodyPartSelect').value);
     }
+    function removeRow(btn) { btn.closest('.exercise-row-wrapper').remove(); }
 
-    // 移除一行訓練動作
-    function removeRow(btn) {
-        btn.closest('.exercise-row').remove();
+    // ── 編輯切換 ──────────────────────────────────────────
+    function toggleEdit(id) {
+        const view = document.getElementById('view-' + id);
+        const edit = document.getElementById('edit-' + id);
+        const editing = edit.style.display !== 'none';
+        view.style.display = editing ? '' : 'none';
+        edit.style.display = editing ? 'none' : '';
     }
 </script>
 </body>

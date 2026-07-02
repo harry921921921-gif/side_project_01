@@ -22,6 +22,8 @@ public class Exercise {
     @Column(nullable = false)
     private boolean preset = true;  // true=系統預設  false=用戶自訂
 
+    private Integer orderIndex = 0;
+
     public Exercise() {}
 
     public Exercise(String name, String bodyPart, String category) {
@@ -32,16 +34,18 @@ public class Exercise {
     }
 
     // ── Getters ──────────────────────────────────────────
-    public Long    getId()       { return id; }
-    public String  getName()     { return name; }
-    public String  getBodyPart() { return bodyPart; }
-    public String  getCategory() { return category; }
-    public boolean isPreset()    { return preset; }
+    public Long    getId()            { return id; }
+    public String  getName()          { return name; }
+    public String  getBodyPart()      { return bodyPart; }
+    public String  getCategory()      { return category; }
+    public boolean isPreset()         { return preset; }
+    public Integer getOrderIndex()    { return orderIndex; }
 
     // ── Setters ──────────────────────────────────────────
-    public void setId(Long id)             { this.id = id; }
-    public void setName(String name)       { this.name = name; }
-    public void setBodyPart(String bp)     { this.bodyPart = bp; }
-    public void setCategory(String cat)    { this.category = cat; }
-    public void setPreset(boolean preset)  { this.preset = preset; }
+    public void setId(Long id)                      { this.id = id; }
+    public void setName(String name)                { this.name = name; }
+    public void setBodyPart(String bp)              { this.bodyPart = bp; }
+    public void setCategory(String cat)             { this.category = cat; }
+    public void setPreset(boolean preset)           { this.preset = preset; }
+    public void setOrderIndex(Integer orderIndex)   { this.orderIndex = orderIndex; }
 }
