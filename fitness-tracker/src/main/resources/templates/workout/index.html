@@ -104,22 +104,21 @@
             </div>
 
             <div th:unless="${sessions.empty}">
-                <div th:each="session : ${sessions}" class="card mb-3 border">
+                <div th:each="ws : ${sessions}" class="card mb-3 border">
                     <div class="card-header d-flex justify-content-between align-items-center bg-white">
                         <div>
-                            <strong th:text="${session.workoutDate}"></strong>
+                            <strong th:text="${ws.workoutDate}"></strong>
                             <span class="badge bg-primary ms-2"
-                                  th:text="${session.bodyPart}"></span>
+                                  th:text="${ws.bodyPart}"></span>
                         </div>
-                        <form th:action="@{/workout/delete/{id}(id=${session.id})}"
+                        <form th:action="@{/workout/delete/{id}(id=${ws.id})}"
                               method="post"
                               onsubmit="return confirm('確定刪除這筆訓練紀錄？')">
                             <button type="submit" class="btn btn-sm btn-outline-danger">🗑 刪除</button>
                         </form>
                     </div>
                     <div class="card-body p-0">
-                        <!-- 顯示動作列表 -->
-                        <table class="table table-sm mb-0" th:unless="${session.sets.empty}">
+                        <table class="table table-sm mb-0" th:unless="${ws.sets.empty}">
                             <thead class="table-light">
                                 <tr>
                                     <th>動作</th>
@@ -129,7 +128,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr th:each="set : ${session.sets}">
+                                <tr th:each="set : ${ws.sets}">
                                     <td th:text="${set.exerciseName}"></td>
                                     <td th:text="${set.weightKg != null ? set.weightKg + ' kg' : '體重'}"></td>
                                     <td th:text="${set.sets}"></td>
@@ -138,8 +137,8 @@
                             </tbody>
                         </table>
                         <p class="text-muted p-2 mb-0 small"
-                           th:if="${session.note != null and !session.note.isEmpty()}"
-                           th:text="'📝 ' + ${session.note}"></p>
+                           th:if="${ws.note != null and !ws.note.isEmpty()}"
+                           th:text="'📝 ' + ${ws.note}"></p>
                     </div>
                 </div>
             </div>
