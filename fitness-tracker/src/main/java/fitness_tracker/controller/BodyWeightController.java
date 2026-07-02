@@ -8,9 +8,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.*;
 
 @Controller
-@RequestMapping("/body-weight")  // 這個 Controller 底下所有路徑都以 /body-weight 開頭
+@RequestMapping("/body-weight")
 public class BodyWeightController {
 
     private static final String REDIRECT = "redirect:/body-weight";
@@ -20,52 +21,68 @@ public class BodyWeightController {
         this.service = service;
     }
 
-    // GET /body-weight → 顯示體重紀錄頁面
     @GetMapping
     public String index(Model model) {
-        model.addAttribute("records", service.findAll());
-        return "body-weight/index";  // → templates/body-weight/index.html
+        List<BodyWeight> records = service.findAll();
+        model.addAttribute("records", records);
+
+        // 直接傳 List<Map>，Thymeleaf 自動轉成 JS array
+        List<Map<String, Object>> chartData = new ArrayList<>();
+        for (BodyWeight r : records) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("date", r.getRecordedDate().toString());
+            m.put("weight", r.getWeightKg());
+            m.put("timeOfDay", r.getTimeOfDay() != null ? r.getTimeOfDay() : "");
+            m.put("bodyFat", r.getBodyFatPct());
+            m.put("muscle", r.getSkeletalMuscleKg());
+            chartData.add(m);
+        }
+        model.addAttribute("chartData", chartData);
+        return "body-weight/index";
     }
 
-    // POST /body-weight → 儲存新體重紀錄
     @PostMapping
     public String save(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate recordedDate,
             @RequestParam Double weightKg,
             @RequestParam(required = false) String timeOfDay,
+            @RequestParam(required = false) Double bodyFatPct,
+            @RequestParam(required = false) Double skeletalMuscleKg,
             @RequestParam(required = false) String note) {
 
-        BodyWeight bodyWeight = new BodyWeight();
-        bodyWeight.setRecordedDate(recordedDate);
-        bodyWeight.setWeightKg(weightKg);
-        bodyWeight.setTimeOfDay(timeOfDay);
-        bodyWeight.setNote(note);
-        service.save(bodyWeight);
-
-        // redirect：儲存後跳回列表頁（避免重新整理時重複送出表單）
+        BodyWeight bw = new BodyWeight();
+        bw.setRecordedDate(recordedDate);
+        bw.setWeightKg(weightKg);
+        bw.setTimeOfDay(timeOfDay);
+        bw.setBodyFatPct(bodyFatPct);
+        bw.setSkeletalMuscleKg(skeletalMuscleKg);
+        bw.setNote(note);
+        service.save(bw);
         return REDIRECT;
     }
 
-    // POST /body-weight/update/{id} → 修改指定紀錄
     @PostMapping("/update/{id}")
     public String update(
             @PathVariable Long id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate recordedDate,
             @RequestParam Double weightKg,
             @RequestParam(required = false) String timeOfDay,
+            @RequestParam(required = false) Double bodyFatPct,
+            @RequestParam(required = false) Double skeletalMuscleKg,
             @RequestParam(required = false) String note) {
 
-        service.findById(id).ifPresent(bodyWeight -> {
-            bodyWeight.setRecordedDate(recordedDate);
-            bodyWeight.setWeightKg(weightKg);
-            bodyWeight.setTimeOfDay(timeOfDay);
-            bodyWeight.setNote(note);
-            service.save(bodyWeight);
+        service.findById(id).ifPresent(bw -> {
+            bw.setRecordedDate(recordedDate);
+            bw.setWeightKg(weightKg);
+            bw.setTimeOfDay(timeOfDay);
+            bw.setBodyFatPct(bodyFatPct);
+            bw.setSkeletalMuscleKg(skeletalMuscleKg);
+            bw.setNote(note);
+            service.save(bw);
         });
         return REDIRECT;
     }
 
-    // POST /body-weight/delete/{id} → 刪除指定紀錄
     @PostMapping("/delete/{id}")
     public String delete(@PathVariable Long id) {
         service.delete(id);

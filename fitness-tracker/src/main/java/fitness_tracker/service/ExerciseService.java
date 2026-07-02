@@ -16,37 +16,72 @@ public class ExerciseService {
         this.repository = repository;
     }
 
-    // 查全部（下拉選單用）
     public List<Exercise> findAll() {
-        return repository.findAllByOrderByBodyPartAscNameAsc();
+        return repository.findAllByOrderByBodyPartAscOrderIndexAscNameAsc();
     }
 
-    // 依部位篩選
     public List<Exercise> findByBodyPart(String bodyPart) {
-        return repository.findByBodyPartOrderByNameAsc(bodyPart);
+        return repository.findByBodyPartOrderByOrderIndexAscNameAsc(bodyPart);
     }
 
-    // 文字模糊搜尋（自動完成）
     public List<Exercise> search(String keyword) {
         return repository.findByNameContainingIgnoreCaseOrderByNameAsc(keyword);
     }
 
-    // 新增自訂動作（會先確認名稱沒重複）
     public Optional<Exercise> addCustom(String name, String bodyPart, String category) {
-        if (repository.existsByName(name)) {
-            return Optional.empty();    // 已存在，回空
-        }
-        Exercise ex = new Exercise(name, bodyPart, category);
-        ex.setPreset(false);            // 標記為用戶自訂
+        String trimmed = name.trim();
+        if (trimmed.isEmpty() || repository.existsByName(trimmed)) return Optional.empty();
+        List<Exercise> existing = repository.findByBodyPartOrderByOrderIndexDesc(bodyPart);
+        int nextIdx = existing.isEmpty() ? 1
+                : (existing.get(0).getOrderIndex() == null ? 1 : existing.get(0).getOrderIndex() + 1);
+        Exercise ex = new Exercise(trimmed, bodyPart, category != null ? category : "COMPOUND");
+        ex.setPreset(false);
+        ex.setOrderIndex(nextIdx);
         return Optional.of(repository.save(ex));
     }
 
-    // 初始化用：資料表是否已有資料
+    public void delete(Long id) {
+        repository.findById(id).ifPresent(ex -> {
+            if (!ex.isPreset()) repository.deleteById(id);
+        });
+    }
+
+    public void moveUp(Long id) {
+        repository.findById(id).ifPresent(ex -> {
+            List<Exercise> group = repository.findByBodyPartOrderByOrderIndexAscNameAsc(ex.getBodyPart());
+            for (int i = 1; i < group.size(); i++) {
+                if (group.get(i).getId().equals(id)) {
+                    swapOrder(group.get(i - 1), group.get(i));
+                    return;
+                }
+            }
+        });
+    }
+
+    public void moveDown(Long id) {
+        repository.findById(id).ifPresent(ex -> {
+            List<Exercise> group = repository.findByBodyPartOrderByOrderIndexAscNameAsc(ex.getBodyPart());
+            for (int i = 0; i < group.size() - 1; i++) {
+                if (group.get(i).getId().equals(id)) {
+                    swapOrder(group.get(i), group.get(i + 1));
+                    return;
+                }
+            }
+        });
+    }
+
+    private void swapOrder(Exercise a, Exercise b) {
+        Integer tmp = a.getOrderIndex();
+        a.setOrderIndex(b.getOrderIndex());
+        b.setOrderIndex(tmp);
+        repository.save(a);
+        repository.save(b);
+    }
+
     public boolean hasData() {
         return repository.count() > 0;
     }
 
-    // 批次寫入預設動作（給 DataInitializer 用）
     public void saveAll(List<Exercise> exercises) {
         repository.saveAll(exercises);
     }
