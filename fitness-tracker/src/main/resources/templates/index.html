@@ -75,13 +75,13 @@
 
             <!-- th:each：迴圈，類似 for-each -->
             <div th:unless="${recentWorkouts.empty}">
-                <div th:each="session : ${recentWorkouts}" class="border-bottom pb-2 mb-2">
+                <div th:each="ws : ${recentWorkouts}" class="border-bottom pb-2 mb-2">
                     <div class="d-flex justify-content-between align-items-center">
-                        <strong th:text="${session.workoutDate}">日期</strong>
-                        <span class="badge bg-secondary" th:text="${session.bodyPart}">部位</span>
+                        <strong th:text="${ws.workoutDate}">日期</strong>
+                        <span class="badge bg-secondary" th:text="${ws.bodyPart}">部位</span>
                     </div>
                     <small class="text-muted">
-                        <span th:each="set, iter : ${session.sets}">
+                        <span th:each="set, iter : ${ws.sets}">
                             <span th:text="${set.exerciseName}
                                 + (${set.weightKg} != null ? ' ' + ${set.weightKg} + 'kg' : ' 徒手')
                                 + '×' + ${set.sets} + '組×' + ${set.reps} + '次'"></span>
