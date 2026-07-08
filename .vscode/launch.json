@@ -9,7 +9,8 @@
             "name": "FitnessTrackerApplication",
             "request": "launch",
             "mainClass": "fitness_tracker.FitnessTrackerApplication",
-            "projectName": "fitness-tracker"
+            "projectName": "fitness-tracker",
+            "envFile": "${workspaceFolder}/.env"
         },
         {
             "type": "editor-browser",
