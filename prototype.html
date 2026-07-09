@@ -841,12 +841,12 @@
 
     <div class="section-header">
       <h4>畫面 Demo（靜態模擬）</h4>
-      <p>模擬實際執行於 localhost:8080 的畫面</p>
+      <p>模擬實際執行於 localhost:8080 的畫面 · 已依最新版本更新（首頁近 7 天訓練、訓練頁排版、體重圖表留白規則）</p>
     </div>
 
     <!-- Dashboard Demo -->
     <h6 class="text-muted mb-2">/ &nbsp;— Dashboard 首頁</h6>
-    <div class="demo-screen mb-4">
+    <div class="demo-screen mb-2">
       <div class="demo-titlebar">
         <span class="dot dot-r"></span>
         <span class="dot dot-y"></span>
@@ -866,8 +866,8 @@
           <div class="col-4">
             <div class="card text-white bg-primary p-2">
               <div style="font-size:.75rem">⚖️ 最新體重</div>
-              <div class="fw-bold">72.5 kg</div>
-              <div style="font-size:.72rem; opacity:.8">2026-06-30</div>
+              <div class="fw-bold">82.5 kg</div>
+              <div style="font-size:.72rem; opacity:.8">2026-07-09</div>
             </div>
           </div>
           <div class="col-4">
@@ -890,25 +890,32 @@
             <strong style="font-size:.88rem">📋 最近訓練紀錄</strong>
             <span class="badge bg-outline-primary border" style="font-size:.72rem">查看全部</span>
           </div>
+          <!-- 只顯示「最近 7 天內」有訓練的日期，沒訓練的日子不佔位；超過 7 天（如 7/1）自動不顯示 -->
           <div class="border-bottom pb-1 mb-1" style="font-size:.82rem">
             <div class="d-flex justify-content-between">
-              <strong>2026-06-30</strong><span class="badge bg-secondary" style="font-size:.7rem">胸</span>
+              <strong>2026-07-06</strong><span class="badge bg-secondary" style="font-size:.7rem">胸</span>
             </div>
-            <span class="text-muted">臥推 80kg×4組×8次｜飛鳥 12kg×3組×12次</span>
           </div>
           <div class="border-bottom pb-1 mb-1" style="font-size:.82rem">
             <div class="d-flex justify-content-between">
-              <strong>2026-06-28</strong><span class="badge bg-secondary" style="font-size:.7rem">腿</span>
+              <strong>2026-07-04</strong><span class="badge bg-secondary" style="font-size:.7rem">下半身</span>
             </div>
-            <span class="text-muted">深蹲 100kg×5組×5次｜腿推 120kg×4組×10次</span>
+          </div>
+          <div class="border-bottom pb-1 mb-1" style="font-size:.82rem">
+            <div class="d-flex justify-content-between">
+              <strong>2026-07-03</strong><span class="badge bg-secondary" style="font-size:.7rem">上半身</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
+    <div class="alert alert-light border small mb-4" style="font-size:.8rem;">
+      <strong>更新重點：</strong>只保留「最新體重」與「當天訓練部位」，不再顯示動作/重量/組數等細節；訓練清單只列出最近 7 天內有練的日期（例：7/1 已超過 7 天，不會出現）。
+    </div>
 
     <!-- Workout Demo -->
-    <h6 class="text-muted mb-2">/workout &nbsp;— 訓練紀錄頁</h6>
-    <div class="demo-screen mb-4">
+    <h6 class="text-muted mb-2">/workout &nbsp;— 訓練紀錄頁（月曆與訓練記錄已互換位置）</h6>
+    <div class="demo-screen mb-2">
       <div class="demo-titlebar">
         <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
         <span class="demo-url">localhost:8080/workout</span>
@@ -919,16 +926,16 @@
           <div class="card-header bg-white"><strong>➕ 新增訓練</strong></div>
           <div class="card-body">
             <div class="row g-2 mb-2">
-              <div class="col-3"><label class="form-label small">日期</label><input class="form-control form-control-sm" type="date" value="2026-07-01" readonly></div>
-              <div class="col-3"><label class="form-label small">訓練部位</label><select class="form-select form-select-sm"><option>背</option></select></div>
+              <div class="col-3"><label class="form-label small">日期</label><input class="form-control form-control-sm" type="date" value="2026-07-09" readonly></div>
+              <div class="col-3"><label class="form-label small">訓練部位</label><select class="form-select form-select-sm"><option>胸</option></select></div>
               <div class="col-6"><label class="form-label small">備註</label><input class="form-control form-control-sm" placeholder="今天狀態如何？"></div>
             </div>
             <div class="row g-1 mb-1 text-muted" style="font-size:.75rem;">
               <div class="col-4">動作名稱</div><div class="col-2">重量(kg)</div><div class="col-2">組數</div><div class="col-2">次數</div>
             </div>
             <div class="row g-1 mb-1">
-              <div class="col-4"><input class="form-control form-control-sm" value="引體向上"></div>
-              <div class="col-2"><input class="form-control form-control-sm" value=""></div>
+              <div class="col-4"><input class="form-control form-control-sm" value="臥推"></div>
+              <div class="col-2"><input class="form-control form-control-sm" value="85"></div>
               <div class="col-2"><input class="form-control form-control-sm" value="4"></div>
               <div class="col-2"><input class="form-control form-control-sm" value="8"></div>
               <div class="col-2"><button class="btn btn-outline-danger btn-sm" disabled>✕</button></div>
@@ -939,30 +946,85 @@
             </div>
           </div>
         </div>
-        <div class="card shadow-sm">
-          <div class="card-header bg-white"><strong>📋 訓練歷史</strong></div>
+
+        <!-- ① 今日訓練（移到原本月曆的位置）── 只顯示當天新增動作 + 上次同部位比較 -->
+        <div class="card shadow-sm mb-3">
+          <div class="card-header bg-white"><strong>📋 今日訓練</strong></div>
           <div class="card-body">
             <div class="card border mb-2">
               <div class="card-header bg-white d-flex justify-content-between">
-                <div><strong>2026-06-30</strong> <span class="badge bg-primary ms-2">胸</span></div>
-                <button class="btn btn-sm btn-outline-danger">🗑 刪除</button>
+                <div><strong>2026-07-09</strong> <span class="badge bg-primary ms-2">胸</span></div>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-sm btn-outline-secondary">✏️ 編輯</button>
+                  <button class="btn btn-sm btn-outline-danger">🗑 刪除</button>
+                </div>
               </div>
               <table class="table table-sm mb-0">
                 <thead class="table-light"><tr><th>動作</th><th>重量</th><th>組數</th><th>次數</th></tr></thead>
                 <tbody>
-                  <tr><td>臥推</td><td>80 kg</td><td>4</td><td>8</td></tr>
-                  <tr><td>飛鳥</td><td>12 kg</td><td>3</td><td>12</td></tr>
+                  <tr><td>臥推</td><td>85 kg</td><td>4</td><td>8</td></tr>
+                  <tr><td>飛鳥</td><td>15 kg</td><td>3</td><td>12</td></tr>
                 </tbody>
               </table>
+              <div class="card-footer bg-light">
+                <div class="small text-muted mb-1">🔁 上次「胸」訓練 (2026-07-06)</div>
+                <table class="table table-sm mb-0">
+                  <thead class="table-light"><tr><th>動作</th><th>重量</th><th>組數</th><th>次數</th></tr></thead>
+                  <tbody>
+                    <tr><td>臥推</td><td>80 kg</td><td>4</td><td>8</td></tr>
+                    <tr><td>飛鳥</td><td>12 kg</td><td>3</td><td>12</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ② 月曆（移到原本訓練歷史的位置） -->
+        <div class="card shadow-sm">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+            <span>‹</span><h6 class="mb-0">2026 年 7 月</h6><span>›</span>
+          </div>
+          <div class="card-body pb-2 pt-3">
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-size:.72rem;text-align:center;">
+              <div class="text-muted fw-semibold">日</div><div class="text-muted fw-semibold">一</div>
+              <div class="text-muted fw-semibold">二</div><div class="text-muted fw-semibold">三</div>
+              <div class="text-muted fw-semibold">四</div><div class="text-muted fw-semibold">五</div>
+              <div class="text-muted fw-semibold">六</div>
+              <div class="p-1 rounded" style="background:#fff;border:1px solid #e9ecef;color:#adb5bd">28</div>
+              <div class="p-1 rounded" style="background:#fff;border:1px solid #e9ecef;color:#adb5bd">29</div>
+              <div class="p-1 rounded" style="background:#fff;border:1px solid #e9ecef;color:#adb5bd">30</div>
+              <div class="p-1 rounded" style="background:#fff;border:1px solid #e9ecef">1</div>
+              <div class="p-1 rounded" style="background:#fff;border:1px solid #e9ecef">2</div>
+              <div class="p-1 rounded" style="background:#fff;border:1px solid #e9ecef">
+                3<br><span class="badge" style="background:#fff3cd;color:#664d03;font-size:.6rem;">上半身</span>
+              </div>
+              <div class="p-1 rounded" style="background:#fff;border:1px solid #e9ecef">
+                4<br><span class="badge" style="background:#d1e7dd;color:#0a3622;font-size:.6rem;">下半身</span>
+              </div>
+              <div class="p-1 rounded" style="background:#fff;border:1px solid #e9ecef">5</div>
+              <div class="p-1 rounded" style="background:#fff;border:1px solid #e9ecef">
+                6<br><span class="badge" style="background:#cfe2ff;color:#052c65;font-size:.6rem;">胸</span>
+              </div>
+              <div class="p-1 rounded" style="background:#fff;border:1px solid #e9ecef">7</div>
+              <div class="p-1 rounded" style="background:#fff;border:1px solid #e9ecef">8</div>
+              <div class="p-1 rounded" style="background:#f0f4ff;border:1px solid #0d6efd">
+                <strong style="color:#0d6efd">9</strong><br><span class="badge" style="background:#cfe2ff;color:#052c65;font-size:.6rem;">胸</span>
+              </div>
+              <div class="p-1 rounded" style="background:#fff;border:1px solid #e9ecef">10</div>
+              <div class="p-1 rounded" style="background:#fff;border:1px solid #e9ecef">11</div>
             </div>
           </div>
         </div>
       </div>
     </div>
+    <div class="alert alert-light border small mb-4" style="font-size:.8rem;">
+      <strong>更新重點：</strong>「今日訓練」區塊移到原本月曆的位置，只列出當天新增的動作，並自動附上「上次同部位怎麼練」的對照表方便比較進步幅度；月曆則移到下方，點日期仍可查看該天詳細內容。
+    </div>
 
     <!-- Body Weight Demo -->
-    <h6 class="text-muted mb-2">/body-weight &nbsp;— 體重紀錄頁</h6>
-    <div class="demo-screen">
+    <h6 class="text-muted mb-2">/body-weight &nbsp;— 體重紀錄頁（線圖未來留白，不再往後帶入）</h6>
+    <div class="demo-screen mb-2">
       <div class="demo-titlebar">
         <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
         <span class="demo-url">localhost:8080/body-weight</span>
@@ -973,25 +1035,58 @@
           <div class="card-header bg-white"><strong>➕ 新增今日體重</strong></div>
           <div class="card-body">
             <div class="row g-2">
-              <div class="col-3"><label class="form-label small">日期</label><input class="form-control form-control-sm" type="date" value="2026-07-01" readonly></div>
-              <div class="col-2"><label class="form-label small">體重 (kg)</label><input class="form-control form-control-sm" placeholder="72.5"></div>
+              <div class="col-3"><label class="form-label small">日期</label><input class="form-control form-control-sm" type="date" value="2026-07-09" readonly></div>
+              <div class="col-2"><label class="form-label small">體重 (kg)</label><input class="form-control form-control-sm" placeholder="82.5"></div>
               <div class="col-3"><label class="form-label small">時間點</label><select class="form-select form-select-sm"><option>☀️ 早上空腹</option></select></div>
               <div class="col-4"><label class="form-label small">備註</label><input class="form-control form-control-sm" placeholder="例：運動後"></div>
             </div>
             <button class="btn btn-primary btn-sm mt-2">✔ 儲存體重</button>
           </div>
         </div>
+
+        <!-- 體重趨勢線圖 mockup：過去空白往前帶入，今天(7/9)之後留白 -->
+        <div class="card mb-3 shadow-sm">
+          <div class="card-header bg-white"><strong>📈 體重趨勢</strong></div>
+          <div class="card-body">
+            <svg viewBox="0 0 400 140" style="width:100%;height:130px;">
+              <line x1="15" y1="115" x2="385" y2="115" stroke="#dee2e6" stroke-width="1"/>
+              <!-- 實際資料：上次量測 83kg 一路帶到 7/6，7/9 輸入新數值 82.5kg -->
+              <polyline points="20,55 65,55 110,55 155,55 200,55 245,60"
+                        fill="none" stroke="#0d6efd" stroke-width="3"/>
+              <circle cx="20"  cy="55" r="4" fill="#0d6efd"/>
+              <circle cx="65"  cy="55" r="4" fill="#0d6efd"/>
+              <circle cx="110" cy="55" r="4" fill="#0d6efd"/>
+              <circle cx="155" cy="55" r="4" fill="#0d6efd"/>
+              <circle cx="200" cy="55" r="4" fill="#0d6efd"/>
+              <circle cx="245" cy="60" r="5" fill="#0d6efd" stroke="#fff" stroke-width="1.5"/>
+              <!-- 今天之後：完全留白，不畫線 -->
+              <line x1="245" y1="115" x2="385" y2="115" stroke="#ced4da" stroke-width="1" stroke-dasharray="3,4"/>
+              <text x="315" y="100" font-size="11" fill="#adb5bd" text-anchor="middle">尚未輸入（留白）</text>
+              <text x="20"  y="130" font-size="10" fill="#6c757d" text-anchor="middle">7/3</text>
+              <text x="65"  y="130" font-size="10" fill="#6c757d" text-anchor="middle">7/4</text>
+              <text x="110" y="130" font-size="10" fill="#6c757d" text-anchor="middle">7/5</text>
+              <text x="155" y="130" font-size="10" fill="#6c757d" text-anchor="middle">7/6</text>
+              <text x="200" y="130" font-size="10" fill="#6c757d" text-anchor="middle">7/7-7/8</text>
+              <text x="245" y="130" font-size="10" fill="#0d6efd" font-weight="700" text-anchor="middle">7/9 今天</text>
+              <text x="330" y="130" font-size="10" fill="#adb5bd" text-anchor="middle">7/10 以後</text>
+            </svg>
+          </div>
+        </div>
+
         <div class="card shadow-sm">
           <div class="card-header bg-white"><strong>📋 歷史紀錄</strong></div>
           <table class="table table-hover mb-0" style="font-size:.84rem;">
             <thead class="table-dark"><tr><th>日期</th><th>體重</th><th>時間點</th><th>備註</th><th>操作</th></tr></thead>
             <tbody>
-              <tr><td>2026-06-30</td><td><strong>72.5 kg</strong></td><td>☀️ 早上空腹</td><td>-</td><td><button class="btn btn-sm btn-outline-danger">🗑</button></td></tr>
-              <tr><td>2026-06-28</td><td><strong>73.0 kg</strong></td><td>☀️ 早上空腹</td><td>訓練後</td><td><button class="btn btn-sm btn-outline-danger">🗑</button></td></tr>
+              <tr><td>2026-07-09</td><td><strong>82.5 kg</strong></td><td>☀️ 早上空腹</td><td>-</td><td><button class="btn btn-sm btn-outline-danger">🗑</button></td></tr>
+              <tr><td>2026-07-01</td><td><strong>83.0 kg</strong></td><td>☀️ 早上空腹</td><td>-</td><td><button class="btn btn-sm btn-outline-danger">🗑</button></td></tr>
             </tbody>
           </table>
         </div>
       </div>
+    </div>
+    <div class="alert alert-light border small mb-4" style="font-size:.8rem;">
+      <strong>更新重點：</strong>缺資料的日期只會用「上一次量測值」往前帶入（例如 7/1 的 83kg 一路延伸到 7/6），今天之後還沒發生的日期不會再被帶入數值，線圖直接留白。
     </div>
 
   </div>

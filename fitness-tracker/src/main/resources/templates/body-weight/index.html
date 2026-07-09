@@ -214,6 +214,7 @@
     // ── 週視圖：本週一到本週日 ────────────────────────────
     function getWeekData() {
         const today = new Date();
+        const todayStr = today.toISOString().slice(0, 10);
         const dow = today.getDay(); // 0=Sun
         const monday = new Date(today);
         monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
@@ -229,8 +230,12 @@
             const dateStr = d.toISOString().slice(0, 10);
             labels.push(dayNames[i] + ' ' + dateStr.slice(5));
             let w = dayMap.get(dateStr);
-            if (w == null) w = lastKnown;
-            else lastKnown = w;
+            if (w == null) {
+                // 只往前帶入（過去空白日補上一次數值），未來還沒到的日期留空
+                w = (dateStr <= todayStr) ? lastKnown : null;
+            } else {
+                lastKnown = w;
+            }
             weights.push(w);
         }
         return { labels, weights };
@@ -239,6 +244,7 @@
     // ── 月視圖：本月 1 日到最後一日 ──────────────────────
     function getMonthData() {
         const today = new Date();
+        const todayStr = today.toISOString().slice(0, 10);
         const year  = today.getFullYear();
         const month = today.getMonth(); // 0-based
         const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -253,8 +259,12 @@
                 + String(d).padStart(2, '0');
             labels.push(d + '日');
             let w = dayMap.get(dateStr);
-            if (w == null) w = lastKnown;
-            else lastKnown = w;
+            if (w == null) {
+                // 只往前帶入（過去空白日補上一次數值），未來還沒到的日期留空
+                w = (dateStr <= todayStr) ? lastKnown : null;
+            } else {
+                lastKnown = w;
+            }
             weights.push(w);
         }
         return { labels, weights };

@@ -28,8 +28,8 @@ public class HomeController {
         bodyWeightService.findLatest()
                 .ifPresent(w -> model.addAttribute("lastWeight", w));
 
-        // 最近 5 筆訓練
-        model.addAttribute("recentWorkouts", workoutService.findRecent(5));
+        // 最近 7 天內的訓練（超過 7 天就不顯示）
+        model.addAttribute("recentWorkouts", workoutService.findRecentWithinDays(7));
 
         // 本週訓練次數
         model.addAttribute("weeklyCount", workoutService.countThisWeek());

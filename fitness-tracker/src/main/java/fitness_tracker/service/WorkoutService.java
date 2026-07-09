@@ -33,6 +33,14 @@ public class WorkoutService {
         return all.subList(0, Math.min(limit, all.size()));
     }
 
+    public List<WorkoutSession> findRecentWithinDays(int days) {
+        LocalDate today = LocalDate.now();
+        LocalDate cutoff = today.minusDays(days - 1);
+        return findAll().stream()
+                .filter(s -> !s.getWorkoutDate().isBefore(cutoff) && !s.getWorkoutDate().isAfter(today))
+                .toList();
+    }
+
     public long countThisWeek() {
         LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY);
         return repository.countByWorkoutDateGreaterThanEqual(monday);

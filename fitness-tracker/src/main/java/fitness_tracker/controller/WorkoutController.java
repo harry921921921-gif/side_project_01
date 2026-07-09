@@ -44,6 +44,24 @@ public class WorkoutController {
         }
         model.addAttribute("calendarData", calendarData);
 
+        // 當天新增的訓練 + 上一次同部位的訓練內容（供比較）
+        LocalDate today = LocalDate.now();
+        List<WorkoutSession> todaySessions = sessions.stream()
+                .filter(s -> s.getWorkoutDate().equals(today))
+                .collect(Collectors.toList());
+        model.addAttribute("todaySessions", todaySessions);
+
+        Map<Long, WorkoutSession> lastSameBodyPartSession = new LinkedHashMap<>();
+        for (WorkoutSession s : todaySessions) {
+            String bp = s.getBodyPart();
+            sessions.stream()
+                    .filter(o -> !o.getWorkoutDate().equals(today)
+                            && bp != null && bp.equals(o.getBodyPart()))
+                    .findFirst() // sessions 已依日期由新到舊排序
+                    .ifPresent(prev -> lastSameBodyPartSession.put(s.getId(), prev));
+        }
+        model.addAttribute("lastSameBodyPartSession", lastSameBodyPartSession);
+
         // 給 JS 用的精簡 sessions（避免傳 JPA entity 造成序列化問題）
         List<Map<String, Object>> sessionsForJS = sessions.stream().map(s -> {
             Map<String, Object> sm = new LinkedHashMap<>();
