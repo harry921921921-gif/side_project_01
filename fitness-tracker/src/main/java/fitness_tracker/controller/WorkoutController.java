@@ -44,18 +44,15 @@ public class WorkoutController {
         }
         model.addAttribute("calendarData", calendarData);
 
-        // 當天新增的訓練 + 上一次同部位的訓練內容（供比較）
-        LocalDate today = LocalDate.now();
-        List<WorkoutSession> todaySessions = sessions.stream()
-                .filter(s -> s.getWorkoutDate().equals(today))
-                .collect(Collectors.toList());
-        model.addAttribute("todaySessions", todaySessions);
+        // 近 7 天訓練 + 上一次同部位的訓練內容（供比較）
+        List<WorkoutSession> recentWeekSessions = service.findRecentWithinDays(7);
+        model.addAttribute("recentWeekSessions", recentWeekSessions);
 
         Map<Long, WorkoutSession> lastSameBodyPartSession = new LinkedHashMap<>();
-        for (WorkoutSession s : todaySessions) {
+        for (WorkoutSession s : recentWeekSessions) {
             String bp = s.getBodyPart();
             sessions.stream()
-                    .filter(o -> !o.getWorkoutDate().equals(today)
+                    .filter(o -> o.getWorkoutDate().isBefore(s.getWorkoutDate())
                             && bp != null && bp.equals(o.getBodyPart()))
                     .findFirst() // sessions 已依日期由新到舊排序
                     .ifPresent(prev -> lastSameBodyPartSession.put(s.getId(), prev));
@@ -76,6 +73,8 @@ public class WorkoutController {
                 setMap.put("sets", set.getSets());
                 setMap.put("reps", set.getReps());
                 setMap.put("restSeconds", set.getRestSeconds());
+                setMap.put("rpe", set.getRpe());
+                setMap.put("completionStatus", set.getCompletionStatus());
                 return setMap;
             }).collect(Collectors.toList());
             sm.put("sets", setsForJS);
@@ -104,7 +103,12 @@ public class WorkoutController {
             @RequestParam(required = false) List<Double> weightKgs,
             @RequestParam(required = false) List<Integer> sets,
             @RequestParam(required = false) List<Integer> reps,
-            @RequestParam(required = false) List<Integer> restSeconds) {
+            @RequestParam(required = false) List<Integer> restSeconds,
+            @RequestParam(required = false) List<Double> rpes,
+            @RequestParam(required = false) List<String> completionStatuses,
+            @RequestParam(required = false) List<Integer> actualReps,
+            @RequestParam(required = false) List<Double> actualWeights,
+            @RequestParam(required = false) List<String> setNotes) {
 
         WorkoutSession session = new WorkoutSession();
         session.setWorkoutDate(workoutDate);
@@ -113,7 +117,8 @@ public class WorkoutController {
 
         service.save(session,
                 exerciseNames != null ? exerciseNames : List.of(),
-                weightKgs, sets, reps, restSeconds);
+                weightKgs, sets, reps, restSeconds,
+                rpes, completionStatuses, actualReps, actualWeights, setNotes);
         return "redirect:/workout";
     }
 
@@ -127,10 +132,16 @@ public class WorkoutController {
             @RequestParam(required = false) List<Double> weightKgs,
             @RequestParam(required = false) List<Integer> sets,
             @RequestParam(required = false) List<Integer> reps,
-            @RequestParam(required = false) List<Integer> restSeconds) {
+            @RequestParam(required = false) List<Integer> restSeconds,
+            @RequestParam(required = false) List<Double> rpes,
+            @RequestParam(required = false) List<String> completionStatuses,
+            @RequestParam(required = false) List<Integer> actualReps,
+            @RequestParam(required = false) List<Double> actualWeights,
+            @RequestParam(required = false) List<String> setNotes) {
 
         service.update(id, workoutDate, bodyPart, note,
-                exerciseNames, weightKgs, sets, reps, restSeconds);
+                exerciseNames, weightKgs, sets, reps, restSeconds,
+                rpes, completionStatuses, actualReps, actualWeights, setNotes);
         return "redirect:/workout";
     }
 

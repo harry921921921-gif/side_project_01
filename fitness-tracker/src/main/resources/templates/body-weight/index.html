@@ -293,8 +293,11 @@
     const weightCtx = document.getElementById('weightChart').getContext('2d');
     let weightChart = null;
 
-    function buildWeightChart(data) {
+    function buildWeightChart(data, range) {
         const valid = data.weights.filter(w => w != null);
+        // Y 軸固定範圍：以本次視圖第一筆實際輸入的體重為基準，往上下各留 range 公斤，
+        // 避免小幅度變化因軸距過窄而被畫成陡峭的線
+        const baseline = valid.length ? valid[0] : null;
         if (weightChart) weightChart.destroy();
         weightChart = new Chart(weightCtx, {
             type: 'line',
@@ -317,7 +320,12 @@
                 responsive: true,
                 plugins: { legend: { display: false } },
                 scales: {
-                    y: { beginAtZero: false, ticks: { callback: v => v + ' kg' } }
+                    y: {
+                        beginAtZero: false,
+                        min: baseline != null ? baseline - range : undefined,
+                        max: baseline != null ? baseline + range : undefined,
+                        ticks: { callback: v => v + ' kg' }
+                    }
                 }
             }
         });
@@ -336,7 +344,8 @@
         const data = view === 'week' ? getWeekData()
                    : view === 'month' ? getMonthData()
                    : getYearData();
-        buildWeightChart(data);
+        const range = view === 'week' ? 5 : view === 'month' ? 10 : 20;
+        buildWeightChart(data, range);
     }
 
     // ── Chart.js 骨骼肌 & 體脂率圖（每次有測量值才出現）──
@@ -410,7 +419,7 @@
     }
 
     // 初始渲染
-    buildWeightChart(getWeekData());
+    buildWeightChart(getWeekData(), 5);
     buildBodyCompChart();
 </script>
 </body>

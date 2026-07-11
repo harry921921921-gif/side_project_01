@@ -34,6 +34,9 @@ public class HomeController {
         // 本週訓練次數
         model.addAttribute("weeklyCount", workoutService.countThisWeek());
 
+        // 訓練統計（本週次數、近 7 天複合動作訓練量依部位、平均 RPE、最近摘要、近 3 次完成率）
+        model.addAttribute("dashboardStats", workoutService.computeDashboardStats());
+
         return "index";
     }
 }

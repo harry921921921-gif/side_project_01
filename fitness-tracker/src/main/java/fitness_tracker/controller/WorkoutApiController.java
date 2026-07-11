@@ -34,7 +34,9 @@ public class WorkoutApiController {
 
     // POST /api/workouts
     // Body: { "workoutDate": "2026-06-02", "bodyPart": "Chest", "note": "...",
-    //         "exercises": [{ "exerciseName": "Bench Press", "weightKg": 80, "sets": 3, "reps": 10 }] }
+    //         "exercises": [{ "exerciseName": "Bench Press", "weightKg": 80, "sets": 3, "reps": 10,
+    //                         "rpe": 8.5, "completionStatus": "COMPLETE", "actualReps": 10,
+    //                         "actualWeight": 80, "notes": "..." }] }
     @PostMapping
     public ResponseEntity<WorkoutSession> create(@RequestBody WorkoutRequest req) {
         WorkoutSession session = new WorkoutSession();
@@ -48,7 +50,13 @@ public class WorkoutApiController {
                 exercises.stream().map(WorkoutRequest.ExerciseDto::exerciseName).toList(),
                 exercises.stream().map(WorkoutRequest.ExerciseDto::weightKg).toList(),
                 exercises.stream().map(WorkoutRequest.ExerciseDto::sets).toList(),
-                exercises.stream().map(WorkoutRequest.ExerciseDto::reps).toList()
+                exercises.stream().map(WorkoutRequest.ExerciseDto::reps).toList(),
+                exercises.stream().<Integer>map(w -> null).toList(),
+                exercises.stream().map(WorkoutRequest.ExerciseDto::rpe).toList(),
+                exercises.stream().map(WorkoutRequest.ExerciseDto::completionStatus).toList(),
+                exercises.stream().map(WorkoutRequest.ExerciseDto::actualReps).toList(),
+                exercises.stream().map(WorkoutRequest.ExerciseDto::actualWeight).toList(),
+                exercises.stream().map(WorkoutRequest.ExerciseDto::notes).toList()
         );
         return ResponseEntity.ok(session);
     }

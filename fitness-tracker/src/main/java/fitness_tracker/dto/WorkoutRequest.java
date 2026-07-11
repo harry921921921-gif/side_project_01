@@ -13,6 +13,11 @@ public record WorkoutRequest(
             String exerciseName,
             Double weightKg,
             Integer sets,
-            Integer reps
+            Integer reps,
+            Double rpe,
+            String completionStatus,
+            Integer actualReps,
+            Double actualWeight,
+            String notes
     ) {}
 }

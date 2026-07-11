@@ -61,6 +61,45 @@
         </div>
     </div>
 
+    <!-- 訓練統計 -->
+    <div class="card mb-4">
+        <div class="card-header"><h5 class="mb-0">📈 訓練統計</h5></div>
+        <div class="card-body">
+            <div class="row g-3 mb-3 text-center">
+                <div class="col-6">
+                    <div class="fw-bold fs-5" th:text="${dashboardStats.weeklyCount} + ' 次'">0 次</div>
+                    <div class="text-muted small">本週訓練次數</div>
+                </div>
+                <div class="col-6">
+                    <div class="fw-bold fs-5"
+                         th:text="${dashboardStats.avgRpe != null ? #numbers.formatDecimal(dashboardStats.avgRpe, 1, 1) : '-'}">-</div>
+                    <div class="text-muted small">近 7 天平均 RPE</div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <div class="small fw-semibold text-muted mb-1">近 7 天複合動作訓練量（依部位分開計算）</div>
+                <div th:if="${dashboardStats.weeklyVolumeByBodyPart.empty}" class="text-muted small">
+                    近 7 天沒有健力三項、引體向上等複合式動作紀錄
+                </div>
+                <div th:each="v : ${dashboardStats.weeklyVolumeByBodyPart}"
+                     class="d-flex justify-content-between align-items-center small border-bottom py-1">
+                    <span class="badge bg-secondary" th:text="${v.bodyPart}"></span>
+                    <span class="fw-semibold" th:text="${#numbers.formatDecimal(v.volume, 1, 0)} + ' kg'"></span>
+                </div>
+            </div>
+            <p class="small text-muted mb-3" th:text="'最近一次訓練：' + ${dashboardStats.lastSessionSummary}"></p>
+            <div th:if="${!dashboardStats.recentCompletions.empty}">
+                <div class="small fw-semibold text-muted mb-1">最近 3 次完成率</div>
+                <div th:each="c : ${dashboardStats.recentCompletions}"
+                     class="d-flex justify-content-between align-items-center small border-bottom py-1">
+                    <span th:text="${c.date} + (${c.bodyPart} != null ? ' ' + ${c.bodyPart} : '')"></span>
+                    <span th:if="${c.completionPct != null}" class="badge bg-success" th:text="${c.completionPct} + '%'"></span>
+                    <span th:unless="${c.completionPct != null}" class="badge bg-secondary">無資料</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 最近訓練紀錄 -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
