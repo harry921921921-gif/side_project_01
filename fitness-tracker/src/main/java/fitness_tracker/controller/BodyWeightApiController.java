@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import fitness_tracker.dto.BodyWeightRequest;
+import fitness_tracker.dto.BodyWeightResponse;
 import fitness_tracker.entity.BodyWeight;
 import fitness_tracker.service.BodyWeightService;
 import jakarta.validation.Valid;
@@ -27,48 +28,42 @@ public class BodyWeightApiController {
         this.service = service;
     }
 
-    // GET /api/body-weights
     @GetMapping
-    public List<BodyWeight> list() {
-        return service.findAll();
+    public List<BodyWeightResponse> list() {
+        return service.findAll().stream().map(this::toResponse).toList();
     }
 
-    // GET /api/body-weights/latest
     @GetMapping("/latest")
-    public ResponseEntity<BodyWeight> latest() {
+    public ResponseEntity<BodyWeightResponse> latest() {
         return service.findLatest()
+                .map(this::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // POST /api/body-weights
-    // Body: { "recordedDate": "2026-06-02", "weightKg": 75.5, "timeOfDay": "MORNING", "note": "..." }
     @PostMapping
-    public ResponseEntity<BodyWeight> create(@Valid @RequestBody BodyWeightRequest req) {
+    public ResponseEntity<BodyWeightResponse> create(@Valid @RequestBody BodyWeightRequest req) {
         BodyWeight bodyWeight = new BodyWeight();
         bodyWeight.setRecordedDate(req.recordedDate());
         bodyWeight.setWeightKg(req.weightKg());
         bodyWeight.setTimeOfDay(req.timeOfDay());
         bodyWeight.setNote(req.note());
         service.save(bodyWeight);
-        return ResponseEntity.ok(bodyWeight);
+        return ResponseEntity.ok(toResponse(bodyWeight));
     }
 
-    // PUT /api/body-weights/{id}
-    // Body: { "recordedDate": "2026-06-02", "weightKg": 75.5, "timeOfDay": "MORNING", "note": "..." }
     @PutMapping("/{id}")
-    public ResponseEntity<BodyWeight> update(@PathVariable long id, @Valid @RequestBody BodyWeightRequest req) {
+    public ResponseEntity<BodyWeightResponse> update(@PathVariable long id, @Valid @RequestBody BodyWeightRequest req) {
         return service.findById(id).map(bodyWeight -> {
             bodyWeight.setRecordedDate(req.recordedDate());
             bodyWeight.setWeightKg(req.weightKg());
             bodyWeight.setTimeOfDay(req.timeOfDay());
             bodyWeight.setNote(req.note());
             service.save(bodyWeight);
-            return ResponseEntity.ok(bodyWeight);
+            return ResponseEntity.ok(toResponse(bodyWeight));
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // DELETE /api/body-weights/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable long id) {
         if (service.findById(id).isEmpty()) {
@@ -76,5 +71,16 @@ public class BodyWeightApiController {
         }
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private BodyWeightResponse toResponse(BodyWeight bodyWeight) {
+        return new BodyWeightResponse(
+                bodyWeight.getId(),
+                bodyWeight.getRecordedDate(),
+                bodyWeight.getWeightKg(),
+                bodyWeight.getTimeOfDay(),
+                bodyWeight.getNote(),
+                bodyWeight.getCreatedAt()
+        );
     }
 }

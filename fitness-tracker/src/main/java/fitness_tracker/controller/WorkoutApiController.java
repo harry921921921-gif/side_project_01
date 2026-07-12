@@ -1,14 +1,9 @@
 package fitness_tracker.controller;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,7 +12,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import fitness_tracker.dto.WorkoutRequest;
+import fitness_tracker.dto.WorkoutResponse;
 import fitness_tracker.entity.WorkoutSession;
+import fitness_tracker.entity.WorkoutSet;
 import fitness_tracker.service.WorkoutService;
 import jakarta.validation.Valid;
 
@@ -31,27 +28,20 @@ public class WorkoutApiController {
         this.service = service;
     }
 
-    // GET /api/workouts
     @GetMapping
-    public List<WorkoutSession> list() {
-        return service.findAll();
+    public List<WorkoutResponse> list() {
+        return service.findAll().stream().map(this::toResponse).toList();
     }
 
-    // GET /api/workouts/{id}
     @GetMapping("/{id}")
-    public ResponseEntity<WorkoutSession> get(@PathVariable long id) {
-        return service.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<WorkoutResponse> get(@PathVariable long id) {
+        WorkoutSession workout = service.findById(id)
+                .orElseThrow(() -> new fitness_tracker.exception.ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄"));
+        return ResponseEntity.ok(toResponse(workout));
     }
 
-    // POST /api/workouts
-    // Body: { "workoutDate": "2026-06-02", "bodyPart": "Chest", "note": "...",
-    //         "exercises": [{ "exerciseName": "Bench Press", "weightKg": 80, "sets": 3, "reps": 10,
-    //                         "rpe": 8.5, "completionStatus": "COMPLETE", "actualReps": 10,
-    //                         "actualWeight": 80, "notes": "..." }] }
     @PostMapping
-    public ResponseEntity<WorkoutSession> create(@Valid @RequestBody WorkoutRequest req) {
+    public ResponseEntity<WorkoutResponse> create(@Valid @RequestBody WorkoutRequest req) {
         WorkoutSession session = new WorkoutSession();
         session.setWorkoutDate(req.workoutDate());
         session.setBodyPart(req.bodyPart());
@@ -71,32 +61,43 @@ public class WorkoutApiController {
                 exercises.stream().map(WorkoutRequest.ExerciseDto::actualWeight).toList(),
                 exercises.stream().map(WorkoutRequest.ExerciseDto::notes).toList()
         );
-        return ResponseEntity.ok(session);
-    }
-
-    // DELETE /api/workouts/{id}
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationErrors(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
-            errors.put(fieldError.getField(), fieldError.getDefaultMessage());
-        }
-        return ResponseEntity.badRequest().body(errors);
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("message", ex.getMessage());
-        return ResponseEntity.badRequest().body(error);
+        return ResponseEntity.ok(toResponse(session));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable long id) {
-        if (service.findById(id).isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
+        service.findById(id).orElseThrow(() -> new fitness_tracker.exception.ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄"));
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private WorkoutResponse toResponse(WorkoutSession session) {
+        List<WorkoutResponse.WorkoutSetResponse> sets = session.getSets() == null ? List.of() : session.getSets().stream()
+                .map(this::toSetResponse)
+                .toList();
+
+        return new WorkoutResponse(
+                session.getId(),
+                session.getWorkoutDate(),
+                session.getBodyPart(),
+                session.getNote(),
+                sets
+        );
+    }
+
+    private WorkoutResponse.WorkoutSetResponse toSetResponse(WorkoutSet set) {
+        return new WorkoutResponse.WorkoutSetResponse(
+                set.getId(),
+                set.getExerciseName(),
+                set.getWeightKg(),
+                set.getSets(),
+                set.getReps(),
+                set.getRestSeconds(),
+                set.getRpe(),
+                set.getCompletionStatus() != null ? set.getCompletionStatus().name() : null,
+                set.getActualReps(),
+                set.getActualWeight(),
+                set.getNotes()
+        );
     }
 }

@@ -29,12 +29,14 @@ public class ExerciseService {
     }
 
     public Optional<Exercise> addCustom(String name, String bodyPart, String category) {
+        if (name == null || bodyPart == null) return Optional.empty();
         String trimmed = name.trim();
-        if (trimmed.isEmpty() || repository.existsByName(trimmed)) return Optional.empty();
-        List<Exercise> existing = repository.findByBodyPartOrderByOrderIndexDesc(bodyPart);
+        String normalizedBodyPart = bodyPart.trim();
+        if (trimmed.isEmpty() || normalizedBodyPart.isEmpty() || repository.existsByName(trimmed)) return Optional.empty();
+        List<Exercise> existing = repository.findByBodyPartOrderByOrderIndexDesc(normalizedBodyPart);
         int nextIdx = existing.isEmpty() ? 1
                 : (existing.get(0).getOrderIndex() == null ? 1 : existing.get(0).getOrderIndex() + 1);
-        Exercise ex = new Exercise(trimmed, bodyPart, category != null ? category : "COMPOUND");
+        Exercise ex = new Exercise(trimmed, normalizedBodyPart, category != null ? category : "COMPOUND");
         ex.setPreset(false);
         ex.setOrderIndex(nextIdx);
         return Optional.of(repository.save(ex));

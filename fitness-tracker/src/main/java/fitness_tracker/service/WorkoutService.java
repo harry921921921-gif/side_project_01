@@ -16,6 +16,7 @@ import fitness_tracker.entity.Exercise;
 import fitness_tracker.entity.WorkoutSession;
 import fitness_tracker.entity.WorkoutSet;
 import fitness_tracker.enums.CompletionStatus;
+import fitness_tracker.exception.ResourceNotFoundException;
 import fitness_tracker.repository.BodyPartRepository;
 import fitness_tracker.repository.WorkoutSessionRepository;
 
@@ -112,7 +113,8 @@ public class WorkoutService {
                        List<Double> actualWeights,
                        List<String> notesList) {
 
-        WorkoutSession existing = repository.findById(id).orElseThrow();
+        WorkoutSession existing = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄"));
         validateBodyPart(bodyPart);
         existing.setWorkoutDate(workoutDate);
         existing.setBodyPart(bodyPart);
@@ -143,6 +145,9 @@ public class WorkoutService {
     }
 
     public void delete(Long id) {
+        if (!repository.existsById(id)) {
+            throw new ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄");
+        }
         repository.deleteById(id);
     }
 

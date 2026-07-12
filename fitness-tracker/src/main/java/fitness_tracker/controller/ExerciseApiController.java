@@ -1,12 +1,19 @@
 package fitness_tracker.controller;
 
+import fitness_tracker.dto.ExerciseRequest;
+import fitness_tracker.dto.ExerciseResponse;
 import fitness_tracker.entity.Exercise;
 import fitness_tracker.service.ExerciseService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/exercises")
@@ -18,37 +25,42 @@ public class ExerciseApiController {
         this.service = service;
     }
 
-    // GET /api/exercises
-    // GET /api/exercises?bodyPart=胸
-    // GET /api/exercises?q=臥推
     @GetMapping
-    public List<Exercise> list(
+    public List<ExerciseResponse> list(
             @RequestParam(required = false) String bodyPart,
             @RequestParam(required = false) String q) {
 
+        List<Exercise> exercises;
         if (q != null && !q.isBlank()) {
-            return service.search(q);
+            exercises = service.search(q);
+        } else if (bodyPart != null && !bodyPart.isBlank()) {
+            exercises = service.findByBodyPart(bodyPart);
+        } else {
+            exercises = service.findAll();
         }
-        if (bodyPart != null && !bodyPart.isBlank()) {
-            return service.findByBodyPart(bodyPart);
-        }
-        return service.findAll();
+        return exercises.stream().map(this::toResponse).toList();
     }
 
-    // POST /api/exercises
-    // Body: { "name": "自訂動作", "bodyPart": "胸", "category": "ISOLATION" }
     @PostMapping
-    public ResponseEntity<?> addCustom(@RequestBody Map<String, String> body) {
-        String name     = body.get("name");
-        String bodyPart = body.get("bodyPart");
-        String category = body.getOrDefault("category", "ISOLATION");
+    public ResponseEntity<ExerciseResponse> addCustom(@Valid @RequestBody ExerciseRequest req) {
+        String name = req.name() != null ? req.name().trim() : null;
+        String bodyPart = req.bodyPart() != null ? req.bodyPart().trim() : null;
+        String category = req.category() != null ? req.category().trim() : "ISOLATION";
 
-        if (name == null || name.isBlank() || bodyPart == null || bodyPart.isBlank()) {
-            return ResponseEntity.badRequest().body("name 和 bodyPart 為必填");
-        }
-
-        return service.addCustom(name.trim(), bodyPart.trim(), category.trim())
+        return service.addCustom(name, bodyPart, category)
+                .map(this::toResponse)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.status(409).build()); // 409 Conflict = 名稱已存在
+                .orElse(ResponseEntity.status(409).build());
+    }
+
+    private ExerciseResponse toResponse(Exercise exercise) {
+        return new ExerciseResponse(
+                exercise.getId(),
+                exercise.getName(),
+                exercise.getBodyPart(),
+                exercise.getCategory(),
+                exercise.isPreset(),
+                exercise.getOrderIndex()
+        );
     }
 }
