@@ -1,12 +1,5 @@
 package fitness_tracker.service;
 
-import fitness_tracker.entity.Exercise;
-import fitness_tracker.entity.WorkoutSession;
-import fitness_tracker.entity.WorkoutSet;
-import fitness_tracker.repository.WorkoutSessionRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -16,15 +9,29 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import fitness_tracker.entity.Exercise;
+import fitness_tracker.entity.WorkoutSession;
+import fitness_tracker.entity.WorkoutSet;
+import fitness_tracker.enums.CompletionStatus;
+import fitness_tracker.repository.BodyPartRepository;
+import fitness_tracker.repository.WorkoutSessionRepository;
+
 @Service
 public class WorkoutService {
 
     private final WorkoutSessionRepository repository;
     private final ExerciseService exerciseService;
+    private final BodyPartRepository bodyPartRepository;
 
-    public WorkoutService(WorkoutSessionRepository repository, ExerciseService exerciseService) {
+    public WorkoutService(WorkoutSessionRepository repository,
+                          ExerciseService exerciseService,
+                          BodyPartRepository bodyPartRepository) {
         this.repository = repository;
         this.exerciseService = exerciseService;
+        this.bodyPartRepository = bodyPartRepository;
     }
 
     public Optional<WorkoutSession> findById(long id) {
@@ -66,6 +73,8 @@ public class WorkoutService {
                      List<Double> actualWeights,
                      List<String> notesList) {
 
+        validateBodyPart(session.getBodyPart());
+
         for (int i = 0; i < exerciseNames.size(); i++) {
             String name = exerciseNames.get(i);
             if (name != null && !name.trim().isEmpty()) {
@@ -76,7 +85,7 @@ public class WorkoutService {
                 workoutSet.setReps(safeGet(reps, i));
                 workoutSet.setRestSeconds(safeGet(restSeconds, i));
                 workoutSet.setRpe(safeGet(rpes, i));
-                workoutSet.setCompletionStatus(safeGet(completionStatuses, i));
+                workoutSet.setCompletionStatus(parseCompletionStatus(safeGet(completionStatuses, i)));
                 workoutSet.setActualReps(safeGet(actualRepsList, i));
                 workoutSet.setActualWeight(safeGet(actualWeights, i));
                 workoutSet.setNotes(safeGet(notesList, i));
@@ -104,6 +113,7 @@ public class WorkoutService {
                        List<String> notesList) {
 
         WorkoutSession existing = repository.findById(id).orElseThrow();
+        validateBodyPart(bodyPart);
         existing.setWorkoutDate(workoutDate);
         existing.setBodyPart(bodyPart);
         existing.setNote(note);
@@ -120,7 +130,7 @@ public class WorkoutService {
                     ws.setReps(safeGet(reps, i));
                     ws.setRestSeconds(safeGet(restSeconds, i));
                     ws.setRpe(safeGet(rpes, i));
-                    ws.setCompletionStatus(safeGet(completionStatuses, i));
+                    ws.setCompletionStatus(parseCompletionStatus(safeGet(completionStatuses, i)));
                     ws.setActualReps(safeGet(actualRepsList, i));
                     ws.setActualWeight(safeGet(actualWeights, i));
                     ws.setNotes(safeGet(notesList, i));
@@ -138,6 +148,27 @@ public class WorkoutService {
 
     private <T> T safeGet(List<T> list, int i) {
         return (list != null && i < list.size()) ? list.get(i) : null;
+    }
+
+    private void validateBodyPart(String bodyPart) {
+        if (bodyPart == null || bodyPart.isBlank()) {
+            throw new IllegalArgumentException("bodyPart 為必填");
+        }
+        boolean exists = bodyPartRepository.findByName(bodyPart.trim()).isPresent();
+        if (!exists) {
+            throw new IllegalArgumentException("bodyPart 必須存在於 BodyPart 清單中");
+        }
+    }
+
+    private CompletionStatus parseCompletionStatus(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return CompletionStatus.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("completionStatus 不合法");
+        }
     }
 
     // ── 訓練統計（首頁 Dashboard 用）──────────────────────
@@ -203,12 +234,12 @@ public class WorkoutService {
         List<RecentSessionCompletion> completions = new ArrayList<>();
         for (WorkoutSession s : all.stream().limit(3).toList()) {
             List<WorkoutSet> withStatus = s.getSets().stream()
-                    .filter(x -> x.getCompletionStatus() != null && !x.getCompletionStatus().isBlank())
+                    .filter(x -> x.getCompletionStatus() != null)
                     .toList();
             Integer pct = null;
             if (!withStatus.isEmpty()) {
                 long completeCount = withStatus.stream()
-                        .filter(x -> "COMPLETE".equalsIgnoreCase(x.getCompletionStatus()))
+                        .filter(x -> x.getCompletionStatus() == CompletionStatus.COMPLETE)
                         .count();
                 pct = (int) Math.round(completeCount * 100.0 / withStatus.size());
             }

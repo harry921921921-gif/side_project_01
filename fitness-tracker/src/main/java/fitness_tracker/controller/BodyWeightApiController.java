@@ -1,12 +1,21 @@
 package fitness_tracker.controller;
 
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import fitness_tracker.dto.BodyWeightRequest;
 import fitness_tracker.entity.BodyWeight;
 import fitness_tracker.service.BodyWeightService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/body-weights")
@@ -35,7 +44,7 @@ public class BodyWeightApiController {
     // POST /api/body-weights
     // Body: { "recordedDate": "2026-06-02", "weightKg": 75.5, "timeOfDay": "MORNING", "note": "..." }
     @PostMapping
-    public ResponseEntity<BodyWeight> create(@RequestBody BodyWeightRequest req) {
+    public ResponseEntity<BodyWeight> create(@Valid @RequestBody BodyWeightRequest req) {
         BodyWeight bodyWeight = new BodyWeight();
         bodyWeight.setRecordedDate(req.recordedDate());
         bodyWeight.setWeightKg(req.weightKg());
@@ -48,7 +57,7 @@ public class BodyWeightApiController {
     // PUT /api/body-weights/{id}
     // Body: { "recordedDate": "2026-06-02", "weightKg": 75.5, "timeOfDay": "MORNING", "note": "..." }
     @PutMapping("/{id}")
-    public ResponseEntity<BodyWeight> update(@PathVariable long id, @RequestBody BodyWeightRequest req) {
+    public ResponseEntity<BodyWeight> update(@PathVariable long id, @Valid @RequestBody BodyWeightRequest req) {
         return service.findById(id).map(bodyWeight -> {
             bodyWeight.setRecordedDate(req.recordedDate());
             bodyWeight.setWeightKg(req.weightKg());

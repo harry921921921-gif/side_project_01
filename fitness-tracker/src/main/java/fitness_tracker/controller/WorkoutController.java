@@ -1,6 +1,7 @@
 package fitness_tracker.controller;
 
 import fitness_tracker.entity.WorkoutSession;
+import fitness_tracker.enums.CompletionStatus;
 import fitness_tracker.service.BodyPartService;
 import fitness_tracker.service.ExerciseService;
 import fitness_tracker.service.WorkoutService;
@@ -35,6 +36,7 @@ public class WorkoutController {
         model.addAttribute("sessions", sessions);
         model.addAttribute("bodyParts", bodyPartService.findAll());
         model.addAttribute("exercises", exerciseService.findAll());
+        model.addAttribute("completionStatuses", CompletionStatus.values());
 
         // 日曆資料：date -> [bodyPart...]（直接傳 Map，Thymeleaf 自動轉 JS 物件）
         Map<String, List<String>> calendarData = new LinkedHashMap<>();

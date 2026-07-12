@@ -1,7 +1,19 @@
 package fitness_tracker.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.*;
+
+import fitness_tracker.enums.CompletionStatus;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "workout_set")
@@ -31,7 +43,8 @@ public class WorkoutSet {
     private Double rpe;
 
     // 完成狀態：COMPLETE / FAILED / DROPPED / PAIN
-    private String completionStatus;
+    @Enumerated(EnumType.STRING)
+    private CompletionStatus completionStatus;
 
     // 實際完成的次數與重量（若與計劃不同）
     private Integer actualReps;
@@ -49,7 +62,7 @@ public class WorkoutSet {
     public Integer getReps()             { return reps; }
     public Integer getRestSeconds()      { return restSeconds; }
     public Double getRpe()               { return rpe; }
-    public String getCompletionStatus()  { return completionStatus; }
+    public CompletionStatus getCompletionStatus()  { return completionStatus; }
     public Integer getActualReps()       { return actualReps; }
     public Double getActualWeight()      { return actualWeight; }
     public String getNotes()             { return notes; }
@@ -63,7 +76,7 @@ public class WorkoutSet {
     public void setReps(Integer reps)                   { this.reps = reps; }
     public void setRestSeconds(Integer restSeconds)     { this.restSeconds = restSeconds; }
     public void setRpe(Double rpe)                              { this.rpe = rpe; }
-    public void setCompletionStatus(String completionStatus)    { this.completionStatus = completionStatus; }
+    public void setCompletionStatus(CompletionStatus completionStatus)    { this.completionStatus = completionStatus; }
     public void setActualReps(Integer actualReps)               { this.actualReps = actualReps; }
     public void setActualWeight(Double actualWeight)            { this.actualWeight = actualWeight; }
     public void setNotes(String notes)                          { this.notes = notes; }

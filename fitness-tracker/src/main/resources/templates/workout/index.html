@@ -89,10 +89,7 @@
                             <div class="col-md-3">
                                 <select name="completionStatuses" class="form-select form-select-sm">
                                     <option value="">完成狀態（選填）</option>
-                                    <option value="COMPLETE">✅ 完成</option>
-                                    <option value="FAILED">❌ 失敗</option>
-                                    <option value="DROPPED">⬇️ 降重完成</option>
-                                    <option value="PAIN">⚠️ 疼痛</option>
+                                    <option th:each="status : ${completionStatuses}" th:value="${status.name()}" th:text="${status.name()}"></option>
                                 </select>
                             </div>
                             <div class="col-md-2">
@@ -159,11 +156,11 @@
                                         <td th:text="${set.restSeconds != null ? set.restSeconds + '秒' : '-'}"></td>
                                         <td th:text="${set.rpe != null ? set.rpe : '-'}"></td>
                                         <td>
-                                            <span th:if="${set.completionStatus != null and !set.completionStatus.isEmpty()}"
+                                            <span th:if="${set.completionStatus != null}"
                                                   class="badge"
-                                                  th:classappend="${set.completionStatus == 'COMPLETE'} ? 'bg-success' : (${set.completionStatus == 'FAILED'} ? 'bg-danger' : (${set.completionStatus == 'PAIN'} ? 'bg-warning text-dark' : 'bg-secondary'))"
-                                                  th:text="${set.completionStatus}"></span>
-                                            <span th:unless="${set.completionStatus != null and !set.completionStatus.isEmpty()}">-</span>
+                                                  th:classappend="${set.completionStatus.name() == 'COMPLETE'} ? 'bg-success' : (${set.completionStatus.name() == 'FAILED'} ? 'bg-danger' : (${set.completionStatus.name() == 'PAIN'} ? 'bg-warning text-dark' : 'bg-secondary'))"
+                                                  th:text="${set.completionStatus.name()}"></span>
+                                            <span th:unless="${set.completionStatus != null}">-</span>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -253,11 +250,8 @@
                                         </div>
                                         <div class="col-md-3">
                                             <select name="completionStatuses" class="form-select form-select-sm">
-                                                <option value="" th:selected="${set.completionStatus == null or set.completionStatus.isEmpty()}">完成狀態（選填）</option>
-                                                <option value="COMPLETE" th:selected="${set.completionStatus == 'COMPLETE'}">✅ 完成</option>
-                                                <option value="FAILED" th:selected="${set.completionStatus == 'FAILED'}">❌ 失敗</option>
-                                                <option value="DROPPED" th:selected="${set.completionStatus == 'DROPPED'}">⬇️ 降重完成</option>
-                                                <option value="PAIN" th:selected="${set.completionStatus == 'PAIN'}">⚠️ 疼痛</option>
+                                                <option value="" th:selected="${set.completionStatus == null}">完成狀態（選填）</option>
+                                                <option th:each="status : ${completionStatuses}" th:value="${status.name()}" th:text="${status.name()}" th:selected="${set.completionStatus != null and set.completionStatus.name() == status.name()}"></option>
                                             </select>
                                         </div>
                                         <div class="col-md-2">
