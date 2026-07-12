@@ -1,11 +1,12 @@
 package fitness_tracker.service;
 
-import fitness_tracker.entity.Exercise;
-import fitness_tracker.repository.ExerciseRepository;
-import org.springframework.stereotype.Service;
-
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+
+import fitness_tracker.entity.Exercise;
+import fitness_tracker.repository.ExerciseRepository;
 
 @Service
 public class ExerciseService {

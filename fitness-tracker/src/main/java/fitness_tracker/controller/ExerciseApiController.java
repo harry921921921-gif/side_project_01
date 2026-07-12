@@ -1,10 +1,7 @@
 package fitness_tracker.controller;
 
-import fitness_tracker.dto.ExerciseRequest;
-import fitness_tracker.dto.ExerciseResponse;
-import fitness_tracker.entity.Exercise;
-import fitness_tracker.service.ExerciseService;
-import jakarta.validation.Valid;
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,7 +10,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import fitness_tracker.dto.ExerciseRequest;
+import fitness_tracker.dto.ExerciseResponse;
+import fitness_tracker.entity.Exercise;
+import fitness_tracker.service.ExerciseService;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/exercises")

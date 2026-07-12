@@ -2,6 +2,8 @@ package fitness_tracker.repository;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;//這個是 Spring Data JPA 的核心接口，提供了基本的 CRUD 操作和查詢方法
 
 import fitness_tracker.entity.BodyWeight;
@@ -18,4 +20,6 @@ import fitness_tracker.entity.BodyWeight;
 public interface BodyWeightRepository extends JpaRepository<BodyWeight, Long> {
 
     List<BodyWeight> findAllByOrderByRecordedDateDescCreatedAtDesc();
+
+    Page<BodyWeight> findAllByOrderByRecordedDateDescCreatedAtDesc(Pageable pageable);
 }

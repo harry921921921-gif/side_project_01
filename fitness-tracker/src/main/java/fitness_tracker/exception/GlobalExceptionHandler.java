@@ -4,6 +4,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -18,8 +20,11 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public Object handleResourceNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
+        log.warn("Resource not found for {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
         if (isHtmlRequest(request)) {
             ModelAndView modelAndView = new ModelAndView("error");
             modelAndView.setStatus(HttpStatus.NOT_FOUND);
@@ -34,6 +39,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Object handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
+        List<String> fieldNames = ex.getBindingResult().getFieldErrors().stream()
+                .map(FieldError::getField)
+                .toList();
+        log.warn("Validation failed for {} {} on fields {}", request.getMethod(), request.getRequestURI(), fieldNames);
         if (isHtmlRequest(request)) {
             ModelAndView modelAndView = new ModelAndView("error");
             modelAndView.setStatus(HttpStatus.BAD_REQUEST);
@@ -52,6 +61,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public Object handleUnexpected(Exception ex, HttpServletRequest request) {
+        log.error("Unhandled exception for {} {}", request.getMethod(), request.getRequestURI(), ex);
         if (isHtmlRequest(request)) {
             ModelAndView modelAndView = new ModelAndView("error");
             modelAndView.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);

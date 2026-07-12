@@ -1,6 +1,7 @@
 package fitness_tracker.controller;
 
 import fitness_tracker.service.BodyWeightService;
+import fitness_tracker.service.SuggestionService;
 import fitness_tracker.service.WorkoutService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -11,10 +12,12 @@ public class HomeController {
 
     private final BodyWeightService bodyWeightService;
     private final WorkoutService workoutService;
+    private final SuggestionService suggestionService;
 
-    public HomeController(BodyWeightService bodyWeightService, WorkoutService workoutService) {
+    public HomeController(BodyWeightService bodyWeightService, WorkoutService workoutService, SuggestionService suggestionService) {
         this.bodyWeightService = bodyWeightService;
         this.workoutService = workoutService;
+        this.suggestionService = suggestionService;
     }
 
     /**
@@ -36,6 +39,9 @@ public class HomeController {
 
         // 訓練統計（本週次數、近 7 天複合動作訓練量依部位、平均 RPE、最近摘要、近 3 次完成率）
         model.addAttribute("dashboardStats", workoutService.computeDashboardStats());
+
+        // 規則型訓練建議
+        model.addAttribute("suggestions", suggestionService.generateSuggestions(workoutService.findRecentWithinDays(7)));
 
         return "index";
     }

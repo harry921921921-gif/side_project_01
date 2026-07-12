@@ -9,6 +9,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +27,8 @@ import fitness_tracker.repository.WorkoutSessionRepository;
 @Service
 public class WorkoutService {
 
+    private static final Logger log = LoggerFactory.getLogger(WorkoutService.class);
+
     private final WorkoutSessionRepository repository;
     private final ExerciseService exerciseService;
     private final BodyPartRepository bodyPartRepository;
@@ -35,12 +41,19 @@ public class WorkoutService {
         this.bodyPartRepository = bodyPartRepository;
     }
 
+    @Transactional(readOnly = true)
     public Optional<WorkoutSession> findById(long id) {
         return repository.findById(id);
     }
 
+    @Transactional(readOnly = true)
     public List<WorkoutSession> findAll() {
         return repository.findAllByOrderByWorkoutDateDesc();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<WorkoutSession> findPage(Pageable pageable) {
+        return repository.findAllByOrderByWorkoutDateDesc(pageable);
     }
 
     public List<WorkoutSession> findRecent(int limit) {
@@ -48,14 +61,14 @@ public class WorkoutService {
         return all.subList(0, Math.min(limit, all.size()));
     }
 
+    @Transactional(readOnly = true)
     public List<WorkoutSession> findRecentWithinDays(int days) {
         LocalDate today = LocalDate.now();
         LocalDate cutoff = today.minusDays(days - 1);
-        return findAll().stream()
-                .filter(s -> !s.getWorkoutDate().isBefore(cutoff) && !s.getWorkoutDate().isAfter(today))
-                .toList();
+        return repository.findByWorkoutDateBetweenOrderByWorkoutDateDesc(cutoff, today);
     }
 
+    @Transactional(readOnly = true)
     public long countThisWeek() {
         LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY);
         return repository.countByWorkoutDateGreaterThanEqual(monday);
@@ -94,7 +107,9 @@ public class WorkoutService {
                 session.getSets().add(workoutSet);
             }
         }
+        log.info("Creating workout session for bodyPart={} with {} exercise(s)", session.getBodyPart(), session.getSets().size());
         repository.save(session);
+        log.info("Created workout session id={}", session.getId());
     }
 
     @Transactional
@@ -141,14 +156,19 @@ public class WorkoutService {
                 }
             }
         }
+        log.info("Updating workout session id={}", id);
         repository.save(existing);
+        log.info("Updated workout session id={}", id);
     }
 
     public void delete(Long id) {
         if (!repository.existsById(id)) {
+            log.warn("Attempted to delete missing workout session id={}", id);
             throw new ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄");
         }
+        log.info("Deleting workout session id={}", id);
         repository.deleteById(id);
+        log.info("Deleted workout session id={}", id);
     }
 
     private <T> T safeGet(List<T> list, int i) {
