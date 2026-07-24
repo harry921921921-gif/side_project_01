@@ -1,6 +1,7 @@
 package fitness_tracker.controller;
 
 import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -14,12 +15,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import fitness_tracker.entity.Exercise;
 import fitness_tracker.service.ExerciseService;
 
 @WebMvcTest(ExerciseApiController.class)
+@WithMockUser(username = "test@example.com")
 class ExerciseApiControllerTest {
 
     @Autowired
@@ -60,6 +63,7 @@ class ExerciseApiControllerTest {
                 """;
 
         mockMvc.perform(post("/api/exercises")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isOk())
@@ -77,6 +81,7 @@ class ExerciseApiControllerTest {
                 """;
 
         mockMvc.perform(post("/api/exercises")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isBadRequest())
@@ -96,6 +101,7 @@ class ExerciseApiControllerTest {
                 """;
 
         mockMvc.perform(post("/api/exercises")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isConflict());

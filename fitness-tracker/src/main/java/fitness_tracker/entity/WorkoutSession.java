@@ -12,6 +12,8 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -39,6 +41,11 @@ public class WorkoutSession {
                fetch = FetchType.LAZY)
     private List<WorkoutSet> sets = new ArrayList<>();
 
+    // 擁有者；先開放 nullable，遷移完成前既有紀錄可能還沒有 user
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -51,6 +58,7 @@ public class WorkoutSession {
     public String getNote()              { return note; }
     public LocalDateTime getCreatedAt()  { return createdAt; }
     public List<WorkoutSet> getSets()    { return sets; }
+    public User getUser()                { return user; }
 
     // ── Setters ──────────────────────────────────────────
     public void setId(Long id)                          { this.id = id; }
@@ -59,4 +67,5 @@ public class WorkoutSession {
     public void setNote(String note)                    { this.note = note; }
     public void setCreatedAt(LocalDateTime createdAt)   { this.createdAt = createdAt; }
     public void setSets(List<WorkoutSet> sets)          { this.sets = sets; }
+    public void setUser(User user)                      { this.user = user; }
 }

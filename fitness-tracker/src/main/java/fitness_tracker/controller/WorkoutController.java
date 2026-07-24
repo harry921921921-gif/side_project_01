@@ -1,8 +1,10 @@
 package fitness_tracker.controller;
 
+import fitness_tracker.entity.User;
 import fitness_tracker.entity.WorkoutSession;
 import fitness_tracker.enums.CompletionStatus;
 import fitness_tracker.service.BodyPartService;
+import fitness_tracker.service.CurrentUserService;
 import fitness_tracker.service.ExerciseService;
 import fitness_tracker.service.WorkoutService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -21,18 +23,22 @@ public class WorkoutController {
     private final WorkoutService service;
     private final BodyPartService bodyPartService;
     private final ExerciseService exerciseService;
+    private final CurrentUserService currentUserService;
 
     public WorkoutController(WorkoutService service,
                              BodyPartService bodyPartService,
-                             ExerciseService exerciseService) {
+                             ExerciseService exerciseService,
+                             CurrentUserService currentUserService) {
         this.service = service;
         this.bodyPartService = bodyPartService;
         this.exerciseService = exerciseService;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping
     public String index(Model model) {
-        List<WorkoutSession> sessions = service.findAll();
+        User user = currentUserService.getCurrentUser();
+        List<WorkoutSession> sessions = service.findAll(user);
         model.addAttribute("sessions", sessions);
         model.addAttribute("bodyParts", bodyPartService.findAll());
         model.addAttribute("exercises", exerciseService.findAll());
@@ -47,7 +53,7 @@ public class WorkoutController {
         model.addAttribute("calendarData", calendarData);
 
         // 近 7 天訓練 + 上一次同部位的訓練內容（供比較）
-        List<WorkoutSession> recentWeekSessions = service.findRecentWithinDays(7);
+        List<WorkoutSession> recentWeekSessions = service.findRecentWithinDays(7, user);
         model.addAttribute("recentWeekSessions", recentWeekSessions);
 
         Map<Long, WorkoutSession> lastSameBodyPartSession = new LinkedHashMap<>();
@@ -120,7 +126,8 @@ public class WorkoutController {
         service.save(session,
                 exerciseNames != null ? exerciseNames : List.of(),
                 weightKgs, sets, reps, restSeconds,
-                rpes, completionStatuses, actualReps, actualWeights, setNotes);
+                rpes, completionStatuses, actualReps, actualWeights, setNotes,
+                currentUserService.getCurrentUser());
         return "redirect:/workout";
     }
 
@@ -143,13 +150,14 @@ public class WorkoutController {
 
         service.update(id, workoutDate, bodyPart, note,
                 exerciseNames, weightKgs, sets, reps, restSeconds,
-                rpes, completionStatuses, actualReps, actualWeights, setNotes);
+                rpes, completionStatuses, actualReps, actualWeights, setNotes,
+                currentUserService.getCurrentUser());
         return "redirect:/workout";
     }
 
     @PostMapping("/delete/{id}")
     public String delete(@PathVariable Long id) {
-        service.delete(id);
+        service.delete(id, currentUserService.getCurrentUser());
         return "redirect:/workout";
     }
 }

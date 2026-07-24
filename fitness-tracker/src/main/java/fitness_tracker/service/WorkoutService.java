@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import fitness_tracker.entity.Exercise;
+import fitness_tracker.entity.User;
 import fitness_tracker.entity.WorkoutSession;
 import fitness_tracker.entity.WorkoutSet;
 import fitness_tracker.enums.CompletionStatus;
@@ -41,6 +42,7 @@ public class WorkoutService {
         this.bodyPartRepository = bodyPartRepository;
     }
 
+    // ── 舊版（未過濾使用者）：保留給既有呼叫端/測試相容，正式流程請一律用帶 User 的版本 ──
     @Transactional(readOnly = true)
     public Optional<WorkoutSession> findById(long id) {
         return repository.findById(id);
@@ -72,6 +74,40 @@ public class WorkoutService {
     public long countThisWeek() {
         LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY);
         return repository.countByWorkoutDateGreaterThanEqual(monday);
+    }
+
+    // ── 使用者過濾版：controller 一律用這組 ──
+    @Transactional(readOnly = true)
+    public Optional<WorkoutSession> findById(long id, User user) {
+        return repository.findByIdAndUser(id, user);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkoutSession> findAll(User user) {
+        return repository.findAllByUserOrderByWorkoutDateDesc(user);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<WorkoutSession> findPage(Pageable pageable, User user) {
+        return repository.findAllByUserOrderByWorkoutDateDesc(user, pageable);
+    }
+
+    public List<WorkoutSession> findRecent(int limit, User user) {
+        List<WorkoutSession> all = findAll(user);
+        return all.subList(0, Math.min(limit, all.size()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkoutSession> findRecentWithinDays(int days, User user) {
+        LocalDate today = LocalDate.now();
+        LocalDate cutoff = today.minusDays(days - 1);
+        return repository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateDesc(user, cutoff, today);
+    }
+
+    @Transactional(readOnly = true)
+    public long countThisWeek(User user) {
+        LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY);
+        return repository.countByUserAndWorkoutDateGreaterThanEqual(user, monday);
     }
 
     @Transactional
@@ -113,6 +149,24 @@ public class WorkoutService {
     }
 
     @Transactional
+    public void save(WorkoutSession session,
+                     List<String> exerciseNames,
+                     List<Double> weightKgs,
+                     List<Integer> sets,
+                     List<Integer> reps,
+                     List<Integer> restSeconds,
+                     List<Double> rpes,
+                     List<String> completionStatuses,
+                     List<Integer> actualRepsList,
+                     List<Double> actualWeights,
+                     List<String> notesList,
+                     User user) {
+        session.setUser(user);
+        save(session, exerciseNames, weightKgs, sets, reps, restSeconds,
+                rpes, completionStatuses, actualRepsList, actualWeights, notesList);
+    }
+
+    @Transactional
     public void update(Long id,
                        LocalDate workoutDate,
                        String bodyPart,
@@ -130,6 +184,53 @@ public class WorkoutService {
 
         WorkoutSession existing = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄"));
+        applyUpdate(existing, workoutDate, bodyPart, note, exerciseNames, weightKgs, sets, reps,
+                restSeconds, rpes, completionStatuses, actualRepsList, actualWeights, notesList);
+        log.info("Updating workout session id={}", id);
+        repository.save(existing);
+        log.info("Updated workout session id={}", id);
+    }
+
+    @Transactional
+    public void update(Long id,
+                       LocalDate workoutDate,
+                       String bodyPart,
+                       String note,
+                       List<String> exerciseNames,
+                       List<Double> weightKgs,
+                       List<Integer> sets,
+                       List<Integer> reps,
+                       List<Integer> restSeconds,
+                       List<Double> rpes,
+                       List<String> completionStatuses,
+                       List<Integer> actualRepsList,
+                       List<Double> actualWeights,
+                       List<String> notesList,
+                       User user) {
+
+        WorkoutSession existing = repository.findByIdAndUser(id, user)
+                .orElseThrow(() -> new ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄"));
+        applyUpdate(existing, workoutDate, bodyPart, note, exerciseNames, weightKgs, sets, reps,
+                restSeconds, rpes, completionStatuses, actualRepsList, actualWeights, notesList);
+        log.info("Updating workout session id={}", id);
+        repository.save(existing);
+        log.info("Updated workout session id={}", id);
+    }
+
+    private void applyUpdate(WorkoutSession existing,
+                             LocalDate workoutDate,
+                             String bodyPart,
+                             String note,
+                             List<String> exerciseNames,
+                             List<Double> weightKgs,
+                             List<Integer> sets,
+                             List<Integer> reps,
+                             List<Integer> restSeconds,
+                             List<Double> rpes,
+                             List<String> completionStatuses,
+                             List<Integer> actualRepsList,
+                             List<Double> actualWeights,
+                             List<String> notesList) {
         validateBodyPart(bodyPart);
         existing.setWorkoutDate(workoutDate);
         existing.setBodyPart(bodyPart);
@@ -156,9 +257,6 @@ public class WorkoutService {
                 }
             }
         }
-        log.info("Updating workout session id={}", id);
-        repository.save(existing);
-        log.info("Updated workout session id={}", id);
     }
 
     public void delete(Long id) {
@@ -168,6 +266,14 @@ public class WorkoutService {
         }
         log.info("Deleting workout session id={}", id);
         repository.deleteById(id);
+        log.info("Deleted workout session id={}", id);
+    }
+
+    public void delete(Long id, User user) {
+        WorkoutSession existing = repository.findByIdAndUser(id, user)
+                .orElseThrow(() -> new ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄"));
+        log.info("Deleting workout session id={}", id);
+        repository.delete(existing);
         log.info("Deleted workout session id={}", id);
     }
 
@@ -210,15 +316,21 @@ public class WorkoutService {
     ) {}
 
     public DashboardStats computeDashboardStats() {
-        long weeklyCount = countThisWeek();
+        return buildDashboardStats(countThisWeek(), findRecentWithinDays(7), findAll());
+    }
 
+    public DashboardStats computeDashboardStats(User user) {
+        return buildDashboardStats(countThisWeek(user), findRecentWithinDays(7, user), findAll(user));
+    }
+
+    private DashboardStats buildDashboardStats(long weeklyCount, List<WorkoutSession> recentWeekSessions, List<WorkoutSession> all) {
         // 動作名稱 → 分類（COMPOUND / ISOLATION），只計算經典複合式動作（健力三項、引體向上等）的訓練量
         Map<String, String> categoryByExerciseName = exerciseService.findAll().stream()
                 .collect(Collectors.toMap(Exercise::getName, Exercise::getCategory, (a, b) -> a));
 
         Map<String, Double> volumeByBodyPart = new LinkedHashMap<>();
         List<Double> rpes = new ArrayList<>();
-        for (WorkoutSession s : findRecentWithinDays(7)) {
+        for (WorkoutSession s : recentWeekSessions) {
             for (WorkoutSet set : s.getSets()) {
                 boolean isCompound = "COMPOUND".equalsIgnoreCase(categoryByExerciseName.get(set.getExerciseName()));
                 if (isCompound) {
@@ -241,7 +353,7 @@ public class WorkoutService {
         Double avgRpe = rpes.isEmpty() ? null
                 : rpes.stream().mapToDouble(Double::doubleValue).average().orElse(0);
 
-        List<WorkoutSession> all = findAll(); // 已依日期降冪排序
+        // all 已依日期降冪排序
         String lastSummary = "尚無訓練紀錄";
         if (!all.isEmpty()) {
             WorkoutSession last = all.get(0);

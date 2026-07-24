@@ -1,7 +1,9 @@
 package fitness_tracker.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -13,6 +15,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -20,12 +23,16 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import fitness_tracker.entity.BodyWeight;
+import fitness_tracker.entity.User;
 import fitness_tracker.service.BodyWeightService;
+import fitness_tracker.service.CurrentUserService;
 
 @WebMvcTest(BodyWeightApiController.class)
+@WithMockUser(username = "test@example.com")
 class BodyWeightApiControllerTest {
 
     @Autowired
@@ -34,10 +41,22 @@ class BodyWeightApiControllerTest {
     @MockBean
     private BodyWeightService bodyWeightService;
 
+    @MockBean
+    private CurrentUserService currentUserService;
+
+    private User user;
+
+    @BeforeEach
+    void setUp() {
+        user = new User();
+        user.setEmail("test@example.com");
+        given(currentUserService.getCurrentUser()).willReturn(user);
+    }
+
     @Test
     void listReturnsBodyWeightJson() throws Exception {
         BodyWeight record = newBodyWeight(1L, LocalDate.of(2026, 7, 10), 70.5);
-        given(bodyWeightService.findPage(any())).willReturn(new PageImpl<>(List.of(record), PageRequest.of(0, 20), 1));
+        given(bodyWeightService.findPage(any(), any())).willReturn(new PageImpl<>(List.of(record), PageRequest.of(0, 20), 1));
 
         mockMvc.perform(get("/api/body-weights"))
                 .andExpect(status().isOk())
@@ -46,7 +65,7 @@ class BodyWeightApiControllerTest {
 
     @Test
     void latestReturnsNotFoundWhenNoRecords() throws Exception {
-        given(bodyWeightService.findLatest()).willReturn(Optional.empty());
+        given(bodyWeightService.findLatest(any())).willReturn(Optional.empty());
 
         mockMvc.perform(get("/api/body-weights/latest"))
                 .andExpect(status().isNotFound());
@@ -54,7 +73,7 @@ class BodyWeightApiControllerTest {
 
     @Test
     void latestReturnsOkWhenRecordExists() throws Exception {
-        given(bodyWeightService.findLatest()).willReturn(Optional.of(newBodyWeight(1L, LocalDate.of(2026, 7, 10), 70.5)));
+        given(bodyWeightService.findLatest(any())).willReturn(Optional.of(newBodyWeight(1L, LocalDate.of(2026, 7, 10), 70.5)));
 
         mockMvc.perform(get("/api/body-weights/latest"))
                 .andExpect(status().isOk())
@@ -73,6 +92,7 @@ class BodyWeightApiControllerTest {
                 """;
 
         mockMvc.perform(post("/api/body-weights")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isBadRequest())
@@ -91,6 +111,7 @@ class BodyWeightApiControllerTest {
                 """;
 
         mockMvc.perform(post("/api/body-weights")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isBadRequest())
@@ -99,7 +120,7 @@ class BodyWeightApiControllerTest {
 
     @Test
     void updateReturnsNotFoundForMissingRecord() throws Exception {
-        given(bodyWeightService.findById(999L)).willReturn(Optional.empty());
+        given(bodyWeightService.findById(eq(999L), any())).willReturn(Optional.empty());
 
         String payload = """
                 {
@@ -111,6 +132,7 @@ class BodyWeightApiControllerTest {
                 """;
 
         mockMvc.perform(put("/api/body-weights/999")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isNotFound());
@@ -118,17 +140,17 @@ class BodyWeightApiControllerTest {
 
     @Test
     void deleteReturnsNotFoundForMissingRecord() throws Exception {
-        given(bodyWeightService.findById(999L)).willReturn(Optional.empty());
+        given(bodyWeightService.findById(eq(999L), any())).willReturn(Optional.empty());
 
-        mockMvc.perform(delete("/api/body-weights/999"))
+        mockMvc.perform(delete("/api/body-weights/999").with(csrf()))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void deleteReturnsNoContentWhenRecordExists() throws Exception {
-        given(bodyWeightService.findById(1L)).willReturn(Optional.of(newBodyWeight(1L, LocalDate.of(2026, 7, 10), 70.5)));
+        given(bodyWeightService.findById(eq(1L), any())).willReturn(Optional.of(newBodyWeight(1L, LocalDate.of(2026, 7, 10), 70.5)));
 
-        mockMvc.perform(delete("/api/body-weights/1"))
+        mockMvc.perform(delete("/api/body-weights/1").with(csrf()))
                 .andExpect(status().isNoContent());
     }
 

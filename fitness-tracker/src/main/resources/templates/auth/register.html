@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>建立帳號 · FitTracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" th:href="@{/css/auth.css}">
+</head>
+<body>
+<div class="auth">
+  <div class="brand"><span class="dot"></span>FitTracker</div>
+  <div class="sub">科學化訓練，從記錄開始</div>
+  <div class="card">
+    <div class="banner err" th:if="${error}" th:text="${error}"></div>
+    <h1>建立帳號</h1>
+    <p class="desc">開始你的訓練旅程</p>
+    <form th:action="@{/register}" method="post" onsubmit="return chk()">
+      <div class="fld">
+        <label>暱稱</label>
+        <input type="text" name="displayName" placeholder="你的名字" autocomplete="nickname">
+      </div>
+      <div class="fld">
+        <label>電子郵件</label>
+        <input type="email" name="email" placeholder="name@example.com" autocomplete="email" required>
+      </div>
+      <div class="fld">
+        <label>密碼</label>
+        <div class="inwrap">
+          <input type="password" name="password" id="pw" placeholder="至少 8 碼，含大小寫與數字" autocomplete="new-password" oninput="st()" required>
+          <button type="button" class="eye" onclick="tp('pw',this)">顯示</button>
+        </div>
+        <div class="strength"><i id="s1"></i><i id="s2"></i><i id="s3"></i><i id="s4"></i></div>
+        <div class="msg" id="pwm"></div>
+      </div>
+      <div class="fld">
+        <label>確認密碼</label>
+        <input type="password" id="pw2" placeholder="再次輸入密碼" autocomplete="new-password" required>
+        <div class="msg" id="pw2m"></div>
+      </div>
+      <button class="btn" type="submit">建立帳號</button>
+    </form>
+    <div class="foot">已經有帳號了？ <a class="link" th:href="@{/login}">登入</a></div>
+    <div class="secnote">🔒 密碼以 BCrypt 雜湊加鹽保存，我們看不到你的明碼</div>
+  </div>
+</div>
+<script>
+function tp(id,b){var e=document.getElementById(id);var s=e.type==='password';e.type=s?'text':'password';b.textContent=s?'隱藏':'顯示';}
+function st(){var pw=document.getElementById('pw').value,s=0;
+ if(pw.length>=8)s++; if(/[a-z]/.test(pw)&&/[A-Z]/.test(pw))s++; if(/[0-9]/.test(pw))s++; if(/[^A-Za-z0-9]/.test(pw))s++;
+ var c=['#e2e8f0','#dc2626','#f59e0b','#eab308','#10b981'];
+ for(var i=1;i<=4;i++)document.getElementById('s'+i).style.background=i<=s?c[s]:'#e2e8f0';
+ var m=document.getElementById('pwm');m.className='msg';m.textContent=pw?['','太弱','偏弱','中等','強'][s]:'';if(s>=3)m.classList.add('ok');}
+function chk(){var p=document.getElementById('pw').value,p2=document.getElementById('pw2').value,m=document.getElementById('pw2m');
+ if(p.length<8){m.textContent='密碼至少 8 碼';return false;}
+ if(p!==p2){m.textContent='兩次密碼不一致';return false;} return true;}
+</script>
+</body></html>

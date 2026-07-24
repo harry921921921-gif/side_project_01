@@ -17,7 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 import fitness_tracker.dto.BodyWeightRequest;
 import fitness_tracker.dto.BodyWeightResponse;
 import fitness_tracker.entity.BodyWeight;
+import fitness_tracker.entity.User;
 import fitness_tracker.service.BodyWeightService;
+import fitness_tracker.service.CurrentUserService;
 import jakarta.validation.Valid;
 
 @RestController
@@ -25,9 +27,11 @@ import jakarta.validation.Valid;
 public class BodyWeightApiController {
 
     private final BodyWeightService service;
+    private final CurrentUserService currentUserService;
 
-    public BodyWeightApiController(BodyWeightService service) {
+    public BodyWeightApiController(BodyWeightService service, CurrentUserService currentUserService) {
         this.service = service;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping
@@ -35,12 +39,12 @@ public class BodyWeightApiController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return service.findPage(pageable).map(this::toResponse);
+        return service.findPage(pageable, currentUserService.getCurrentUser()).map(this::toResponse);
     }
 
     @GetMapping("/latest")
     public ResponseEntity<BodyWeightResponse> latest() {
-        return service.findLatest()
+        return service.findLatest(currentUserService.getCurrentUser())
                 .map(this::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -53,13 +57,14 @@ public class BodyWeightApiController {
         bodyWeight.setWeightKg(req.weightKg());
         bodyWeight.setTimeOfDay(req.timeOfDay());
         bodyWeight.setNote(req.note());
-        service.save(bodyWeight);
+        service.save(bodyWeight, currentUserService.getCurrentUser());
         return ResponseEntity.ok(toResponse(bodyWeight));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<BodyWeightResponse> update(@PathVariable long id, @Valid @RequestBody BodyWeightRequest req) {
-        return service.findById(id).map(bodyWeight -> {
+        User user = currentUserService.getCurrentUser();
+        return service.findById(id, user).map(bodyWeight -> {
             bodyWeight.setRecordedDate(req.recordedDate());
             bodyWeight.setWeightKg(req.weightKg());
             bodyWeight.setTimeOfDay(req.timeOfDay());
@@ -71,10 +76,11 @@ public class BodyWeightApiController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable long id) {
-        if (service.findById(id).isEmpty()) {
+        User user = currentUserService.getCurrentUser();
+        if (service.findById(id, user).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        service.delete(id);
+        service.delete(id, user);
         return ResponseEntity.noContent().build();
     }
 

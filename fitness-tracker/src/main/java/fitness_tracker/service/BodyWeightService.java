@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import fitness_tracker.entity.BodyWeight;
+import fitness_tracker.entity.User;
+import fitness_tracker.exception.ResourceNotFoundException;
 import fitness_tracker.repository.BodyWeightRepository;
 
 @Service
@@ -24,6 +26,7 @@ public class BodyWeightService {
         this.repository = repository;
     }
 
+    // ── 舊版（未過濾使用者）：保留給既有呼叫端/測試相容，正式流程請一律用帶 User 的版本 ──
     @Transactional(readOnly = true)
     public List<BodyWeight> findAll() {
         return repository.findAllByOrderByRecordedDateDescCreatedAtDesc();
@@ -53,6 +56,40 @@ public class BodyWeightService {
     public void delete(long id) {
         log.info("Deleting body weight record id={}", id);
         repository.deleteById(id);
+        log.info("Deleted body weight record id={}", id);
+    }
+
+    // ── 使用者過濾版：controller 一律用這組 ──
+    @Transactional(readOnly = true)
+    public List<BodyWeight> findAll(User user) {
+        return repository.findAllByUserOrderByRecordedDateDescCreatedAtDesc(user);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BodyWeight> findPage(Pageable pageable, User user) {
+        return repository.findAllByUserOrderByRecordedDateDescCreatedAtDesc(user, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<BodyWeight> findLatest(User user) {
+        return repository.findTopByUserOrderByRecordedDateDescCreatedAtDesc(user);
+    }
+
+    public void save(BodyWeight bodyWeight, User user) {
+        bodyWeight.setUser(user);
+        save(bodyWeight);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<BodyWeight> findById(long id, User user) {
+        return repository.findByIdAndUser(id, user);
+    }
+
+    public void delete(long id, User user) {
+        BodyWeight bodyWeight = repository.findByIdAndUser(id, user)
+                .orElseThrow(() -> new ResourceNotFoundException("找不到 id=" + id + " 的體重紀錄"));
+        log.info("Deleting body weight record id={}", id);
+        repository.delete(bodyWeight);
         log.info("Deleted body weight record id={}", id);
     }
 }

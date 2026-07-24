@@ -1,7 +1,9 @@
 package fitness_tracker.controller;
 
 import fitness_tracker.entity.BodyWeight;
+import fitness_tracker.entity.User;
 import fitness_tracker.service.BodyWeightService;
+import fitness_tracker.service.CurrentUserService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -16,14 +18,16 @@ public class BodyWeightController {
 
     private static final String REDIRECT = "redirect:/body-weight";
     private final BodyWeightService service;
+    private final CurrentUserService currentUserService;
 
-    public BodyWeightController(BodyWeightService service) {
+    public BodyWeightController(BodyWeightService service, CurrentUserService currentUserService) {
         this.service = service;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping
     public String index(Model model) {
-        List<BodyWeight> records = service.findAll();
+        List<BodyWeight> records = service.findAll(currentUserService.getCurrentUser());
         model.addAttribute("records", records);
 
         // 直接傳 List<Map>，Thymeleaf 自動轉成 JS array
@@ -57,7 +61,7 @@ public class BodyWeightController {
         bw.setBodyFatPct(bodyFatPct);
         bw.setSkeletalMuscleKg(skeletalMuscleKg);
         bw.setNote(note);
-        service.save(bw);
+        service.save(bw, currentUserService.getCurrentUser());
         return REDIRECT;
     }
 
@@ -71,7 +75,8 @@ public class BodyWeightController {
             @RequestParam(required = false) Double skeletalMuscleKg,
             @RequestParam(required = false) String note) {
 
-        service.findById(id).ifPresent(bw -> {
+        User user = currentUserService.getCurrentUser();
+        service.findById(id, user).ifPresent(bw -> {
             bw.setRecordedDate(recordedDate);
             bw.setWeightKg(weightKg);
             bw.setTimeOfDay(timeOfDay);
@@ -85,7 +90,7 @@ public class BodyWeightController {
 
     @PostMapping("/delete/{id}")
     public String delete(@PathVariable Long id) {
-        service.delete(id);
+        service.delete(id, currentUserService.getCurrentUser());
         return REDIRECT;
     }
 }

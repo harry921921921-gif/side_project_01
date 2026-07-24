@@ -17,8 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import fitness_tracker.dto.WorkoutRequest;
 import fitness_tracker.dto.WorkoutResponse;
+import fitness_tracker.entity.User;
 import fitness_tracker.entity.WorkoutSession;
 import fitness_tracker.entity.WorkoutSet;
+import fitness_tracker.service.CurrentUserService;
 import fitness_tracker.service.WorkoutService;
 import jakarta.validation.Valid;
 
@@ -27,9 +29,11 @@ import jakarta.validation.Valid;
 public class WorkoutApiController {
 
     private final WorkoutService service;
+    private final CurrentUserService currentUserService;
 
-    public WorkoutApiController(WorkoutService service) {
+    public WorkoutApiController(WorkoutService service, CurrentUserService currentUserService) {
         this.service = service;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping
@@ -37,12 +41,12 @@ public class WorkoutApiController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return service.findPage(pageable).map(this::toResponse);
+        return service.findPage(pageable, currentUserService.getCurrentUser()).map(this::toResponse);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<WorkoutResponse> get(@PathVariable long id) {
-        WorkoutSession workout = service.findById(id)
+        WorkoutSession workout = service.findById(id, currentUserService.getCurrentUser())
                 .orElseThrow(() -> new fitness_tracker.exception.ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄"));
         return ResponseEntity.ok(toResponse(workout));
     }
@@ -55,6 +59,7 @@ public class WorkoutApiController {
         session.setNote(req.note());
 
         List<WorkoutRequest.ExerciseDto> exercises = req.exercises() != null ? req.exercises() : List.of();
+        User user = currentUserService.getCurrentUser();
         service.save(
                 session,
                 exercises.stream().map(WorkoutRequest.ExerciseDto::exerciseName).toList(),
@@ -66,15 +71,15 @@ public class WorkoutApiController {
                 exercises.stream().map(e -> e.completionStatus() != null ? e.completionStatus().name() : null).toList(),
                 exercises.stream().map(WorkoutRequest.ExerciseDto::actualReps).toList(),
                 exercises.stream().map(WorkoutRequest.ExerciseDto::actualWeight).toList(),
-                exercises.stream().map(WorkoutRequest.ExerciseDto::notes).toList()
+                exercises.stream().map(WorkoutRequest.ExerciseDto::notes).toList(),
+                user
         );
         return ResponseEntity.ok(toResponse(session));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable long id) {
-        service.findById(id).orElseThrow(() -> new fitness_tracker.exception.ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄"));
-        service.delete(id);
+        service.delete(id, currentUserService.getCurrentUser());
         return ResponseEntity.noContent().build();
     }
 
