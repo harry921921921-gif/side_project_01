@@ -3,7 +3,12 @@
 <body>
 <nav th:fragment="navbar" class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container">
-        <a class="navbar-brand fw-bold" th:href="@{/}">💪 FitTracker</a>
+        <div class="d-flex align-items-center gap-3">
+            <a class="navbar-brand fw-bold m-0" th:href="@{/}">💪 FitTracker</a>
+            <span class="navbar-text m-0" style="color:rgba(255,255,255,.75)" th:if="${currentUser}">
+                👋 Hi，<span th:text="${currentUser.displayName}">會員</span>
+            </span>
+        </div>
         <button class="navbar-toggler" type="button"
                 data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
