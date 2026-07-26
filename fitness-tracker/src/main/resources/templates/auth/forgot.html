@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>重設密碼 · FitTracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" th:href="@{/css/auth.css}">
+</head>
+<body>
+<div class="auth">
+  <div class="brand"><span class="dot"></span>FitTracker</div>
+  <div class="sub">科學化訓練，從記錄開始</div>
+  <div class="card">
+    <div class="banner ok" th:if="${param.sent}">如果這個信箱有註冊，我們已寄出重設連結，請至信箱查收。</div>
+    <h1>重設密碼</h1>
+    <p class="desc">輸入註冊信箱，我們會寄送重設連結給你</p>
+    <form th:action="@{/forgot}" method="post">
+      <div class="fld">
+        <label>電子郵件</label>
+        <input type="email" name="email" placeholder="name@example.com" autocomplete="email" required>
+      </div>
+      <button class="btn" type="submit">寄送重設連結</button>
+    </form>
+    <div class="foot"><a class="link" th:href="@{/login}">← 返回登入</a></div>
+  </div>
+</div>
+</body></html>

@@ -14,6 +14,10 @@
     <div class="banner err" th:if="${param.error}">帳號或密碼錯誤，請再試一次</div>
     <div class="banner ok" th:if="${param.logout}">你已安全登出</div>
     <div class="banner ok" th:if="${param.registered}">註冊成功，請用新帳號登入</div>
+    <div class="banner ok" th:if="${param.checkEmail}">註冊成功！請至信箱點驗證連結啟用帳號</div>
+    <div class="banner ok" th:if="${param.verified}">帳號已驗證，請登入</div>
+    <div class="banner ok" th:if="${param.reset}">密碼已重設，請用新密碼登入</div>
+    <div class="banner err" th:if="${param.badtoken}">連結無效或已過期，請重新申請</div>
     <h1>歡迎回來</h1>
     <p class="desc">登入以繼續你的訓練計劃</p>
     <form th:action="@{/login}" method="post">
@@ -30,6 +34,7 @@
       </div>
       <div class="row-between">
         <label class="remember"><input type="checkbox" name="remember-me" checked>記住我</label>
+        <a class="link" th:href="@{/forgot}">忘記密碼？</a>
       </div>
       <button class="btn" type="submit">登入</button>
     </form>
