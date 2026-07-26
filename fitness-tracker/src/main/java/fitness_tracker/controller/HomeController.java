@@ -3,6 +3,7 @@ package fitness_tracker.controller;
 import fitness_tracker.entity.User;
 import fitness_tracker.entity.WorkoutSession;
 import fitness_tracker.service.BodyWeightService;
+import fitness_tracker.service.AiCoachService;
 import fitness_tracker.service.CurrentUserService;
 import fitness_tracker.service.SuggestionService;
 import fitness_tracker.service.WorkoutService;
@@ -19,13 +20,16 @@ public class HomeController {
     private final WorkoutService workoutService;
     private final SuggestionService suggestionService;
     private final CurrentUserService currentUserService;
+    private final AiCoachService aiCoachService;
 
     public HomeController(BodyWeightService bodyWeightService, WorkoutService workoutService,
-                          SuggestionService suggestionService, CurrentUserService currentUserService) {
+                          SuggestionService suggestionService, CurrentUserService currentUserService,
+                          AiCoachService aiCoachService) {
         this.bodyWeightService = bodyWeightService;
         this.workoutService = workoutService;
         this.suggestionService = suggestionService;
         this.currentUserService = currentUserService;
+        this.aiCoachService = aiCoachService;
     }
 
     /**
@@ -51,8 +55,11 @@ public class HomeController {
         // 訓練統計（本週次數、近 7 天複合動作訓練量依部位、平均 RPE、最近摘要、近 3 次完成率）
         model.addAttribute("dashboardStats", workoutService.computeDashboardStats(user));
 
-        // 規則型訓練建議
+        // 規則型訓練建議（細項）
         model.addAttribute("suggestions", suggestionService.generateSuggestions(recentWorkouts));
+
+        // AI 教練建議（首頁主卡；LLM 失敗或無金鑰會自動退回規則版，永不空白）
+        model.addAttribute("coachAdvice", aiCoachService.getTodayAdvice(user));
 
         return "index";
     }

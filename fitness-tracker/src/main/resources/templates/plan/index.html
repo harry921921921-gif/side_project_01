@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;700;900&amp;display=swap" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
 :root{
   --bg:#f4f6fb;--surface:#fff;--ink:#0f172a;--muted:#64748b;--faint:#94a3b8;
@@ -17,6 +16,14 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter','Noto Sans TC',sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+.appbar{position:sticky;top:0;z-index:20;background:rgba(15,23,42,.92);backdrop-filter:blur(10px);color:#fff}
+.appbar .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+.logo{font-weight:800;font-size:1.15rem;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+.logo .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+.appbar nav{display:flex;gap:6px}
+.appbar nav a{color:#cbd5e1;text-decoration:none;font-size:.9rem;font-weight:500;padding:8px 14px;border-radius:10px;transition:.15s}
+.appbar nav a:hover{color:#fff;background:rgba(255,255,255,.08)}
+.appbar nav a.active{color:#fff;background:rgba(16,185,129,.18)}
 .hero{padding:34px 0 10px}
 .hero h1{font-size:1.9rem;font-weight:800;letter-spacing:-.03em}
 .hero p{color:var(--muted);margin-top:6px;font-size:.98rem}
@@ -130,7 +137,10 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
 </head>
 <body>
 
-<div th:replace="~{fragments/navbar :: navbar}"></div>
+<header class="appbar"><div class="wrap">
+  <div class="logo"><span class="dot"></span>FitTracker</div>
+  <nav><a th:href="@{/}">首頁</a><a th:href="@{/workout}">訓練紀錄</a><a th:href="@{/body-weight}">體重</a><a th:href="@{/plan}" class="active">訓練計劃</a></nav>
+</div></header>
 
 <main class="wrap">
   <section class="hero"><h1>打造你的訓練計劃</h1><p>依程度、目標與週期階段，即時算出每個動作的建議重量</p></section>
@@ -158,6 +168,40 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
   </div>
 
   <!-- 週期進度 -->
+  <!-- 我的課表（存到帳號，AI 教練會用到）-->
+  <div class="card pad" style="margin-top:16px">
+    <div style="font-size:1.05rem;font-weight:800;margin-bottom:4px">我的課表設定</div>
+    <div style="font-size:.85rem;color:var(--muted);margin-bottom:16px">存起來後，系統就知道你「哪幾天練、目前第幾週」——今天/明天的提點與 AI 教練都靠這個。</div>
+    <div th:if="${param.saved}" style="background:var(--accent-soft);color:var(--accent-ink);border-radius:12px;padding:10px 12px;font-size:.85rem;margin-bottom:14px">✓ 課表已儲存</div>
+    <div th:if="${param.nodays}" style="background:#fee2e2;color:#b91c1c;border-radius:12px;padding:10px 12px;font-size:.85rem;margin-bottom:14px">請至少選一天訓練日</div>
+    <form th:action="@{/plan/save}" method="post">
+      <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+          <div style="font-size:.78rem;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">程度</div>
+          <select name="mode" style="padding:9px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fbfcfe">
+            <option value="NOVICE" th:selected="${planMode == 'NOVICE'}">新手</option>
+            <option value="VETERAN" th:selected="${planMode == 'VETERAN'}">中階／老手</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:.78rem;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">目前第幾週</div>
+          <input type="number" name="week" min="1" max="24" th:value="${planWeek}" style="width:90px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fbfcfe">
+        </div>
+      </div>
+      <div style="margin-top:16px">
+        <div style="font-size:.78rem;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">練哪幾天（選幾天＝一週幾練）</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <label style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.9rem;cursor:pointer;background:#fbfcfe"><input type="checkbox" name="weekdays" value="MONDAY" th:checked="${#strings.contains(planWeekdays,'MONDAY')}" style="accent-color:var(--accent)"> 一</label><label style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.9rem;cursor:pointer;background:#fbfcfe"><input type="checkbox" name="weekdays" value="TUESDAY" th:checked="${#strings.contains(planWeekdays,'TUESDAY')}" style="accent-color:var(--accent)"> 二</label><label style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.9rem;cursor:pointer;background:#fbfcfe"><input type="checkbox" name="weekdays" value="WEDNESDAY" th:checked="${#strings.contains(planWeekdays,'WEDNESDAY')}" style="accent-color:var(--accent)"> 三</label><label style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.9rem;cursor:pointer;background:#fbfcfe"><input type="checkbox" name="weekdays" value="THURSDAY" th:checked="${#strings.contains(planWeekdays,'THURSDAY')}" style="accent-color:var(--accent)"> 四</label><label style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.9rem;cursor:pointer;background:#fbfcfe"><input type="checkbox" name="weekdays" value="FRIDAY" th:checked="${#strings.contains(planWeekdays,'FRIDAY')}" style="accent-color:var(--accent)"> 五</label><label style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.9rem;cursor:pointer;background:#fbfcfe"><input type="checkbox" name="weekdays" value="SATURDAY" th:checked="${#strings.contains(planWeekdays,'SATURDAY')}" style="accent-color:var(--accent)"> 六</label><label style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.9rem;cursor:pointer;background:#fbfcfe"><input type="checkbox" name="weekdays" value="SUNDAY" th:checked="${#strings.contains(planWeekdays,'SUNDAY')}" style="accent-color:var(--accent)"> 日</label>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:18px">儲存課表</button>
+    </form>
+  </div>
+
+  <script th:inline="javascript">
+  window.__savedPlan = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8 };
+  </script>
+
   <div class="sec-title">週期進度<span class="ln"></span></div>
   <div class="card pad">
     <div class="tl-head">
@@ -189,14 +233,14 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
   <div id="runnerBody"></div>
 </div></div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 /* ===== ProgressionService（JS 版，之後改寫成 Java）===== */
+/* 階段用「%1RM 區間 + 組數 + 目標 RIR」定義；次數由 %+RIR 公式算出，避免強度/次數矛盾 */
 const PHASE={
-  adapt:   {label:'解剖適應',color:'#059669',bg:'#d1fae5',pct:0.50,sets:3,reps:'12–15',rir:'3–4',rest:60},
-  hyper:   {label:'肌肥大',  color:'#1d4ed8',bg:'#dbeafe',pct:0.72,sets:4,reps:'8–12', rir:'2',  rest:90},
-  strength:{label:'最大力量',color:'#b45309',bg:'#fef3c7',pct:0.90,sets:5,reps:'3–6',  rir:'1',  rest:180},
-  deload:  {label:'減量週',  color:'#475569',bg:'#e2e8f0',pct:0.55,sets:2,reps:'6',    rir:'4–5',rest:60},
+  adapt:   {label:'解剖適應',color:'#059669',bg:'#d1fae5',pctLo:0.62,pctHi:0.68, sets:3,rir:3,rest:60},
+  hyper:   {label:'肌肥大',  color:'#1d4ed8',bg:'#dbeafe',pctLo:0.70,pctHi:0.80, sets:4,rir:2,rest:90},
+  strength:{label:'最大力量',color:'#b45309',bg:'#fef3c7',pctLo:0.85,pctHi:0.875,sets:4,rir:1,rest:180},
+  deload:  {label:'減量週',  color:'#475569',bg:'#e2e8f0',pctLo:0.50,pctHi:0.55, sets:2,rir:4,rest:60,reps:'5–6'},
 };
 const MACRO=[{key:'adapt',start:1,end:6},{key:'hyper',start:7,end:14},{key:'strength',start:15,end:20}];
 const TOTAL=20;
@@ -228,8 +272,13 @@ const SPLITS={
 const WARMUP_MIN=10, SET_WORK=50, TIME_CAP=62;
 const r25=w=>Math.round(w/2.5)*2.5, fmt=w=>Number.isInteger(w)?w:w.toFixed(1);
 const fmtRest=s=>s>=60?(Math.floor(s/60)+'分'+(s%60?s%60+'秒':'')):s+'秒';
+/* %1RM ↔ 次數 ↔ RIR：Epley 反推力竭次數，再扣掉保留次數 */
+const maxRepsAt=p=>30*(1/p-1);
+const repsAtRir=(p,rir)=>Math.max(Math.round(maxRepsAt(p))-rir,1);
+const workPct=ph=>(ph.pctLo+ph.pctHi)/2;
+const repsRange=ph=>{if(ph.reps)return ph.reps;const lo=repsAtRir(ph.pctHi,ph.rir),hi=repsAtRir(ph.pctLo,ph.rir);return lo===hi?(''+lo):(lo+'–'+hi);};
 function estimate1RM(w,r){w=parseFloat(w)||0;r=Math.min(Math.max(parseInt(r)||1,1),12);const rc=Math.min(r,10);return r===1?w:w*(1+rc/30);}
-function mainWeight(mode,pk,name,orm){const ph=PHASE[pk];if(mode==='novice')return{w:MAIN[name]?MAIN[name].bar:20,note:'空槓起步'};return{w:r25((orm||0)*ph.pct),note:Math.round(ph.pct*100)+'% 1RM'};}
+function mainWeight(mode,pk,name,orm){const ph=PHASE[pk];if(mode==='novice')return{w:MAIN[name]?MAIN[name].bar:20,note:'空槓起步'};const wp=workPct(ph);return{w:r25((orm||0)*wp),note:Math.round(wp*100)+'% 1RM'};}
 function accWeight(mode,pk){if(mode==='novice')return {adapt:10,hyper:12,strength:15,deload:8}[pk];return {adapt:12,hyper:20,strength:25,deload:10}[pk];}
 function nextWeight(w,type){const inc=type==='upper'?2.5:5;return{w:r25(w+inc),tag:'完成 +'+inc};}
 function weekToPhase(wk){for(const m of MACRO)if(wk<=m.end)return m.key;return 'strength';}
@@ -257,7 +306,7 @@ function planDay(day,mode,pk,orm){
   const mins=()=>WARMUP_MIN+sets*tps/60;
   (day.main||[]).forEach(name=>{
     const mw=mainWeight(mode,pk,name,orm[name]);
-    items.push({name,isMain:true,w:mw.w,sets:ph.sets,reps:ph.reps,rest:ph.rest,sub:mw.note});
+    items.push({name,isMain:true,w:mw.w,sets:ph.sets,reps:repsRange(ph),rest:ph.rest,sub:mw.note});
     sets+=ph.sets;
   });
   for(const name of (day.acc||[])){
@@ -370,6 +419,7 @@ document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
 $('#weekSlider').addEventListener('input',e=>{state.week=+e.target.value;syncWeekUI();render();});
 $('#dlChk').addEventListener('change',e=>{state.deload=e.target.checked;render();});
 
+if(window.__savedPlan){var sp=window.__savedPlan;state.mode=sp.mode==='VETERAN'?'veteran':'novice';state.days=String(Math.min(Math.max(sp.days||3,1),7));state.week=Math.min(Math.max(sp.week||8,1),20);document.querySelectorAll('[data-seg=\"mode\"] button').forEach(function(b){b.classList.toggle('active',b.dataset.val===state.mode);});document.querySelectorAll('[data-seg=\"days\"] button').forEach(function(b){b.classList.toggle('active',b.dataset.val===state.days);});var ws=document.getElementById('weekSlider');if(ws)ws.value=state.week;}
 buildLiftInputs();syncWeekUI();render();
 </script>
 </body>
