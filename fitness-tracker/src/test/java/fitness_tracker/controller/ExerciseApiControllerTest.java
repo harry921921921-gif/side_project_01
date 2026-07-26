@@ -19,6 +19,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import fitness_tracker.entity.Exercise;
+import fitness_tracker.service.CurrentUserService;
 import fitness_tracker.service.ExerciseService;
 
 @WebMvcTest(ExerciseApiController.class)
@@ -30,6 +31,9 @@ class ExerciseApiControllerTest {
 
     @MockBean
     private ExerciseService exerciseService;
+
+    @MockBean
+    private CurrentUserService currentUserService;
 
     @Test
     void listReturnsExerciseJson() throws Exception {

@@ -4,6 +4,8 @@ import fitness_tracker.entity.TrainingPlan;
 import fitness_tracker.entity.User;
 import fitness_tracker.enums.PlanMode;
 import fitness_tracker.repository.TrainingPlanRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,8 @@ import java.util.Set;
 // 重量的「維持/進階」不在這裡決定 —— 那由每個動作自己的最後一次完成紀錄決定（之後的回饋閉環）。
 @Service
 public class TrainingPlanService {
+
+    private static final Logger log = LoggerFactory.getLogger(TrainingPlanService.class);
 
     private final TrainingPlanRepository repo;
     private final WorkoutService workoutService;
@@ -82,6 +86,7 @@ public class TrainingPlanService {
             p.setTrainingWeekdays("MONDAY,WEDNESDAY,FRIDAY");
             p.setPhaseStartDate(LocalDate.now());
             p.setStatus("ACTIVE");
+            log.info("Creating default training plan for userId={}", user.getId());
             return repo.save(p);
         });
     }
@@ -96,6 +101,7 @@ public class TrainingPlanService {
         if (weekdaysCsv != null && !weekdaysCsv.isBlank()) p.setTrainingWeekdays(weekdaysCsv);
         if (phaseStartDate != null) p.setPhaseStartDate(phaseStartDate);
         if (p.getStatus() == null) p.setStatus("ACTIVE");
+        log.info("Saving training plan for userId={}: mode={}, daysPerWeek={}", user.getId(), p.getMode(), p.getDaysPerWeek());
         return repo.save(p);
     }
 

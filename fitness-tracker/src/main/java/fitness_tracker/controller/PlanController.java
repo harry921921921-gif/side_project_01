@@ -49,7 +49,8 @@ public class PlanController {
         PlanMode m = "VETERAN".equalsIgnoreCase(mode) ? PlanMode.VETERAN : PlanMode.NOVICE;
         String csv = String.join(",", weekdays);
         int daysPerWeek = weekdays.size();
-        LocalDate start = LocalDate.now().minusWeeks(Math.max(week - 1, 0));
+        int clampedWeek = Math.min(Math.max(week, 1), 104);
+        LocalDate start = LocalDate.now().minusWeeks(clampedWeek - 1L);
         trainingPlanService.saveOrUpdate(user, m, daysPerWeek, csv, start);
         return "redirect:/plan?saved";
     }
