@@ -1,246 +1,149 @@
 <!DOCTYPE html>
-<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>訓練計劃 · FitTracker</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;700;900&amp;display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#f4f6fb;--surface:#fff;--ink:#0f172a;--muted:#64748b;--faint:#94a3b8;
-  --line:#eaeef5;--accent:#10b981;--accent-ink:#065f46;--accent-soft:#d1fae5;
-  --radius:18px;--radius-sm:12px;--shadow:0 6px 24px rgba(15,23,42,.06);--shadow-lg:0 12px 40px rgba(15,23,42,.10);
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter','Noto Sans TC',sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
-.appbar{position:sticky;top:0;z-index:20;background:rgba(15,23,42,.92);backdrop-filter:blur(10px);color:#fff}
-.appbar .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
-.logo{font-weight:800;font-size:1.15rem;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
-.logo .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
-.appbar nav{display:flex;gap:6px}
-.appbar nav a{color:#cbd5e1;text-decoration:none;font-size:.9rem;font-weight:500;padding:8px 14px;border-radius:10px;transition:.15s}
-.appbar nav a:hover{color:#fff;background:rgba(255,255,255,.08)}
-.appbar nav a.active{color:#fff;background:rgba(16,185,129,.18)}
-.hero{padding:34px 0 10px}
-.hero h1{font-size:1.9rem;font-weight:800;letter-spacing:-.03em}
-.hero p{color:var(--muted);margin-top:6px;font-size:.98rem}
-.card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line)}
-.pad{padding:24px}
-.setup{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:22px}
-.field label{display:block;font-size:.78rem;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:9px}
-.seg{display:inline-flex;background:#eef1f7;border-radius:12px;padding:4px;gap:3px;width:100%}
-.seg button{flex:1;border:0;background:transparent;padding:9px 8px;border-radius:9px;font:inherit;font-weight:600;font-size:.86rem;color:var(--muted);cursor:pointer;transition:.15s;white-space:nowrap}
-.seg button:hover{color:var(--ink)}
-.seg button.active{background:#fff;color:var(--ink);box-shadow:0 2px 6px rgba(15,23,42,.1)}
-.seg.accent button.active{background:var(--accent);color:#fff;box-shadow:0 2px 10px rgba(16,185,129,.4)}
-.lift-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:6px}
-.lift-input{border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px;background:#fbfcfe;transition:.15s}
-.lift-input:focus-within{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px var(--accent-soft)}
-.lift-input .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.lift-input .nm{font-weight:700;font-size:.95rem}
-.lift-input .orm{font-size:.72rem;font-weight:700;color:var(--accent-ink);background:var(--accent-soft);padding:3px 9px;border-radius:20px}
-.lift-input .ins{display:flex;align-items:center;gap:8px}
-.lift-input input{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;font-size:.95rem;font-weight:600;text-align:center;outline:none;transition:.15s}
-.lift-input input:focus{border-color:var(--accent)}
-.lift-input .x{color:var(--faint);font-weight:700}
-.hint{margin-top:16px;font-size:.85rem;color:var(--muted);display:flex;gap:9px;align-items:flex-start;background:#f0fdf9;border:1px solid var(--accent-soft);border-radius:var(--radius-sm);padding:12px 14px}
-.hint b{color:var(--accent-ink)}
-.sec-title{display:flex;align-items:center;gap:10px;margin:32px 0 16px;font-size:1.15rem;font-weight:800;letter-spacing:-.02em}
-.sec-title .ln{flex:1;height:1px;background:var(--line)}
-
-/* timeline / progress */
-.tl-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:16px}
-.tl-head .big{font-size:1.05rem;font-weight:800}
-.tl-head .nx{font-size:.86rem;color:var(--muted)}
-.tl-head .nx b{color:var(--accent-ink)}
-.tl-track{display:flex;gap:6px;height:64px}
-.tl-seg{border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;justify-content:space-between;transition:.2s;opacity:.5;position:relative;overflow:hidden;cursor:pointer}
-.tl-seg.on{opacity:1;box-shadow:var(--shadow)}
-.tl-seg .pn{font-size:.82rem;font-weight:800}
-.tl-seg .pw{font-size:.72rem;font-weight:600;opacity:.85}
-.tl-fill{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.35)}
-.tl-slider{margin-top:16px}
-.tl-slider input{width:100%}
-.tl-week{display:flex;justify-content:space-between;font-size:.78rem;color:var(--faint);margin-top:6px}
-.dl-check{display:inline-flex;align-items:center;gap:8px;margin-top:14px;font-size:.88rem;font-weight:600;color:var(--muted);cursor:pointer;user-select:none}
-.dl-check input{width:18px;height:18px;accent-color:var(--accent)}
-
-.today{position:relative;overflow:hidden}
-.today .bar{position:absolute;left:0;top:0;bottom:0;width:5px;background:linear-gradient(180deg,var(--accent),#059669)}
-.today .head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px}
-.today .head h3{font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
-.chip{font-size:.76rem;font-weight:700;padding:5px 12px;border-radius:20px}
-.exlist{margin-top:14px}
-.exrow{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
-.exrow:last-child{border-bottom:0}
-.exrow .l .nm{font-weight:700;font-size:1rem}
-.exrow .l .sub{font-size:.8rem;color:var(--faint);margin-top:2px}
-.exrow .r{text-align:right;display:flex;align-items:center;gap:12px}
-.exrow .wt{font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums}
-.exrow .wt small{font-weight:600;color:var(--muted);font-size:.8rem}
-.nbadge{font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
-.b-up{background:var(--accent-soft);color:var(--accent-ink)}
-.cta{display:flex;gap:10px;margin-top:20px}
-.btn{border:0;border-radius:12px;padding:12px 20px;font:inherit;font-weight:700;font-size:.92rem;cursor:pointer;transition:.15s}
-.btn-primary{background:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(16,185,129,.35)}
-.btn-primary:hover{filter:brightness(1.05);transform:translateY(-1px)}
-.btn-ghost{background:#f1f5f9;color:var(--ink)}
-.btn-ghost:hover{background:#e5ebf2}
-.deload{display:flex;gap:10px;align-items:center;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:var(--radius-sm);padding:12px 14px;font-size:.88rem;margin:14px 0 4px}
-.week{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
-.day{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;transition:.18s}
-.day:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
-.day.rest{background:#f8fafc;border-style:dashed}
-.day .dh{padding:14px 18px;font-weight:800;font-size:.98rem;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}
-.day.rest .dh{border-bottom:0;color:var(--muted)}
-.day .dh .tag{width:8px;height:8px;border-radius:50%;background:var(--accent)}
-.day .dsub{padding:9px 18px 0;font-size:.76rem;color:var(--faint);font-weight:600;display:flex;align-items:center;gap:5px}
-.day .db{padding:8px 18px 16px}
-.drow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
-.drow:last-child{border-bottom:0}
-.drow .dn{font-size:.9rem;font-weight:600}
-.drow .dn.acc{font-weight:500;color:var(--muted)}
-.drow .dw{font-size:.84rem;color:var(--muted);font-variant-numeric:tabular-nums;font-weight:600}
-footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px}
-
-/* runner overlay */
-.runner{position:fixed;top:74px;right:20px;z-index:50;display:none;width:320px;max-width:calc(100vw - 32px)}
-.runner.on{display:block}
-.rbox{width:100%;background:var(--surface);border-radius:16px;padding:18px 16px;text-align:center;box-shadow:0 16px 44px rgba(15,23,42,.26);border:1px solid var(--line)}
-.rbox .step{font-size:.72rem;font-weight:700;color:var(--faint);letter-spacing:.05em;text-transform:uppercase}
-.rbox h2{font-size:1.2rem;font-weight:800;margin:6px 0 4px;letter-spacing:-.02em}
-.rbox .tgt{font-size:.86rem;color:var(--muted);font-weight:600}
-.rbox .big-wt{font-size:1.8rem;font-weight:900;margin:8px 0 2px;font-variant-numeric:tabular-nums}
-.rbox .big-wt small{font-size:.85rem;color:var(--muted);font-weight:600}
-.timer{font-size:2.3rem;font-weight:900;font-variant-numeric:tabular-nums;margin:10px 0;letter-spacing:-.02em}
-.timer.warn{color:var(--accent)}
-.rprogress{display:flex;gap:5px;justify-content:center;margin:14px 0}
-.rdot{width:26px;height:6px;border-radius:3px;background:#e2e8f0}
-.rdot.done{background:var(--accent)}
-.rdot.cur{background:var(--ink)}
-.rbtns{display:flex;flex-direction:column;gap:8px;margin-top:14px}
-.btn-xl{border:0;border-radius:13px;padding:13px;font:inherit;font-weight:800;font-size:1rem;cursor:pointer;background:var(--accent);color:#fff;box-shadow:0 6px 20px rgba(16,185,129,.4);transition:.15s}
-.btn-xl:hover{transform:translateY(-2px);filter:brightness(1.05)}
-.btn-xl.dark{background:var(--ink);box-shadow:0 6px 20px rgba(15,23,42,.3)}
-.btn-mini{border:0;border-radius:10px;padding:10px;font:inherit;font-weight:600;font-size:.86rem;cursor:pointer;background:#f1f5f9;color:var(--muted)}
-.btn-mini:hover{background:#e5ebf2;color:var(--ink)}
-.rclose{position:absolute;top:12px;right:14px;background:#f1f5f9;border:0;color:var(--muted);width:30px;height:30px;border-radius:50%;font-size:1rem;cursor:pointer}
-.rclose:hover{background:#e5ebf2;color:var(--ink)}
-.rprogress{margin:10px 0}
-.q-row{display:flex;gap:8px;margin-top:14px}
-.q-row button{flex:1}
-
-/* 匯入訓練紀錄 modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:60;display:none;align-items:center;justify-content:center;padding:20px}
-.modal-overlay.on{display:flex}
-.modal-box{width:100%;max-width:480px;max-height:86vh;overflow-y:auto;background:var(--surface);border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(15,23,42,.3)}
-.modal-box h2{font-size:1.15rem;font-weight:800;margin-bottom:4px}
-.modal-box .sub{font-size:.85rem;color:var(--muted);margin-bottom:16px}
-.imp-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
-.imp-row:last-child{border-bottom:0}
-.imp-row .nm{flex:1;font-weight:700;font-size:.92rem}
-.imp-row input{width:56px;border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit;text-align:center;font-weight:600}
-.imp-row .x{color:var(--faint);font-size:.8rem}
-.modal-btns{display:flex;gap:10px;margin-top:18px}
-.modal-btns button{flex:1}
-@media(max-width:600px){.hero h1{font-size:1.5rem}.pad{padding:18px}.tl-seg .pw{display:none}}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FitTracker - 訓練計劃</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .tl-track{display:flex;gap:6px;height:64px}
+        .tl-seg{border-radius:.5rem;padding:10px 12px;display:flex;flex-direction:column;justify-content:space-between;transition:.2s;opacity:.5;position:relative;overflow:hidden;cursor:pointer}
+        .tl-seg.on{opacity:1;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+        .tl-seg .pn{font-size:.82rem;font-weight:800}
+        .tl-seg .pw{font-size:.72rem;font-weight:600;opacity:.85}
+        .tl-fill{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.35)}
+        .rprogress{display:flex;gap:5px;justify-content:center;margin:14px 0}
+        .rdot{width:26px;height:6px;border-radius:3px;background:#e2e8f0}
+        .rdot.done{background:#198754}
+        .rdot.cur{background:#212529}
+        @media(max-width:600px){.tl-seg .pw{display:none}}
+    </style>
 </head>
-<body>
+<body class="bg-light">
 
-<header class="appbar"><div class="wrap">
-  <div class="logo"><span class="dot"></span>FitTracker</div>
-  <nav><a th:href="@{/}">首頁</a><a th:href="@{/workout}">訓練紀錄</a><a th:href="@{/body-weight}">體重</a><a th:href="@{/plan}" class="active">訓練計劃</a></nav>
-</div></header>
+<div th:replace="~{fragments/navbar :: navbar}"></div>
 
-<main class="wrap">
-  <section class="hero">
-    <h1>打造你的訓練計劃</h1>
-    <p>依程度、目標與週期階段，即時算出每個動作的建議重量</p>
-    <button type="button" class="btn btn-primary" style="margin-top:14px" onclick="openImportModal()">✅ 我今天練完了，匯入紀錄</button>
-  </section>
-
-  <!-- 設定 -->
-  <div class="card pad">
-    <div class="setup">
-      <div class="field">
-        <label>程度</label>
-        <div class="seg accent" data-seg="mode"><button data-val="novice" class="active">新手</button><button data-val="veteran">中階／老手</button></div>
-      </div>
-      <div class="field" style="grid-column:1/-1">
-        <label>一週訓練天數（第 7 天建議休息）</label>
-        <div class="seg" data-seg="days">
-          <button data-val="1">1</button><button data-val="2">2</button><button data-val="3" class="active">3</button>
-          <button data-val="4">4</button><button data-val="5">5</button><button data-val="6">6</button><button data-val="7">7</button>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+        <div>
+            <h2 class="mb-1">📋 打造你的訓練計劃</h2>
+            <p class="text-muted mb-0">依程度、目標與週期階段，即時算出每個動作的建議重量</p>
         </div>
-      </div>
+        <button type="button" class="btn btn-success" onclick="openImportModal()">✅ 我今天練完了，匯入紀錄</button>
     </div>
-    <div id="vetBox" style="display:none;margin-top:22px">
-      <label style="display:block;font-size:.78rem;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">你的重量（填一組 6–10 下，自動估 1RM）</label>
-      <div class="lift-grid" id="liftGrid"></div>
+
+    <!-- 課表設定 -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white"><h5 class="mb-0">⚙️ 課表設定</h5></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold small text-uppercase text-muted">程度</label>
+                    <div class="btn-group seg w-100" role="group" data-seg="mode">
+                        <button type="button" class="btn btn-outline-primary active" data-val="novice">新手</button>
+                        <button type="button" class="btn btn-outline-primary" data-val="veteran">中階／老手</button>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label fw-semibold small text-uppercase text-muted">一週訓練天數（第 7 天建議休息）</label>
+                    <div class="btn-group seg w-100 flex-wrap" role="group" data-seg="days">
+                        <button type="button" class="btn btn-outline-primary" data-val="1">1</button>
+                        <button type="button" class="btn btn-outline-primary" data-val="2">2</button>
+                        <button type="button" class="btn btn-outline-primary active" data-val="3">3</button>
+                        <button type="button" class="btn btn-outline-primary" data-val="4">4</button>
+                        <button type="button" class="btn btn-outline-primary" data-val="5">5</button>
+                        <button type="button" class="btn btn-outline-primary" data-val="6">6</button>
+                        <button type="button" class="btn btn-outline-primary" data-val="7">7</button>
+                    </div>
+                </div>
+            </div>
+            <div id="vetBox" style="display:none" class="mt-4">
+                <label class="form-label fw-semibold small text-uppercase text-muted">你的重量（填一組 6–10 下，自動估 1RM）</label>
+                <div class="row row-cols-2 row-cols-md-4 g-2" id="liftGrid"></div>
+            </div>
+            <div id="noviceHint" class="alert alert-success d-flex gap-2 align-items-start mt-3 mb-0">
+                <span>🌱</span><span>新手模式：主項從空槓／輕重量起（深蹲・臥推・肩推 20kg，硬舉 40kg），系統會依你每次的表現自動幫你調整。</span>
+            </div>
+            <div th:if="${param.saved}" class="alert alert-success mt-3 mb-0">✓ 課表已儲存（含你的 PR，下次登入自動帶回）</div>
+            <div class="d-flex align-items-center gap-3 mt-4 flex-wrap">
+                <button type="button" class="btn btn-primary" onclick="savePlan()">💾 儲存我的課表</button>
+                <span class="text-muted small">程度／天數／週次／你的 PR 都會存到帳號</span>
+            </div>
+            <form id="planForm" th:action="@{/plan/save}" method="post" style="display:none">
+                <input type="hidden" name="mode" id="f-mode">
+                <input type="hidden" name="days" id="f-days">
+                <input type="hidden" name="week" id="f-week">
+                <div id="f-prs"></div>
+            </form>
+        </div>
     </div>
-    <div id="noviceHint" class="hint"><span>🌱</span><span>新手模式：主項從空槓／輕重量起（深蹲・臥推・肩推 20kg，硬舉 40kg），系統會依你每次的表現自動幫你調整。</span></div>
-    <div th:if="${param.saved}" style="background:var(--accent-soft);color:var(--accent-ink);border-radius:12px;padding:10px 12px;font-size:.85rem;margin-top:16px">✓ 課表已儲存（含你的 PR，下次登入自動帶回）</div>
-    <div style="display:flex;align-items:center;gap:12px;margin-top:18px;flex-wrap:wrap">
-      <button type="button" class="btn btn-primary" onclick="savePlan()">💾 儲存我的課表</button>
-      <span style="font-size:.83rem;color:var(--muted)">程度／天數／週次／你的 PR 都會存到帳號</span>
+
+    <script th:inline="javascript">
+    window.__savedPlan = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, prs: /*[[${planPrs}]]*/ {} };
+    </script>
+
+    <!-- 週期進度 -->
+    <h5 class="mb-3">📆 週期進度</h5>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 mb-3">
+                <div class="fw-bold" id="tlNow">肌肥大期</div>
+                <div class="text-muted small" id="tlNext"></div>
+            </div>
+            <div class="tl-track" id="tlTrack"></div>
+            <div class="mt-3">
+                <input type="range" class="form-range" id="weekSlider" min="1" max="20" value="8">
+                <div class="d-flex justify-content-between text-muted small">
+                    <span>第 1 週</span><span id="wkNow" class="fw-bold text-dark">第 8 週</span><span>第 20 週</span>
+                </div>
+            </div>
+            <div class="form-check mt-3">
+                <input class="form-check-input" type="checkbox" id="dlChk">
+                <label class="form-check-label fw-semibold small" for="dlChk">本週改為減量週（Deload）</label>
+            </div>
+        </div>
     </div>
-    <form id="planForm" th:action="@{/plan/save}" method="post" style="display:none">
-      <input type="hidden" name="mode" id="f-mode">
-      <input type="hidden" name="days" id="f-days">
-      <input type="hidden" name="week" id="f-week">
-      <div id="f-prs"></div>
-    </form>
-  </div>
 
-  <!-- 週期進度 -->
-  <script th:inline="javascript">
-  window.__savedPlan = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, prs: /*[[${planPrs}]]*/ {} };
-  </script>
+    <!-- 今日課表 -->
+    <h5 class="mb-3">🎯 今日課表</h5>
+    <div id="todayWrap" class="mb-4"></div>
 
-  <div class="sec-title">週期進度<span class="ln"></span></div>
-  <div class="card pad">
-    <div class="tl-head">
-      <div><div class="big" id="tlNow">肌肥大期</div></div>
-      <div class="nx" id="tlNext"></div>
-    </div>
-    <div class="tl-track" id="tlTrack"></div>
-    <div class="tl-slider">
-      <input type="range" id="weekSlider" min="1" max="20" value="8">
-      <div class="tl-week"><span>第 1 週</span><span id="wkNow" style="font-weight:700;color:var(--ink)">第 8 週</span><span>第 20 週</span></div>
-    </div>
-    <label class="dl-check"><input type="checkbox" id="dlChk"><span>本週改為減量週（Deload）</span></label>
-  </div>
+    <!-- 週課表 -->
+    <h5 class="mb-3">🗓️ 本週完整課表</h5>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3" id="weekGrid"></div>
 
-  <!-- 今日課表 -->
-  <div class="sec-title">今日課表<span class="ln"></span></div>
-  <div id="todayWrap"></div>
-
-  <!-- 週課表 -->
-  <div class="sec-title">本週完整課表<span class="ln"></span></div>
-  <div class="week" id="weekGrid"></div>
-
-  <footer>FitTracker · 訓練計劃原型　·　規則引擎即時算重量，之後接 Spring AI 產生白話課表</footer>
-</main>
+    <footer class="text-center text-muted small py-5">FitTracker · 訓練計劃原型　·　規則引擎即時算重量，之後接 Spring AI 產生白話課表</footer>
+</div>
 
 <!-- 訓練執行 runner -->
-<div class="runner" id="runner"><div class="rbox" style="position:relative">
-  <button class="rclose" onclick="Runner.close()">✕</button>
-  <div id="runnerBody"></div>
-</div></div>
+<div class="modal fade" id="runnerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">訓練執行</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center" id="runnerBody"></div>
+    </div>
+  </div>
+</div>
 
 <!-- 匯入訓練紀錄 modal -->
-<div class="modal-overlay" id="importModal">
-  <div class="modal-box">
-    <h2 id="impTitle">今天練完了嗎？</h2>
-    <div class="sub">確認每個動作實際完成的重量／組數／次數，沒問題就直接匯入；有調整就改一下再匯入，會存進「訓練紀錄」。</div>
-    <div id="impRows"></div>
-    <div class="modal-btns">
-      <button type="button" class="btn btn-ghost" onclick="closeImportModal()">取消</button>
-      <button type="button" class="btn btn-primary" onclick="confirmImport()">✅ 確認匯入</button>
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="impTitle">今天練完了嗎？</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">確認每個動作實際完成的重量／組數／次數，沒問題就直接匯入；有調整就改一下再匯入，會存進「訓練紀錄」。</p>
+        <div id="impRows"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-success" onclick="confirmImport()">✅ 確認匯入</button>
+      </div>
     </div>
   </div>
 </div>
@@ -251,6 +154,7 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
   <div id="imp-fields"></div>
 </form>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 /* ===== ProgressionService（JS 版，之後改寫成 Java）===== */
 /* 階段用「%1RM 區間 + 組數 + 目標 RIR」定義；次數由 %+RIR 公式算出，避免強度/次數矛盾 */
@@ -310,15 +214,20 @@ function buildLiftInputs(){
   var prs=(window.__savedPlan&&window.__savedPlan.prs)||{};
   $('#liftGrid').innerHTML=Object.keys(MAIN).map(function(n){
     var pr=prs[n]||null; var w=pr?pr.w:MAIN[n].bar*4; var r=pr?pr.r:5;
-    return '<div class="lift-input"><div class="top"><span class="nm">'+n+'</span><span class="orm" id="orm-'+n+'">1RM \u2013</span></div>'
-      +'<div class="ins"><input type="number" class="vw" data-l="'+n+'" value="'+w+'" min="0" step="2.5">'
-      +'<span class="x">\u00d7</span><input type="number" class="vr" data-l="'+n+'" value="'+r+'" min="1" max="12">'
-      +'<span class="x" style="font-size:.8rem;color:var(--faint)">\u4e0b</span></div></div>';
+    return '<div class="col"><div class="border rounded p-2 h-100">'
+      +'<div class="d-flex justify-content-between align-items-center mb-2">'
+      +'<span class="fw-semibold small">'+n+'</span>'
+      +'<span class="badge bg-success-subtle text-success-emphasis" id="orm-'+n+'">1RM –</span></div>'
+      +'<div class="input-group input-group-sm">'
+      +'<input type="number" class="form-control vw" data-l="'+n+'" value="'+w+'" min="0" step="2.5">'
+      +'<span class="input-group-text">×</span>'
+      +'<input type="number" class="form-control vr" data-l="'+n+'" value="'+r+'" min="1" max="12">'
+      +'<span class="input-group-text">下</span></div></div></div>';
   }).join('');
   $('#liftGrid').querySelectorAll('input').forEach(function(el){el.addEventListener('input',render);});
 }
 function oneRMs(){const m={};document.querySelectorAll('.vw').forEach(el=>{const n=el.dataset.l,r=document.querySelector('.vr[data-l="'+n+'"]').value;m[n]=estimate1RM(el.value,r);const c=document.getElementById('orm-'+n);if(c)c.textContent='1RM '+fmt(r25(m[n]))+'kg';});return m;}
-function chip(pk){const p=PHASE[pk];return `<span class="chip" style="background:${p.bg};color:${p.color}">${p.label} · RIR ${p.rir}</span>`;}
+function chip(pk){const p=PHASE[pk];return '<span class="badge rounded-pill" style="background:'+p.bg+';color:'+p.color+'">'+p.label+' · RIR '+p.rir+'</span>';}
 function savePlan(){
   document.getElementById('f-mode').value=state.mode;
   document.getElementById('f-days').value=state.days;
@@ -348,20 +257,23 @@ function repsToInt(r){
 }
 function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 
+const importModalEl=document.getElementById('importModal');
+const importModal=new bootstrap.Modal(importModalEl);
+
 function openImportModal(){
   const today=window.__today;
   if(!today||!today.items||today.items.length===0){alert('今天是休息日，沒有課表可以匯入喔。');return;}
   $('#impTitle').textContent=today.name+'，練完了嗎？';
-  $('#impRows').innerHTML=today.items.map((it,i)=>`
-    <div class="imp-row" data-i="${i}">
-      <span class="nm">${it.name}</span>
-      <input type="number" class="imp-w" value="${fmt(it.w)}" min="0" step="2.5"><span class="x">kg</span>
-      <input type="number" class="imp-s" value="${it.sets}" min="1" max="20"><span class="x">組</span>
-      <input type="number" class="imp-r" value="${repsToInt(it.reps)}" min="1" max="30"><span class="x">下</span>
-    </div>`).join('');
-  $('#importModal').classList.add('on');
+  $('#impRows').innerHTML=today.items.map((it,i)=>
+    '<div class="d-flex align-items-center gap-2 py-2 border-bottom imp-row" data-i="'+i+'">'
+    +'<span class="flex-grow-1 fw-semibold small">'+it.name+'</span>'
+    +'<div class="input-group input-group-sm" style="width:auto"><input type="number" class="form-control imp-w" style="width:64px" value="'+fmt(it.w)+'" min="0" step="2.5"><span class="input-group-text">kg</span></div>'
+    +'<div class="input-group input-group-sm" style="width:auto"><input type="number" class="form-control imp-s" style="width:52px" value="'+it.sets+'" min="1" max="20"><span class="input-group-text">組</span></div>'
+    +'<div class="input-group input-group-sm" style="width:auto"><input type="number" class="form-control imp-r" style="width:52px" value="'+repsToInt(it.reps)+'" min="1" max="30"><span class="input-group-text">下</span></div>'
+    +'</div>'
+  ).join('');
+  importModal.show();
 }
-function closeImportModal(){$('#importModal').classList.remove('on');}
 function confirmImport(){
   const today=window.__today;
   document.getElementById('imp-date').value=todayISO();
@@ -432,65 +344,74 @@ function render(){
 
   const rows=todayPlan.items.map(it=>{
     let badge='';
-    if(it.isMain&&pk!=='deload'){const nx=nextWeight(it.w,MAIN[it.name]?MAIN[it.name].type:'upper');badge=`<span class="nbadge b-up">下次 ${fmt(nx.w)}kg</span>`;}
-    return `<div class="exrow"><div class="l"><div class="nm">${it.name}</div><div class="sub">${it.sub} · 休息 ${fmtRest(it.rest)}</div></div>
-      <div class="r"><div class="wt">${fmt(it.w)}<small>kg</small> <small>· ${it.sets}×${it.reps}</small></div>${badge}</div></div>`;
+    if(it.isMain&&pk!=='deload'){const nx=nextWeight(it.w,MAIN[it.name]?MAIN[it.name].type:'upper');badge='<span class="badge bg-success-subtle text-success-emphasis ms-2">下次 '+fmt(nx.w)+'kg</span>';}
+    return '<div class="d-flex justify-content-between align-items-center py-2 border-bottom">'
+      +'<div><div class="fw-semibold">'+it.name+'</div><div class="text-muted small">'+it.sub+' · 休息 '+fmtRest(it.rest)+'</div></div>'
+      +'<div class="text-end"><span class="fw-bold fs-5">'+fmt(it.w)+'<small class="text-muted fs-6">kg</small></span> <small class="text-muted">· '+it.sets+'×'+it.reps+'</small>'+badge+'</div></div>';
   }).join('');
-  const deload=pk==='deload'?`<div class="deload"><span>😴</span><span>減量週：重量降至約 55%、砍組數、<b>不練到力竭</b>，清除中樞神經疲勞。</span></div>`:'';
-  $('#todayWrap').innerHTML=`<div class="card pad today"><div class="bar"></div>
-    <div class="head"><h3>${today.name}</h3>${chip(pk)}</div>
-    <div style="font-size:.83rem;color:var(--faint);margin-top:2px">⏱ 約 ${todayPlan.minutes} 分鐘（含熱身 10 分）· 組間休息 ${fmtRest(ph.rest)}</div>${deload}
-    <div class="exlist">${rows}</div>
-    <div class="cta"><button class="btn btn-primary" onclick="Runner.start()">開始訓練</button><button class="btn btn-ghost" onclick="render()">換一份</button></div></div>`;
+  const deload=pk==='deload'?'<div class="alert alert-warning d-flex gap-2 align-items-center mt-2 mb-0"><span>😴</span><span>減量週：重量降至約 55%、砍組數、<b>不練到力竭</b>，清除中樞神經疲勞。</span></div>':'';
+  $('#todayWrap').innerHTML='<div class="card shadow-sm" style="border-left:4px solid #198754">'
+    +'<div class="card-body">'
+    +'<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1"><h4 class="mb-0">'+today.name+'</h4>'+chip(pk)+'</div>'
+    +'<div class="text-muted small">⏱ 約 '+todayPlan.minutes+' 分鐘（含熱身 10 分）· 組間休息 '+fmtRest(ph.rest)+'</div>'+deload
+    +'<div class="mt-2">'+rows+'</div>'
+    +'<div class="d-flex gap-2 mt-3"><button class="btn btn-primary" onclick="Runner.start()">開始訓練</button><button class="btn btn-outline-secondary" onclick="render()">換一份</button></div>'
+    +'</div></div>';
 
   let cards=baseSplit.map(day=>{
     const dp=planDay(day,mode,pk,orm);
-    const dr=dp.items.map(it=>`<div class="drow"><span class="dn ${it.isMain?'':'acc'}">${it.name}</span><span class="dw">${fmt(it.w)}kg · ${it.sets}×${it.reps}</span></div>`).join('');
-    return `<div class="day"><div class="dh"><span class="tag" style="background:${ph.color}"></span>${day.name}</div><div class="dsub">⏱ 組間休息 ${fmtRest(ph.rest)} · 約 ${dp.minutes} 分</div><div class="db">${dr}</div></div>`;
+    const dr=dp.items.map(it=>'<div class="d-flex justify-content-between align-items-center py-1 border-bottom small"><span class="'+(it.isMain?'fw-semibold':'text-muted')+'">'+it.name+'</span><span class="text-muted">'+fmt(it.w)+'kg · '+it.sets+'×'+it.reps+'</span></div>').join('');
+    return '<div class="col"><div class="card shadow-sm h-100">'
+      +'<div class="card-header bg-white d-flex align-items-center gap-2"><span class="badge rounded-pill" style="background:'+ph.color+'">&nbsp;</span><span class="fw-semibold">'+day.name+'</span></div>'
+      +'<div class="card-body py-2"><div class="text-muted small mb-1">⏱ 組間休息 '+fmtRest(ph.rest)+' · 約 '+dp.minutes+' 分</div>'+dr+'</div></div></div>';
   });
-  if(dn===7)cards.push(`<div class="day rest"><div class="dh"><span class="tag" style="background:#cbd5e1"></span>第 7 天 · 休息日</div><div class="db"><div class="drow" style="border:0"><span class="dn acc">完全休息或輕度活動（散步／伸展），讓身體恢復。</span></div></div></div>`);
+  if(dn===7)cards.push('<div class="col"><div class="card shadow-sm h-100 bg-light" style="border-style:dashed"><div class="card-header bg-transparent text-muted">第 7 天 · 休息日</div><div class="card-body py-2 text-muted small">完全休息或輕度活動（散步／伸展），讓身體恢復。</div></div></div>');
   $('#weekGrid').innerHTML=cards.join('');
 }
 
 /* ===== 訓練執行流程 ===== */
+const runnerModalEl=document.getElementById('runnerModal');
+const runnerModal=new bootstrap.Modal(runnerModalEl);
+runnerModalEl.addEventListener('hidden.bs.modal',()=>Runner.stop());
+
 const Runner={
   ex:[], exIdx:0, setIdx:0, remain:0, tid:null,
-  start(){this.ex=window.__today?window.__today.items:[];this.exIdx=0;this.setIdx=0;$('#runner').classList.add('on');this.warmup();},
-  close(){this.stop();$('#runner').classList.remove('on');},
+  start(){this.ex=window.__today?window.__today.items:[];this.exIdx=0;this.setIdx=0;runnerModal.show();this.warmup();},
+  close(){this.stop();runnerModal.hide();},
   stop(){if(this.tid){clearInterval(this.tid);this.tid=null;}},
   body(h){$('#runnerBody').innerHTML=h;},
-  warmup(){this.body(`<div class="step">開始前</div><h2>熱身了嗎？</h2>
-    <p class="tgt">先做 5–10 分鐘動態熱身與輕重量暖身組，能大幅降低受傷風險。</p>
-    <div class="q-row"><button class="btn-mini" onclick="Runner.close()">還沒，先去熱身</button>
-    <button class="btn-xl" style="flex:1" onclick="Runner.showSet()">已熱身，開始 →</button></div>`);},
-  dots(total,cur){let h='<div class="rprogress">';for(let i=0;i<total;i++)h+=`<span class="rdot ${i<cur?'done':i===cur?'cur':''}"></span>`;return h+'</div>';},
+  warmup(){this.body('<p class="text-muted small text-uppercase fw-bold mb-1">開始前</p><h4>熱身了嗎？</h4>'
+    +'<p class="text-muted small">先做 5–10 分鐘動態熱身與輕重量暖身組，能大幅降低受傷風險。</p>'
+    +'<div class="d-flex gap-2 mt-3"><button class="btn btn-outline-secondary flex-fill" onclick="Runner.close()">還沒，先去熱身</button>'
+    +'<button class="btn btn-primary flex-fill" onclick="Runner.showSet()">已熱身，開始 →</button></div>');},
+  dots(total,cur){let h='<div class="rprogress">';for(let i=0;i<total;i++)h+='<span class="rdot '+(i<cur?'done':i===cur?'cur':'')+'"></span>';return h+'</div>';},
   showSet(){this.stop();const e=this.ex[this.exIdx];
-    this.body(`<div class="step">動作 ${this.exIdx+1} / ${this.ex.length}</div><h2>${e.name}</h2>
-      ${this.dots(e.sets,this.setIdx)}
-      <div class="big-wt">${fmt(e.w)}<small>kg</small></div>
-      <div class="tgt">第 ${this.setIdx+1} / ${e.sets} 組　·　目標 ${e.reps} 下</div>
-      <div class="rbtns"><button class="btn-xl" onclick="Runner.startRest()">✓ 完成這一組</button></div>`);},
+    this.body('<p class="text-muted small text-uppercase fw-bold mb-1">動作 '+(this.exIdx+1)+' / '+this.ex.length+'</p><h4>'+e.name+'</h4>'
+      +this.dots(e.sets,this.setIdx)
+      +'<div class="display-6 fw-bold">'+fmt(e.w)+'<small class="fs-6 text-muted">kg</small></div>'
+      +'<p class="text-muted small">第 '+(this.setIdx+1)+' / '+e.sets+' 組　·　目標 '+e.reps+' 下</p>'
+      +'<button class="btn btn-primary btn-lg w-100 mt-2" onclick="Runner.startRest()">✓ 完成這一組</button>');},
   startRest(secs){this.stop();const e=this.ex[this.exIdx];this.remain=secs||e.rest;
     this.renderRest();this.tid=setInterval(()=>{this.remain--;if(this.remain<=0){this.stop();this.restDone();}else this.renderRest();},1000);},
   renderRest(){const m=Math.floor(this.remain/60),s=this.remain%60;
-    this.body(`<div class="step">組間休息</div><h2>休息中</h2>
-      <div class="timer warn">${m}:${s<10?'0':''}${s}</div>
-      <p class="tgt">深呼吸、準備下一組</p>
-      <div class="rbtns"><button class="btn-mini" onclick="Runner.restDone()">略過休息</button></div>`);},
+    this.body('<p class="text-muted small text-uppercase fw-bold mb-1">組間休息</p><h4>休息中</h4>'
+      +'<div class="display-4 fw-bold text-success">'+m+':'+(s<10?'0':'')+s+'</div>'
+      +'<p class="text-muted small">深呼吸、準備下一組</p>'
+      +'<button class="btn btn-outline-secondary" onclick="Runner.restDone()">略過休息</button>');},
   restDone(){this.stop();const e=this.ex[this.exIdx],last=this.setIdx>=e.sets-1;
-    this.body(`<div class="step">休息結束</div><h2>準備好了嗎？</h2>
-      <p class="tgt">${e.name}　·　${last?'這是最後一組':'第 '+(this.setIdx+2)+' / '+e.sets+' 組'}</p>
-      <div class="rbtns">
-        <button class="btn-xl dark" onclick="Runner.next()">${last?'完成此動作 →':'下一組 →'}</button>
-        <button class="btn-mini" onclick="Runner.startRest(30)">再休息 30 秒</button>
-      </div>`);},
+    this.body('<p class="text-muted small text-uppercase fw-bold mb-1">休息結束</p><h4>準備好了嗎？</h4>'
+      +'<p class="text-muted small">'+e.name+'　·　'+(last?'這是最後一組':'第 '+(this.setIdx+2)+' / '+e.sets+' 組')+'</p>'
+      +'<div class="d-grid gap-2 mt-2">'
+      +'<button class="btn btn-dark btn-lg" onclick="Runner.next()">'+(last?'完成此動作 →':'下一組 →')+'</button>'
+      +'<button class="btn btn-outline-secondary btn-sm" onclick="Runner.startRest(30)">再休息 30 秒</button>'
+      +'</div>');},
   next(){const e=this.ex[this.exIdx];this.setIdx++;
     if(this.setIdx>=e.sets){this.exIdx++;this.setIdx=0;if(this.exIdx>=this.ex.length){return this.finish();}}
     this.showSet();},
-  finish(){this.stop();this.body(`<div class="step">完成</div><h2>訓練完成 💪</h2>
-    <p class="tgt">${window.__today.name} 全部做完了，好好休息、補充蛋白質。</p>
-    <div class="rbtns"><button class="btn-xl" onclick="Runner.saveAndClose()">✅ 存進訓練紀錄</button>
-    <button class="btn-mini" onclick="Runner.close()">先不存，關閉</button></div>`);},
+  finish(){this.stop();this.body('<p class="text-muted small text-uppercase fw-bold mb-1">完成</p><h4>訓練完成 💪</h4>'
+    +'<p class="text-muted small">'+window.__today.name+' 全部做完了，好好休息、補充蛋白質。</p>'
+    +'<div class="d-grid gap-2 mt-2"><button class="btn btn-success btn-lg" onclick="Runner.saveAndClose()">✅ 存進訓練紀錄</button>'
+    +'<button class="btn btn-outline-secondary btn-sm" onclick="Runner.close()">先不存，關閉</button></div>');},
   saveAndClose(){this.close();openImportModal();},
 };
 
