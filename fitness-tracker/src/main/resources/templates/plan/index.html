@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;700;900&amp;display=swap" rel="stylesheet">
+<!-- 只有最上面導覽列跟其他頁一樣用 Bootstrap（共用 fragments/navbar.html），下面內容維持原本這頁自己的設計 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
 :root{
   --bg:#f4f6fb;--surface:#fff;--ink:#0f172a;--muted:#64748b;--faint:#94a3b8;
@@ -16,14 +18,6 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter','Noto Sans TC',sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
-.appbar{position:sticky;top:0;z-index:20;background:rgba(15,23,42,.92);backdrop-filter:blur(10px);color:#fff}
-.appbar .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
-.logo{font-weight:800;font-size:1.15rem;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
-.logo .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
-.appbar nav{display:flex;gap:6px}
-.appbar nav a{color:#cbd5e1;text-decoration:none;font-size:.9rem;font-weight:500;padding:8px 14px;border-radius:10px;transition:.15s}
-.appbar nav a:hover{color:#fff;background:rgba(255,255,255,.08)}
-.appbar nav a.active{color:#fff;background:rgba(16,185,129,.18)}
 .hero{padding:34px 0 10px}
 .hero h1{font-size:1.9rem;font-weight:800;letter-spacing:-.03em}
 .hero p{color:var(--muted);margin-top:6px;font-size:.98rem}
@@ -151,10 +145,7 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
 </head>
 <body>
 
-<header class="appbar"><div class="wrap">
-  <div class="logo"><span class="dot"></span>FitTracker</div>
-  <nav><a th:href="@{/}">首頁</a><a th:href="@{/workout}">訓練紀錄</a><a th:href="@{/body-weight}">體重</a><a th:href="@{/plan}" class="active">訓練計劃</a></nav>
-</div></header>
+<div th:replace="~{fragments/navbar :: navbar}"></div>
 
 <main class="wrap">
   <section class="hero">
@@ -251,6 +242,7 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
   <div id="imp-fields"></div>
 </form>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 /* ===== ProgressionService（JS 版，之後改寫成 Java）===== */
 /* 階段用「%1RM 區間 + 組數 + 目標 RIR」定義；次數由 %+RIR 公式算出，避免強度/次數矛盾 */
@@ -334,11 +326,8 @@ function savePlan(){
 }
 
 /* ===== 匯入訓練紀錄：把今天課表送進 /workout（沿用既有的驗證/CSRF/logging，不重造輪子）===== */
-/* 課表的分化名稱不是既有 BodyPart 清單裡的值，匯入時對應成資料庫已有的分類 */
-const BODYPART_MAP={'全身':'全身','上半身':'上半身','下半身':'下半身','推日':'胸','拉日':'背','腿日':'腿',
-  '上肢 A':'上半身','下肢 A':'下半身','上肢 B':'上半身','下肢 B':'下半身',
-  '胸':'胸','背':'背','腿':'腿','肩':'肩','手臂':'手臂',
-  '推 A':'胸','拉 A':'背','腿 A':'腿','推 B':'胸','拉 B':'背','腿 B':'腿'};
+/* 課表的分化名稱（推日/拉日/腿日…）已經在 BodyPartDataInitializer 建成資料庫裡的正式 BodyPart，
+   匯入時直接用 today.name 當 bodyPart，不用再轉換成別的分類，跟課表顯示的名稱保持一致 */
 
 function repsToInt(r){
   if(typeof r!=='string')return parseInt(r)||1;
@@ -365,7 +354,7 @@ function closeImportModal(){$('#importModal').classList.remove('on');}
 function confirmImport(){
   const today=window.__today;
   document.getElementById('imp-date').value=todayISO();
-  document.getElementById('imp-bodypart').value=BODYPART_MAP[today.name]||'全身';
+  document.getElementById('imp-bodypart').value=today.name;
   document.getElementById('imp-note').value='依課表匯入：'+today.name;
   const box=document.getElementById('imp-fields');box.innerHTML='';
   document.querySelectorAll('#impRows .imp-row').forEach(function(row){
@@ -489,7 +478,9 @@ const Runner={
     this.showSet();},
   finish(){this.stop();this.body(`<div class="step">完成</div><h2>訓練完成 💪</h2>
     <p class="tgt">${window.__today.name} 全部做完了，好好休息、補充蛋白質。</p>
-    <div class="rbtns"><button class="btn-xl" onclick="Runner.close()">收工</button></div>`);},
+    <div class="rbtns"><button class="btn-xl" onclick="Runner.saveAndClose()">✅ 存進訓練紀錄</button>
+    <button class="btn-mini" onclick="Runner.close()">先不存，關閉</button></div>`);},
+  saveAndClose(){this.close();openImportModal();},
 };
 
 /* ===== events ===== */
