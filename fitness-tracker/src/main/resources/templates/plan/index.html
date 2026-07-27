@@ -489,7 +489,9 @@ const Runner={
     this.showSet();},
   finish(){this.stop();this.body(`<div class="step">完成</div><h2>訓練完成 💪</h2>
     <p class="tgt">${window.__today.name} 全部做完了，好好休息、補充蛋白質。</p>
-    <div class="rbtns"><button class="btn-xl" onclick="Runner.close()">收工</button></div>`);},
+    <div class="rbtns"><button class="btn-xl" onclick="Runner.saveAndClose()">✅ 存進訓練紀錄</button>
+    <button class="btn-mini" onclick="Runner.close()">先不存，關閉</button></div>`);},
+  saveAndClose(){this.close();openImportModal();},
 };
 
 /* ===== events ===== */
