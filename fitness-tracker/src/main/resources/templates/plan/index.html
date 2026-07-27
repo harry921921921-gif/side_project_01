@@ -132,6 +132,20 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
 .rprogress{margin:10px 0}
 .q-row{display:flex;gap:8px;margin-top:14px}
 .q-row button{flex:1}
+
+/* 匯入訓練紀錄 modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:60;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.on{display:flex}
+.modal-box{width:100%;max-width:480px;max-height:86vh;overflow-y:auto;background:var(--surface);border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(15,23,42,.3)}
+.modal-box h2{font-size:1.15rem;font-weight:800;margin-bottom:4px}
+.modal-box .sub{font-size:.85rem;color:var(--muted);margin-bottom:16px}
+.imp-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.imp-row:last-child{border-bottom:0}
+.imp-row .nm{flex:1;font-weight:700;font-size:.92rem}
+.imp-row input{width:56px;border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit;text-align:center;font-weight:600}
+.imp-row .x{color:var(--faint);font-size:.8rem}
+.modal-btns{display:flex;gap:10px;margin-top:18px}
+.modal-btns button{flex:1}
 @media(max-width:600px){.hero h1{font-size:1.5rem}.pad{padding:18px}.tl-seg .pw{display:none}}
 </style>
 </head>
@@ -143,7 +157,11 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
 </div></header>
 
 <main class="wrap">
-  <section class="hero"><h1>打造你的訓練計劃</h1><p>依程度、目標與週期階段，即時算出每個動作的建議重量</p></section>
+  <section class="hero">
+    <h1>打造你的訓練計劃</h1>
+    <p>依程度、目標與週期階段，即時算出每個動作的建議重量</p>
+    <button type="button" class="btn btn-primary" style="margin-top:14px" onclick="openImportModal()">✅ 我今天練完了，匯入紀錄</button>
+  </section>
 
   <!-- 設定 -->
   <div class="card pad">
@@ -213,6 +231,25 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
   <button class="rclose" onclick="Runner.close()">✕</button>
   <div id="runnerBody"></div>
 </div></div>
+
+<!-- 匯入訓練紀錄 modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal-box">
+    <h2 id="impTitle">今天練完了嗎？</h2>
+    <div class="sub">確認每個動作實際完成的重量／組數／次數，沒問題就直接匯入；有調整就改一下再匯入，會存進「訓練紀錄」。</div>
+    <div id="impRows"></div>
+    <div class="modal-btns">
+      <button type="button" class="btn btn-ghost" onclick="closeImportModal()">取消</button>
+      <button type="button" class="btn btn-primary" onclick="confirmImport()">✅ 確認匯入</button>
+    </div>
+  </div>
+</div>
+<form id="importForm" th:action="@{/workout}" method="post" style="display:none">
+  <input type="hidden" name="workoutDate" id="imp-date">
+  <input type="hidden" name="bodyPart" id="imp-bodypart">
+  <input type="hidden" name="note" id="imp-note">
+  <div id="imp-fields"></div>
+</form>
 
 <script>
 /* ===== ProgressionService（JS 版，之後改寫成 Java）===== */
@@ -294,6 +331,54 @@ function savePlan(){
     });
   }
   document.getElementById('planForm').submit();
+}
+
+/* ===== 匯入訓練紀錄：把今天課表送進 /workout（沿用既有的驗證/CSRF/logging，不重造輪子）===== */
+/* 課表的分化名稱不是既有 BodyPart 清單裡的值，匯入時對應成資料庫已有的分類 */
+const BODYPART_MAP={'全身':'全身','上半身':'上半身','下半身':'下半身','推日':'胸','拉日':'背','腿日':'腿',
+  '上肢 A':'上半身','下肢 A':'下半身','上肢 B':'上半身','下肢 B':'下半身',
+  '胸':'胸','背':'背','腿':'腿','肩':'肩','手臂':'手臂',
+  '推 A':'胸','拉 A':'背','腿 A':'腿','推 B':'胸','拉 B':'背','腿 B':'腿'};
+
+function repsToInt(r){
+  if(typeof r!=='string')return parseInt(r)||1;
+  const parts=r.split(/[–-]/).map(x=>parseInt(x)||0).filter(x=>x>0);
+  if(parts.length===2)return Math.round((parts[0]+parts[1])/2);
+  return parseInt(r)||1;
+}
+function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+function openImportModal(){
+  const today=window.__today;
+  if(!today||!today.items||today.items.length===0){alert('今天是休息日，沒有課表可以匯入喔。');return;}
+  $('#impTitle').textContent=today.name+'，練完了嗎？';
+  $('#impRows').innerHTML=today.items.map((it,i)=>`
+    <div class="imp-row" data-i="${i}">
+      <span class="nm">${it.name}</span>
+      <input type="number" class="imp-w" value="${fmt(it.w)}" min="0" step="2.5"><span class="x">kg</span>
+      <input type="number" class="imp-s" value="${it.sets}" min="1" max="20"><span class="x">組</span>
+      <input type="number" class="imp-r" value="${repsToInt(it.reps)}" min="1" max="30"><span class="x">下</span>
+    </div>`).join('');
+  $('#importModal').classList.add('on');
+}
+function closeImportModal(){$('#importModal').classList.remove('on');}
+function confirmImport(){
+  const today=window.__today;
+  document.getElementById('imp-date').value=todayISO();
+  document.getElementById('imp-bodypart').value=BODYPART_MAP[today.name]||'全身';
+  document.getElementById('imp-note').value='依課表匯入：'+today.name;
+  const box=document.getElementById('imp-fields');box.innerHTML='';
+  document.querySelectorAll('#impRows .imp-row').forEach(function(row){
+    const item=today.items[+row.dataset.i];
+    const w=row.querySelector('.imp-w').value, s=row.querySelector('.imp-s').value, r=row.querySelector('.imp-r').value;
+    box.insertAdjacentHTML('beforeend',
+      '<input type="hidden" name="exerciseNames" value="'+item.name+'">'+
+      '<input type="hidden" name="weightKgs" value="'+w+'">'+
+      '<input type="hidden" name="sets" value="'+s+'">'+
+      '<input type="hidden" name="reps" value="'+r+'">'+
+      '<input type="hidden" name="restSeconds" value="'+(item.rest||90)+'">');
+  });
+  document.getElementById('importForm').submit();
 }
 
 /* 依時間預算產生某天課表：核心動作必排，再依剩餘時間補配件到約 60 分鐘 */
