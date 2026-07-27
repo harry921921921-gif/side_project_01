@@ -21,7 +21,7 @@ body{font-family:'Inter','Noto Sans TC',sans-serif;background:var(--bg);color:va
 .hero{padding:34px 0 10px}
 .hero h1{font-size:1.9rem;font-weight:800;letter-spacing:-.03em}
 .hero p{color:var(--muted);margin-top:6px;font-size:.98rem}
-.card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line)}
+.pl-card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line)}
 .pad{padding:24px}
 .setup{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:22px}
 .field label{display:block;font-size:.78rem;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:9px}
@@ -78,11 +78,11 @@ body{font-family:'Inter','Noto Sans TC',sans-serif;background:var(--bg);color:va
 .nbadge{font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
 .b-up{background:var(--accent-soft);color:var(--accent-ink)}
 .cta{display:flex;gap:10px;margin-top:20px}
-.btn{border:0;border-radius:12px;padding:12px 20px;font:inherit;font-weight:700;font-size:.92rem;cursor:pointer;transition:.15s}
-.btn-primary{background:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(16,185,129,.35)}
-.btn-primary:hover{filter:brightness(1.05);transform:translateY(-1px)}
-.btn-ghost{background:#f1f5f9;color:var(--ink)}
-.btn-ghost:hover{background:#e5ebf2}
+.pl-btn{border:0;border-radius:12px;padding:12px 20px;font:inherit;font-weight:700;font-size:.92rem;cursor:pointer;transition:.15s}
+.pl-btn-primary{background:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(16,185,129,.35)}
+.pl-btn-primary:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.pl-btn-ghost{background:#f1f5f9;color:var(--ink)}
+.pl-btn-ghost:hover{background:#e5ebf2}
 .deload{display:flex;gap:10px;align-items:center;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:var(--radius-sm);padding:12px 14px;font-size:.88rem;margin:14px 0 4px}
 .week{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
 .day{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;transition:.18s}
@@ -116,11 +116,11 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
 .rdot.done{background:var(--accent)}
 .rdot.cur{background:var(--ink)}
 .rbtns{display:flex;flex-direction:column;gap:8px;margin-top:14px}
-.btn-xl{border:0;border-radius:13px;padding:13px;font:inherit;font-weight:800;font-size:1rem;cursor:pointer;background:var(--accent);color:#fff;box-shadow:0 6px 20px rgba(16,185,129,.4);transition:.15s}
-.btn-xl:hover{transform:translateY(-2px);filter:brightness(1.05)}
-.btn-xl.dark{background:var(--ink);box-shadow:0 6px 20px rgba(15,23,42,.3)}
-.btn-mini{border:0;border-radius:10px;padding:10px;font:inherit;font-weight:600;font-size:.86rem;cursor:pointer;background:#f1f5f9;color:var(--muted)}
-.btn-mini:hover{background:#e5ebf2;color:var(--ink)}
+.pl-btn-xl{border:0;border-radius:13px;padding:13px;font:inherit;font-weight:800;font-size:1rem;cursor:pointer;background:var(--accent);color:#fff;box-shadow:0 6px 20px rgba(16,185,129,.4);transition:.15s}
+.pl-btn-xl:hover{transform:translateY(-2px);filter:brightness(1.05)}
+.pl-btn-xl.dark{background:var(--ink);box-shadow:0 6px 20px rgba(15,23,42,.3)}
+.pl-btn-mini{border:0;border-radius:10px;padding:10px;font:inherit;font-weight:600;font-size:.86rem;cursor:pointer;background:#f1f5f9;color:var(--muted)}
+.pl-btn-mini:hover{background:#e5ebf2;color:var(--ink)}
 .rclose{position:absolute;top:12px;right:14px;background:#f1f5f9;border:0;color:var(--muted);width:30px;height:30px;border-radius:50%;font-size:1rem;cursor:pointer}
 .rclose:hover{background:#e5ebf2;color:var(--ink)}
 .rprogress{margin:10px 0}
@@ -151,11 +151,11 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
   <section class="hero">
     <h1>打造你的訓練計劃</h1>
     <p>依程度、目標與週期階段，即時算出每個動作的建議重量</p>
-    <button type="button" class="btn btn-primary" style="margin-top:14px" onclick="openImportModal()">✅ 我今天練完了，匯入紀錄</button>
+    <button type="button" class="pl-btn pl-btn-primary" style="margin-top:14px" onclick="openImportModal()">✅ 我今天練完了，匯入紀錄</button>
   </section>
 
   <!-- 設定 -->
-  <div class="card pad">
+  <div class="pl-card pad">
     <div class="setup">
       <div class="field">
         <label>程度</label>
@@ -176,7 +176,7 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
     <div id="noviceHint" class="hint"><span>🌱</span><span>新手模式：主項從空槓／輕重量起（深蹲・臥推・肩推 20kg，硬舉 40kg），系統會依你每次的表現自動幫你調整。</span></div>
     <div th:if="${param.saved}" style="background:var(--accent-soft);color:var(--accent-ink);border-radius:12px;padding:10px 12px;font-size:.85rem;margin-top:16px">✓ 課表已儲存（含你的 PR，下次登入自動帶回）</div>
     <div style="display:flex;align-items:center;gap:12px;margin-top:18px;flex-wrap:wrap">
-      <button type="button" class="btn btn-primary" onclick="savePlan()">💾 儲存我的課表</button>
+      <button type="button" class="pl-btn pl-btn-primary" onclick="savePlan()">💾 儲存我的課表</button>
       <span style="font-size:.83rem;color:var(--muted)">程度／天數／週次／你的 PR 都會存到帳號</span>
     </div>
     <form id="planForm" th:action="@{/plan/save}" method="post" style="display:none">
@@ -193,7 +193,7 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
   </script>
 
   <div class="sec-title">週期進度<span class="ln"></span></div>
-  <div class="card pad">
+  <div class="pl-card pad">
     <div class="tl-head">
       <div><div class="big" id="tlNow">肌肥大期</div></div>
       <div class="nx" id="tlNext"></div>
@@ -230,8 +230,8 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
     <div class="sub">確認每個動作實際完成的重量／組數／次數，沒問題就直接匯入；有調整就改一下再匯入，會存進「訓練紀錄」。</div>
     <div id="impRows"></div>
     <div class="modal-btns">
-      <button type="button" class="btn btn-ghost" onclick="closeImportModal()">取消</button>
-      <button type="button" class="btn btn-primary" onclick="confirmImport()">✅ 確認匯入</button>
+      <button type="button" class="pl-btn pl-btn-ghost" onclick="closeImportModal()">取消</button>
+      <button type="button" class="pl-btn pl-btn-primary" onclick="confirmImport()">✅ 確認匯入</button>
     </div>
   </div>
 </div>
@@ -426,11 +426,11 @@ function render(){
       <div class="r"><div class="wt">${fmt(it.w)}<small>kg</small> <small>· ${it.sets}×${it.reps}</small></div>${badge}</div></div>`;
   }).join('');
   const deload=pk==='deload'?`<div class="deload"><span>😴</span><span>減量週：重量降至約 55%、砍組數、<b>不練到力竭</b>，清除中樞神經疲勞。</span></div>`:'';
-  $('#todayWrap').innerHTML=`<div class="card pad today"><div class="bar"></div>
+  $('#todayWrap').innerHTML=`<div class="pl-card pad today"><div class="bar"></div>
     <div class="head"><h3>${today.name}</h3>${chip(pk)}</div>
     <div style="font-size:.83rem;color:var(--faint);margin-top:2px">⏱ 約 ${todayPlan.minutes} 分鐘（含熱身 10 分）· 組間休息 ${fmtRest(ph.rest)}</div>${deload}
     <div class="exlist">${rows}</div>
-    <div class="cta"><button class="btn btn-primary" onclick="Runner.start()">開始訓練</button><button class="btn btn-ghost" onclick="render()">換一份</button></div></div>`;
+    <div class="cta"><button class="pl-btn pl-btn-primary" onclick="Runner.start()">開始訓練</button><button class="pl-btn pl-btn-ghost" onclick="render()">換一份</button></div></div>`;
 
   let cards=baseSplit.map(day=>{
     const dp=planDay(day,mode,pk,orm);
@@ -450,36 +450,36 @@ const Runner={
   body(h){$('#runnerBody').innerHTML=h;},
   warmup(){this.body(`<div class="step">開始前</div><h2>熱身了嗎？</h2>
     <p class="tgt">先做 5–10 分鐘動態熱身與輕重量暖身組，能大幅降低受傷風險。</p>
-    <div class="q-row"><button class="btn-mini" onclick="Runner.close()">還沒，先去熱身</button>
-    <button class="btn-xl" style="flex:1" onclick="Runner.showSet()">已熱身，開始 →</button></div>`);},
+    <div class="q-row"><button class="pl-btn-mini" onclick="Runner.close()">還沒，先去熱身</button>
+    <button class="pl-btn-xl" style="flex:1" onclick="Runner.showSet()">已熱身，開始 →</button></div>`);},
   dots(total,cur){let h='<div class="rprogress">';for(let i=0;i<total;i++)h+=`<span class="rdot ${i<cur?'done':i===cur?'cur':''}"></span>`;return h+'</div>';},
   showSet(){this.stop();const e=this.ex[this.exIdx];
     this.body(`<div class="step">動作 ${this.exIdx+1} / ${this.ex.length}</div><h2>${e.name}</h2>
       ${this.dots(e.sets,this.setIdx)}
       <div class="big-wt">${fmt(e.w)}<small>kg</small></div>
       <div class="tgt">第 ${this.setIdx+1} / ${e.sets} 組　·　目標 ${e.reps} 下</div>
-      <div class="rbtns"><button class="btn-xl" onclick="Runner.startRest()">✓ 完成這一組</button></div>`);},
+      <div class="rbtns"><button class="pl-btn-xl" onclick="Runner.startRest()">✓ 完成這一組</button></div>`);},
   startRest(secs){this.stop();const e=this.ex[this.exIdx];this.remain=secs||e.rest;
     this.renderRest();this.tid=setInterval(()=>{this.remain--;if(this.remain<=0){this.stop();this.restDone();}else this.renderRest();},1000);},
   renderRest(){const m=Math.floor(this.remain/60),s=this.remain%60;
     this.body(`<div class="step">組間休息</div><h2>休息中</h2>
       <div class="timer warn">${m}:${s<10?'0':''}${s}</div>
       <p class="tgt">深呼吸、準備下一組</p>
-      <div class="rbtns"><button class="btn-mini" onclick="Runner.restDone()">略過休息</button></div>`);},
+      <div class="rbtns"><button class="pl-btn-mini" onclick="Runner.restDone()">略過休息</button></div>`);},
   restDone(){this.stop();const e=this.ex[this.exIdx],last=this.setIdx>=e.sets-1;
     this.body(`<div class="step">休息結束</div><h2>準備好了嗎？</h2>
       <p class="tgt">${e.name}　·　${last?'這是最後一組':'第 '+(this.setIdx+2)+' / '+e.sets+' 組'}</p>
       <div class="rbtns">
-        <button class="btn-xl dark" onclick="Runner.next()">${last?'完成此動作 →':'下一組 →'}</button>
-        <button class="btn-mini" onclick="Runner.startRest(30)">再休息 30 秒</button>
+        <button class="pl-btn-xl dark" onclick="Runner.next()">${last?'完成此動作 →':'下一組 →'}</button>
+        <button class="pl-btn-mini" onclick="Runner.startRest(30)">再休息 30 秒</button>
       </div>`);},
   next(){const e=this.ex[this.exIdx];this.setIdx++;
     if(this.setIdx>=e.sets){this.exIdx++;this.setIdx=0;if(this.exIdx>=this.ex.length){return this.finish();}}
     this.showSet();},
   finish(){this.stop();this.body(`<div class="step">完成</div><h2>訓練完成 💪</h2>
     <p class="tgt">${window.__today.name} 全部做完了，好好休息、補充蛋白質。</p>
-    <div class="rbtns"><button class="btn-xl" onclick="Runner.saveAndClose()">✅ 存進訓練紀錄</button>
-    <button class="btn-mini" onclick="Runner.close()">先不存，關閉</button></div>`);},
+    <div class="rbtns"><button class="pl-btn-xl" onclick="Runner.saveAndClose()">✅ 存進訓練紀錄</button>
+    <button class="pl-btn-mini" onclick="Runner.close()">先不存，關閉</button></div>`);},
   saveAndClose(){this.close();openImportModal();},
 };
 
