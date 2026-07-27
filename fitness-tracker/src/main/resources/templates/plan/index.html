@@ -304,12 +304,12 @@ function buildLiftInputs(){
     var pr=prs[n]||null; var w=pr?pr.w:MAIN[n].bar*4; var r=pr?pr.r:5;
     return '<div class="lift-input"><div class="top"><span class="nm">'+n+'</span><span class="orm" id="orm-'+n+'">1RM \u2013</span></div>'
       +'<div class="ins"><input type="number" class="vw" data-l="'+n+'" value="'+w+'" min="0" step="2.5">'
-      +'<span class="x">\u00d7</span><input type="number" class="vr" data-l="'+n+'" value="'+r+'" min="1" max="12">'
+      +'<span class="x">\u00d7</span><input type="number" class="lift-reps" data-l="'+n+'" value="'+r+'" min="1" max="12">'
       +'<span class="x" style="font-size:.8rem;color:var(--faint)">\u4e0b</span></div></div>';
   }).join('');
   $('#liftGrid').querySelectorAll('input').forEach(function(el){el.addEventListener('input',render);});
 }
-function oneRMs(){const m={};document.querySelectorAll('.vw').forEach(el=>{const n=el.dataset.l,r=document.querySelector('.vr[data-l="'+n+'"]').value;m[n]=estimate1RM(el.value,r);const c=document.getElementById('orm-'+n);if(c)c.textContent='1RM '+fmt(r25(m[n]))+'kg';});return m;}
+function oneRMs(){const m={};document.querySelectorAll('.vw').forEach(el=>{const n=el.dataset.l,r=document.querySelector('.lift-reps[data-l="'+n+'"]').value;m[n]=estimate1RM(el.value,r);const c=document.getElementById('orm-'+n);if(c)c.textContent='1RM '+fmt(r25(m[n]))+'kg';});return m;}
 function chip(pk){const p=PHASE[pk];return `<span class="chip" style="background:${p.bg};color:${p.color}">${p.label} · RIR ${p.rir}</span>`;}
 function savePlan(){
   document.getElementById('f-mode').value=state.mode;
@@ -318,7 +318,7 @@ function savePlan(){
   var box=document.getElementById('f-prs'); box.innerHTML='';
   if(state.mode==='veteran'){
     document.querySelectorAll('.vw').forEach(function(el){
-      var n=el.dataset.l, r=(document.querySelector('.vr[data-l="'+n+'"]').value)||1;
+      var n=el.dataset.l, r=(document.querySelector('.lift-reps[data-l="'+n+'"]').value)||1;
       box.insertAdjacentHTML('beforeend','<input type="hidden" name="prName" value="'+n+'"><input type="hidden" name="prWeight" value="'+((el.value)||0)+'"><input type="hidden" name="prReps" value="'+r+'">');
     });
   }
