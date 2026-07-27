@@ -19,11 +19,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import fitness_tracker.entity.BodyPart;
 import fitness_tracker.entity.Exercise;
+import fitness_tracker.entity.User;
 import fitness_tracker.entity.WorkoutSession;
 import fitness_tracker.entity.WorkoutSet;
 import fitness_tracker.enums.CompletionStatus;
 import fitness_tracker.repository.BodyPartRepository;
 import fitness_tracker.repository.WorkoutSessionRepository;
+import java.util.Set;
 
 @ExtendWith(MockitoExtension.class)
 class WorkoutServiceTest {
@@ -220,6 +222,27 @@ class WorkoutServiceTest {
 
         assertEquals(3L, service.countThisWeek());
         verify(repository).countByWorkoutDateGreaterThanEqual(expectedMonday);
+    }
+
+    @Test
+    void completedBodyPartsThisWeekReturnsDistinctNonNullBodyParts() {
+        User user = new User();
+        LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY);
+        LocalDate sunday = monday.plusDays(6);
+
+        WorkoutSession pushDay = new WorkoutSession();
+        pushDay.setBodyPart("推日");
+        WorkoutSession pushDayAgain = new WorkoutSession();
+        pushDayAgain.setBodyPart("推日");
+        WorkoutSession noBodyPart = new WorkoutSession();
+        noBodyPart.setBodyPart(null);
+
+        when(repository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateDesc(user, monday, sunday))
+                .thenReturn(List.of(pushDay, pushDayAgain, noBodyPart));
+
+        Set<String> completed = service.completedBodyPartsThisWeek(user);
+
+        assertEquals(Set.of("推日"), completed);
     }
 
     private Exercise newExercise(String name, String category) {

@@ -71,6 +71,8 @@ body{font-family:'Inter','Noto Sans TC',sans-serif;background:var(--bg);color:va
 .exrow{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
 .exrow:last-child{border-bottom:0}
 .exrow .l .nm{font-weight:700;font-size:1rem}
+.exrow .l select.ex-swap{font:inherit;font-weight:700;font-size:1rem;color:var(--ink);border:0;background:transparent;padding:2px 4px 2px 0;margin:0 0 0 -4px;border-radius:6px;cursor:pointer;outline:none;max-width:100%}
+.exrow .l select.ex-swap:hover,.exrow .l select.ex-swap:focus{background:var(--accent-soft);color:var(--accent-ink)}
 .exrow .l .sub{font-size:.8rem;color:var(--faint);margin-top:2px}
 .exrow .r{text-align:right;display:flex;align-items:center;gap:12px}
 .exrow .wt{font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums}
@@ -182,14 +184,13 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
     <form id="planForm" th:action="@{/plan/save}" method="post" style="display:none">
       <input type="hidden" name="mode" id="f-mode">
       <input type="hidden" name="days" id="f-days">
-      <input type="hidden" name="week" id="f-week">
       <div id="f-prs"></div>
     </form>
   </div>
 
   <!-- 週期進度 -->
   <script th:inline="javascript">
-  window.__savedPlan = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, prs: /*[[${planPrs}]]*/ {} };
+  window.__savedPlan = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, prs: /*[[${planPrs}]]*/ {}, completed: /*[[${completedDays}]]*/ [] };
   </script>
 
   <div class="sec-title">週期進度<span class="ln"></span></div>
@@ -203,7 +204,13 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
       <input type="range" id="weekSlider" min="1" max="20" value="8">
       <div class="tl-week"><span>第 1 週</span><span id="wkNow" style="font-weight:700;color:var(--ink)">第 8 週</span><span>第 20 週</span></div>
     </div>
-    <label class="dl-check"><input type="checkbox" id="dlChk"><span>本週改為減量週（Deload）</span></label>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:14px">
+      <label class="dl-check" style="margin-top:0"><input type="checkbox" id="dlChk"><span>本週改為減量週（Deload）</span></label>
+      <button type="button" class="pl-btn pl-btn-ghost" style="padding:8px 14px;font-size:.82rem" onclick="confirmSetWeek()">✓ 目前實際就是這一週（拖曳上面滑桿後點這裡才會存）</button>
+    </div>
+    <form id="weekForm" th:action="@{/plan/week}" method="post" style="display:none">
+      <input type="hidden" name="week" id="f-week-only">
+    </form>
   </div>
 
   <!-- 今日課表 -->
@@ -293,8 +300,17 @@ function accWeight(mode,pk){if(mode==='novice')return {adapt:10,hyper:12,strengt
 function nextWeight(w,type){const inc=type==='upper'?2.5:5;return{w:r25(w+inc),tag:'完成 +'+inc};}
 function weekToPhase(wk){for(const m of MACRO)if(wk<=m.end)return m.key;return 'strength';}
 
+/* ===== 更換動作：主項只能換另一個主項（重量才算得準），配件可以換成任何配件 ===== */
+const MAIN_NAMES=Object.keys(MAIN);
+const ACC_POOL=[...new Set(Object.values(SPLITS).flat().flatMap(d=>d.acc))].sort();
+function swapExercise(sel){
+  const orig=sel.dataset.orig, newName=sel.value;
+  if(newName===orig)delete state.swaps[orig]; else state.swaps[orig]=newName;
+  render();
+}
+
 /* ===== state ===== */
-const state={mode:'novice',days:'3',week:8,deload:false};
+const state={mode:'novice',days:'3',week:8,deload:false,swaps:{}};
 const $=s=>document.querySelector(s);
 function effPhase(){return state.deload?'deload':weekToPhase(state.week);}
 
@@ -314,7 +330,6 @@ function chip(pk){const p=PHASE[pk];return `<span class="chip" style="background
 function savePlan(){
   document.getElementById('f-mode').value=state.mode;
   document.getElementById('f-days').value=state.days;
-  document.getElementById('f-week').value=state.week;
   var box=document.getElementById('f-prs'); box.innerHTML='';
   if(state.mode==='veteran'){
     document.querySelectorAll('.vw').forEach(function(el){
@@ -323,6 +338,12 @@ function savePlan(){
     });
   }
   document.getElementById('planForm').submit();
+}
+/* 手動校正「目前第幾週」——跟 savePlan() 分開，拖 slider 只是預覽，按這顆才會真的存 */
+function confirmSetWeek(){
+  if(!confirm('確定把「目前第 '+state.week+' 週」存起來嗎？下次登入會停在這裡，之後才會照日曆自動往前走。'))return;
+  document.getElementById('f-week-only').value=state.week;
+  document.getElementById('weekForm').submit();
 }
 
 /* ===== 匯入訓練紀錄：把今天課表送進 /workout（沿用既有的驗證/CSRF/logging，不重造輪子）===== */
@@ -416,28 +437,38 @@ function render(){
   const dn=+days;
   const baseSplit = dn===7?SPLITS[6]:SPLITS[dn];
   const today=baseSplit[0];
-  const todayPlan=planDay(today,mode,pk,orm);
-  window.__today={name:today.name,items:todayPlan.items};
+  const todayPlanRaw=planDay(today,mode,pk,orm);
+  const todayItems=todayPlanRaw.items.map(it=>{
+    const orig=it.name, swapped=state.swaps[orig];
+    if(!swapped)return {...it,origName:orig};
+    if(it.isMain){const mw=mainWeight(mode,pk,swapped,orm[swapped]);return {...it,name:swapped,origName:orig,w:mw.w,sub:mw.note};}
+    return {...it,name:swapped,origName:orig};
+  });
+  window.__today={name:today.name,items:todayItems};
 
-  const rows=todayPlan.items.map(it=>{
+  const rows=todayItems.map(it=>{
     let badge='';
     if(it.isMain&&pk!=='deload'){const nx=nextWeight(it.w,MAIN[it.name]?MAIN[it.name].type:'upper');badge=`<span class="nbadge b-up">下次 ${fmt(nx.w)}kg</span>`;}
-    return `<div class="exrow"><div class="l"><div class="nm">${it.name}</div><div class="sub">${it.sub} · 休息 ${fmtRest(it.rest)}</div></div>
+    const pool=it.isMain?MAIN_NAMES:ACC_POOL;
+    const opts=pool.map(n=>`<option value="${n}" ${n===it.name?'selected':''}>${n}</option>`).join('');
+    return `<div class="exrow"><div class="l"><select class="ex-swap" data-orig="${it.origName}" onchange="swapExercise(this)">${opts}</select><div class="sub">${it.sub} · 休息 ${fmtRest(it.rest)}</div></div>
       <div class="r"><div class="wt">${fmt(it.w)}<small>kg</small> <small>· ${it.sets}×${it.reps}</small></div>${badge}</div></div>`;
   }).join('');
   const deload=pk==='deload'?`<div class="deload"><span>😴</span><span>減量週：重量降至約 55%、砍組數、<b>不練到力竭</b>，清除中樞神經疲勞。</span></div>`:'';
   $('#todayWrap').innerHTML=`<div class="pl-card pad today"><div class="bar"></div>
     <div class="head"><h3>${today.name}</h3>${chip(pk)}</div>
-    <div style="font-size:.83rem;color:var(--faint);margin-top:2px">⏱ 約 ${todayPlan.minutes} 分鐘（含熱身 10 分）· 組間休息 ${fmtRest(ph.rest)}</div>${deload}
+    <div style="font-size:.83rem;color:var(--faint);margin-top:2px">⏱ 約 ${todayPlanRaw.minutes} 分鐘（含熱身 10 分）· 組間休息 ${fmtRest(ph.rest)}・點動作名稱可換成別的</div>${deload}
     <div class="exlist">${rows}</div>
-    <div class="cta"><button class="pl-btn pl-btn-primary" onclick="Runner.start()">開始訓練</button><button class="pl-btn pl-btn-ghost" onclick="render()">換一份</button></div></div>`;
+    <div class="cta"><button class="pl-btn pl-btn-primary" onclick="Runner.start()">開始訓練</button></div></div>`;
 
-  let cards=baseSplit.map(day=>{
+  const completedDays=(window.__savedPlan&&window.__savedPlan.completed)||[];
+  let cards=baseSplit.filter(day=>!completedDays.includes(day.name)).map(day=>{
     const dp=planDay(day,mode,pk,orm);
     const dr=dp.items.map(it=>`<div class="drow"><span class="dn ${it.isMain?'':'acc'}">${it.name}</span><span class="dw">${fmt(it.w)}kg · ${it.sets}×${it.reps}</span></div>`).join('');
     return `<div class="day"><div class="dh"><span class="tag" style="background:${ph.color}"></span>${day.name}</div><div class="dsub">⏱ 組間休息 ${fmtRest(ph.rest)} · 約 ${dp.minutes} 分</div><div class="db">${dr}</div></div>`;
   });
   if(dn===7)cards.push(`<div class="day rest"><div class="dh"><span class="tag" style="background:#cbd5e1"></span>第 7 天 · 休息日</div><div class="db"><div class="drow" style="border:0"><span class="dn acc">完全休息或輕度活動（散步／伸展），讓身體恢復。</span></div></div></div>`);
+  if(cards.length===0)cards.push(`<div class="day"><div class="db" style="padding-top:16px;text-align:center;color:var(--faint)">🎉 本週課表都完成了，好好休息！</div></div>`);
   $('#weekGrid').innerHTML=cards.join('');
 }
 

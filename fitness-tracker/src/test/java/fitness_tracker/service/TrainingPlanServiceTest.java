@@ -109,4 +109,30 @@ class TrainingPlanServiceTest {
         assertEquals(2, adherence.completed());
         assertEquals(2, adherence.missed());
     }
+
+    @Test
+    void setCurrentWeekOnlyChangesPhaseStartDateNotOtherFields() {
+        TrainingPlan plan = new TrainingPlan();
+        plan.setMode(PlanMode.VETERAN);
+        plan.setDaysPerWeek(5);
+        when(repo.findByUser(user)).thenReturn(Optional.of(plan));
+        when(repo.save(any(TrainingPlan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TrainingPlan updated = service.setCurrentWeek(user, 15);
+
+        assertEquals(15, service.currentWeek(updated, LocalDate.now()));
+        assertEquals(PlanMode.VETERAN, updated.getMode());
+        assertEquals(5, updated.getDaysPerWeek());
+    }
+
+    @Test
+    void setCurrentWeekClampsToMaxOf104() {
+        TrainingPlan plan = new TrainingPlan();
+        when(repo.findByUser(user)).thenReturn(Optional.of(plan));
+        when(repo.save(any(TrainingPlan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TrainingPlan updated = service.setCurrentWeek(user, 9999);
+
+        assertEquals(104, service.currentWeek(updated, LocalDate.now()));
+    }
 }

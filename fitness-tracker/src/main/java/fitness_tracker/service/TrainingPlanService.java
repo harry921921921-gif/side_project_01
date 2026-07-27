@@ -105,6 +105,17 @@ public class TrainingPlanService {
         return repo.save(p);
     }
 
+    // 手動校正「目前第幾週」：只動 phaseStartDate，跟 saveOrUpdate（存模式/天數/PR）分開，
+    // 避免使用者只是想存 PR，卻因為 slider 停在別的位置而把週次意外洗掉
+    @Transactional
+    public TrainingPlan setCurrentWeek(User user, int week) {
+        TrainingPlan p = getOrCreateForUser(user);
+        int clamped = Math.min(Math.max(week, 1), 104);
+        p.setPhaseStartDate(LocalDate.now().minusWeeks(clamped - 1L));
+        log.info("Manually setting current week for userId={} to week={}", user.getId(), clamped);
+        return repo.save(p);
+    }
+
     // 週次 = 今天與起算日相差幾週 + 1（隨時間自動前進）
     public int currentWeek(TrainingPlan p, LocalDate today) {
         long w = ChronoUnit.WEEKS.between(p.getPhaseStartDate(), today) + 1;

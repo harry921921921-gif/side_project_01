@@ -7,6 +7,7 @@ import fitness_tracker.enums.PlanMode;
 import fitness_tracker.service.CurrentUserService;
 import fitness_tracker.service.LiftPrService;
 import fitness_tracker.service.TrainingPlanService;
+import fitness_tracker.service.WorkoutService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,11 +25,14 @@ public class PlanController {
     private final CurrentUserService currentUserService;
     private final TrainingPlanService trainingPlanService;
     private final LiftPrService liftPrService;
+    private final WorkoutService workoutService;
 
-    public PlanController(CurrentUserService currentUserService, TrainingPlanService trainingPlanService, LiftPrService liftPrService) {
+    public PlanController(CurrentUserService currentUserService, TrainingPlanService trainingPlanService,
+                          LiftPrService liftPrService, WorkoutService workoutService) {
         this.currentUserService = currentUserService;
         this.trainingPlanService = trainingPlanService;
         this.liftPrService = liftPrService;
+        this.workoutService = workoutService;
     }
 
     @GetMapping("/plan")
@@ -43,13 +47,14 @@ public class PlanController {
             prs.put(pr.getExerciseName(), Map.of("w", pr.getWeightKg(), "r", pr.getReps()));
         }
         model.addAttribute("planPrs", prs);
+        model.addAttribute("completedDays", workoutService.completedBodyPartsThisWeek(user));
         return "plan/index";
     }
 
+    // 存程度/天數/PR——不動 phaseStartDate，週次由伺服器依日曆自動前進，不會因為存別的東西被洗掉
     @PostMapping("/plan/save")
     public String save(@RequestParam String mode,
                        @RequestParam int days,
-                       @RequestParam(defaultValue = "1") int week,
                        @RequestParam(required = false) List<String> prName,
                        @RequestParam(required = false) List<Double> prWeight,
                        @RequestParam(required = false) List<Integer> prReps) {
@@ -57,8 +62,7 @@ public class PlanController {
         PlanMode m = "veteran".equalsIgnoreCase(mode) || "VETERAN".equalsIgnoreCase(mode) ? PlanMode.VETERAN : PlanMode.NOVICE;
         int d = Math.min(Math.max(days, 1), 7);
         String csv = defaultWeekdays(d);
-        LocalDate start = LocalDate.now().minusWeeks(Math.max(week - 1, 0));
-        trainingPlanService.saveOrUpdate(user, m, d, csv, start);
+        trainingPlanService.saveOrUpdate(user, m, d, csv, null);
 
         if (prName != null && prWeight != null && prReps != null) {
             for (int i = 0; i < prName.size(); i++) {
@@ -67,6 +71,14 @@ public class PlanController {
                 }
             }
         }
+        return "redirect:/plan?saved";
+    }
+
+    // 手動校正目前第幾週——獨立的動作，不會被「儲存我的課表」意外覆蓋
+    @PostMapping("/plan/week")
+    public String setWeek(@RequestParam int week) {
+        User user = currentUserService.getCurrentUser();
+        trainingPlanService.setCurrentWeek(user, week);
         return "redirect:/plan?saved";
     }
 

@@ -6,7 +6,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -108,6 +110,17 @@ public class WorkoutService {
     public long countThisWeek(User user) {
         LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY);
         return repository.countByUserAndWorkoutDateGreaterThanEqual(user, monday);
+    }
+
+    // 本週（週一到週日）已經記錄過的 bodyPart 集合，給 /plan 頁的「本週完整課表」拿掉已完成的卡片用
+    @Transactional(readOnly = true)
+    public Set<String> completedBodyPartsThisWeek(User user) {
+        LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY);
+        LocalDate sunday = monday.plusDays(6);
+        return repository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateDesc(user, monday, sunday).stream()
+                .map(WorkoutSession::getBodyPart)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 
     @Transactional
