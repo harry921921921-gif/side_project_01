@@ -12,7 +12,9 @@
 <div th:replace="~{fragments/navbar :: navbar}"></div>
 
 <div class="container mt-4">
-    <h2 class="mb-4">📊 Dashboard</h2>
+    <h2 class="mb-4 d-flex align-items-center gap-2">📊 Dashboard
+        <span class="badge bg-secondary-subtle text-secondary-emphasis fs-6 fw-normal" th:text="${todayLabel}">07/28</span>
+    </h2>
 
     <!-- 統計卡片 -->
     <div class="row g-3 mb-4">

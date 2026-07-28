@@ -11,6 +11,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Controller  // 告訴 Spring 這個 class 是 Controller（處理 HTTP 請求）
@@ -37,9 +39,14 @@ public class HomeController {
      * Model → 用來把資料傳到 HTML 模板
      * return "index" → 回傳 templates/index.html
      */
+    private static final DateTimeFormatter MONTH_DAY = DateTimeFormatter.ofPattern("MM/dd");
+
     @GetMapping("/")
     public String home(Model model) {
         User user = currentUserService.getCurrentUser();
+
+        // 今天日期（月/日），Dashboard 標題旁邊顯示用
+        model.addAttribute("todayLabel", LocalDate.now().format(MONTH_DAY));
 
         // 查最新體重，放進 model 給 HTML 用
         bodyWeightService.findLatest(user)
