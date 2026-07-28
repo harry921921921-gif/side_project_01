@@ -213,8 +213,8 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
     </form>
   </div>
 
-  <!-- 今日課表 -->
-  <div class="sec-title">今日課表<span class="ln"></span></div>
+  <!-- 本次課表：本週還沒完成的第一個分化天，不是死板的「今天固定練第一天」 -->
+  <div class="sec-title">本次課表<span class="ln"></span></div>
   <div id="todayWrap"></div>
 
   <!-- 週課表 -->
@@ -363,11 +363,24 @@ function openImportModal(){
   if(!today||!today.items||today.items.length===0){alert('今天是休息日，沒有課表可以匯入喔。');return;}
   $('#impTitle').textContent=today.name+'，練完了嗎？';
   $('#impRows').innerHTML=today.items.map((it,i)=>`
-    <div class="imp-row" data-i="${i}">
-      <span class="nm">${it.name}</span>
-      <input type="number" class="imp-w" value="${fmt(it.w)}" min="0" step="2.5"><span class="x">kg</span>
-      <input type="number" class="imp-s" value="${it.sets}" min="1" max="20"><span class="x">組</span>
-      <input type="number" class="imp-r" value="${repsToInt(it.reps)}" min="1" max="30"><span class="x">下</span>
+    <div class="imp-row" data-i="${i}" style="flex-direction:column;align-items:stretch;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="nm" style="flex:1">${it.name}</span>
+        <input type="number" class="imp-w" value="${fmt(it.w)}" min="0" step="2.5"><span class="x">kg</span>
+        <input type="number" class="imp-s" value="${it.sets}" min="1" max="20"><span class="x">組</span>
+        <input type="number" class="imp-r" value="${repsToInt(it.reps)}" min="1" max="30"><span class="x">下</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="x">疲勞度 RPE</span>
+        <input type="number" class="imp-rpe" min="1" max="10" step="0.5" placeholder="1–10" style="width:64px">
+        <span class="x" style="margin-left:6px">完成度</span>
+        <select class="imp-status" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit">
+          <option value="COMPLETE" selected>✅ 完成</option>
+          <option value="FAILED">❌ 失敗</option>
+          <option value="DROPPED">⏸️ 中途放棄</option>
+          <option value="PAIN">⚠️ 疼痛</option>
+        </select>
+      </div>
     </div>`).join('');
   $('#importModal').classList.add('on');
 }
@@ -381,12 +394,15 @@ function confirmImport(){
   document.querySelectorAll('#impRows .imp-row').forEach(function(row){
     const item=today.items[+row.dataset.i];
     const w=row.querySelector('.imp-w').value, s=row.querySelector('.imp-s').value, r=row.querySelector('.imp-r').value;
+    const rpe=row.querySelector('.imp-rpe').value, status=row.querySelector('.imp-status').value;
     box.insertAdjacentHTML('beforeend',
       '<input type="hidden" name="exerciseNames" value="'+item.name+'">'+
       '<input type="hidden" name="weightKgs" value="'+w+'">'+
       '<input type="hidden" name="sets" value="'+s+'">'+
       '<input type="hidden" name="reps" value="'+r+'">'+
-      '<input type="hidden" name="restSeconds" value="'+(item.rest||90)+'">');
+      '<input type="hidden" name="restSeconds" value="'+(item.rest||90)+'">'+
+      '<input type="hidden" name="rpes" value="'+rpe+'">'+
+      '<input type="hidden" name="completionStatuses" value="'+status+'">');
   });
   document.getElementById('importForm').submit();
 }
@@ -436,7 +452,9 @@ function render(){
 
   const dn=+days;
   const baseSplit = dn===7?SPLITS[6]:SPLITS[dn];
-  const today=baseSplit[0];
+  const completedDays=(window.__savedPlan&&window.__savedPlan.completed)||[];
+  // 本次課表＝本週還沒完成的第一個分化天；全部做完了就自然回到第一天（下週期重新開始）
+  const today=baseSplit.find(d=>!completedDays.includes(d.name))||baseSplit[0];
   const todayPlanRaw=planDay(today,mode,pk,orm);
   const todayItems=todayPlanRaw.items.map(it=>{
     const orig=it.name, swapped=state.swaps[orig];
@@ -459,9 +477,8 @@ function render(){
     <div class="head"><h3>${today.name}</h3>${chip(pk)}</div>
     <div style="font-size:.83rem;color:var(--faint);margin-top:2px">⏱ 約 ${todayPlanRaw.minutes} 分鐘（含熱身 10 分）· 組間休息 ${fmtRest(ph.rest)}・點動作名稱可換成別的</div>${deload}
     <div class="exlist">${rows}</div>
-    <div class="cta"><button class="pl-btn pl-btn-primary" onclick="Runner.start()">開始訓練</button></div></div>`;
+    <div class="cta"><button class="pl-btn pl-btn-primary" onclick="Runner.start()">開始訓練</button><button class="pl-btn pl-btn-ghost" onclick="openImportModal()">✅ 完成訓練</button></div></div>`;
 
-  const completedDays=(window.__savedPlan&&window.__savedPlan.completed)||[];
   let cards=baseSplit.filter(day=>!completedDays.includes(day.name)).map(day=>{
     const dp=planDay(day,mode,pk,orm);
     const dr=dp.items.map(it=>`<div class="drow"><span class="dn ${it.isMain?'':'acc'}">${it.name}</span><span class="dw">${fmt(it.w)}kg · ${it.sets}×${it.reps}</span></div>`).join('');
