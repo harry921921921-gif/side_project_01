@@ -71,8 +71,6 @@ body{font-family:'Inter','Noto Sans TC',sans-serif;background:var(--bg);color:va
 .exrow{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
 .exrow:last-child{border-bottom:0}
 .exrow .l .nm{font-weight:700;font-size:1rem}
-.exrow .l select.ex-swap{font:inherit;font-weight:700;font-size:1rem;color:var(--ink);border:0;background:transparent;padding:2px 4px 2px 0;margin:0 0 0 -4px;border-radius:6px;cursor:pointer;outline:none;max-width:100%}
-.exrow .l select.ex-swap:hover,.exrow .l select.ex-swap:focus{background:var(--accent-soft);color:var(--accent-ink)}
 .exrow .l .sub{font-size:.8rem;color:var(--faint);margin-top:2px}
 .exrow .r{text-align:right;display:flex;align-items:center;gap:12px}
 .exrow .wt{font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums}
@@ -95,6 +93,16 @@ body{font-family:'Inter','Noto Sans TC',sans-serif;background:var(--bg);color:va
 .day .dh .tag{width:8px;height:8px;border-radius:50%;background:var(--accent)}
 .day .dsub{padding:9px 18px 0;font-size:.76rem;color:var(--faint);font-weight:600;display:flex;align-items:center;gap:5px}
 .day .db{padding:8px 18px 16px}
+.card-icon-btn{border:0;background:#f1f5f9;color:var(--muted);width:26px;height:26px;border-radius:8px;font-size:.85rem;cursor:pointer;flex-shrink:0;line-height:1}
+.card-icon-btn:hover{background:#e5ebf2;color:var(--ink)}
+[data-card-idx]{cursor:grab}
+[data-card-idx].dragging{opacity:.35}
+.edit-panel{padding:6px 18px 18px}
+.today .edit-panel{padding:6px 0 0}
+.edit-label{display:block;font-size:.72rem;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin:10px 0 8px}
+.edit-list{display:flex;flex-direction:column;gap:6px}
+.edit-row{display:flex;gap:8px;align-items:center}
+.edit-row select{flex:1;border:1px solid var(--line);border-radius:8px;padding:7px 8px;font:inherit;background:#fbfcfe}
 .drow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .drow:last-child{border-bottom:0}
 .drow .dn{font-size:.9rem;font-weight:600}
@@ -190,7 +198,7 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
 
   <!-- 週期進度 -->
   <script th:inline="javascript">
-  window.__savedPlan = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, prs: /*[[${planPrs}]]*/ {}, completed: /*[[${completedDays}]]*/ [] };
+  window.planSaved = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, prs: /*[[${planPrs}]]*/ {}, completed: /*[[${completedDays}]]*/ [] };
   </script>
 
   <div class="sec-title">週期進度<span class="ln"></span></div>
@@ -218,7 +226,7 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
   <div id="todayWrap"></div>
 
   <!-- 週課表 -->
-  <div class="sec-title">本週完整課表<span class="ln"></span></div>
+  <div class="sec-title">本週完整課表<span class="ln"></span><button type="button" class="pl-btn pl-btn-ghost" style="padding:6px 14px;font-size:.82rem" onclick="addNextCourse()">＋ 新增課表</button></div>
   <div class="week" id="weekGrid"></div>
 
   <footer>FitTracker · 訓練計劃原型　·　規則引擎即時算重量，之後接 Spring AI 產生白話課表</footer>
@@ -300,22 +308,98 @@ function accWeight(mode,pk){if(mode==='novice')return {adapt:10,hyper:12,strengt
 function nextWeight(w,type){const inc=type==='upper'?2.5:5;return{w:r25(w+inc),tag:'完成 +'+inc};}
 function weekToPhase(wk){for(const m of MACRO)if(wk<=m.end)return m.key;return 'strength';}
 
-/* ===== 更換動作：主項只能換另一個主項（重量才算得準），配件可以換成任何配件 ===== */
+/* ===== 課表卡片佇列：本次課表＝queue[0]，本週完整課表＝queue[1...]，可拖曳排序、可編輯動作、可刪除、可新增 =====
+   主項只能換另一個主項（重量才算得準，換成別的主項會用該動作自己的 PR 重新算 %1RM），配件可換成任何配件 */
 const MAIN_NAMES=Object.keys(MAIN);
 const ACC_POOL=[...new Set(Object.values(SPLITS).flat().flatMap(d=>d.acc))].sort();
-function swapExercise(sel){
-  const orig=sel.dataset.orig, newName=sel.value;
-  if(newName===orig)delete state.swaps[orig]; else state.swaps[orig]=newName;
+function cloneDay(d){return {name:d.name,main:[...d.main],acc:[...d.acc]};}
+function currentBaseSplit(){const dn=+state.days;return dn===7?SPLITS[6]:SPLITS[dn];}
+function initQueue(){
+  const baseSplit=currentBaseSplit();
+  const completedDays=(window.planSaved&&window.planSaved.completed)||[];
+  state.queue=baseSplit.filter(d=>!completedDays.includes(d.name)).map(cloneDay);
+  if(state.queue.length===0)state.queue=[cloneDay(baseSplit[0])];
+  state.queueDays=+state.days;
+}
+function addNextCourse(){
+  const baseSplit=currentBaseSplit();
+  const last=state.queue[state.queue.length-1];
+  let idx=baseSplit.findIndex(d=>d.name===last.name);
+  if(idx<0)idx=baseSplit.length-1;
+  const nextIdx=(idx+1)%baseSplit.length;
+  state.queue.push(cloneDay(baseSplit[nextIdx]));
   render();
+}
+function removeCard(i){
+  if(state.queue.length<=1){alert('至少要留一張課表卡喔。');return;}
+  state.queue.splice(i,1);
+  if(state.editingIdx===i)state.editingIdx=null;
+  render();
+}
+function toggleEditCard(i){state.editingIdx=state.editingIdx===i?null:i;render();}
+function removeCardExercise(i,list,idx){
+  const d=state.queue[i];
+  if(d.main.length+d.acc.length<=1){alert('至少要留一個動作喔。');return;}
+  d[list].splice(idx,1);
+  render();
+}
+function addCardExercise(i,list){state.queue[i][list].push(list==='main'?MAIN_NAMES[0]:ACC_POOL[0]);render();}
+function changeCardExercise(i,list,idx,name){state.queue[i][list][idx]=name;render();}
+
+/* 拖曳排序：卡片標成 draggable，跨「本次課表」跟「本週完整課表」兩個容器都算同一個 queue，用事件代理不用每次重綁 */
+let dragSrcIdx=null;
+document.addEventListener('dragstart',e=>{
+  const card=e.target.closest('[data-card-idx]');
+  if(!card)return;
+  dragSrcIdx=+card.dataset.cardIdx;
+  e.dataTransfer.effectAllowed='move';
+  card.classList.add('dragging');
+});
+document.addEventListener('dragend',e=>{
+  const card=e.target.closest('[data-card-idx]');
+  if(card)card.classList.remove('dragging');
+});
+document.addEventListener('dragover',e=>{if(e.target.closest('[data-card-idx]'))e.preventDefault();});
+document.addEventListener('drop',e=>{
+  const card=e.target.closest('[data-card-idx]');
+  if(!card||dragSrcIdx===null)return;
+  e.preventDefault();
+  const targetIdx=+card.dataset.cardIdx;
+  if(dragSrcIdx!==targetIdx){
+    const moved=state.queue.splice(dragSrcIdx,1)[0];
+    const insertAt=dragSrcIdx<targetIdx?targetIdx-1:targetIdx;
+    state.queue.splice(insertAt,0,moved);
+    render();
+  }
+  dragSrcIdx=null;
+});
+function cardControlsHtml(i){
+  return `<span style="display:inline-flex;gap:4px;margin-left:auto">
+    <button type="button" class="card-icon-btn" onclick="event.stopPropagation();toggleEditCard(${i})" title="編輯動作">✎</button>
+    <button type="button" class="card-icon-btn" onclick="event.stopPropagation();removeCard(${i})" title="移除這張課表卡">✕</button>
+  </span>`;
+}
+function editPanelHtml(i){
+  const d=state.queue[i];
+  const row=(list,n,idx)=>`<div class="edit-row"><select onchange="changeCardExercise(${i},'${list}',${idx},this.value)">${(list==='main'?MAIN_NAMES:ACC_POOL).map(m=>`<option value="${m}" ${m===n?'selected':''}>${m}</option>`).join('')}</select><button type="button" class="card-icon-btn" onclick="removeCardExercise(${i},'${list}',${idx})">✕</button></div>`;
+  return `<div class="edit-panel">
+    <label class="edit-label">主要動作</label>
+    <div class="edit-list">${d.main.map((n,idx)=>row('main',n,idx)).join('')}</div>
+    <button type="button" class="pl-btn pl-btn-ghost" style="padding:6px 12px;font-size:.8rem;margin:6px 0 12px" onclick="addCardExercise(${i},'main')">＋ 新增主要動作</button>
+    <label class="edit-label">配件動作</label>
+    <div class="edit-list">${d.acc.map((n,idx)=>row('acc',n,idx)).join('')}</div>
+    <button type="button" class="pl-btn pl-btn-ghost" style="padding:6px 12px;font-size:.8rem;margin-top:6px" onclick="addCardExercise(${i},'acc')">＋ 新增配件動作</button>
+    <button type="button" class="pl-btn pl-btn-primary" style="width:100%;margin-top:14px" onclick="toggleEditCard(${i})">完成編輯</button>
+  </div>`;
 }
 
 /* ===== state ===== */
-const state={mode:'novice',days:'3',week:8,deload:false,swaps:{}};
+const state={mode:'novice',days:'3',week:8,deload:false,queue:null,queueDays:null,editingIdx:null};
 const $=s=>document.querySelector(s);
 function effPhase(){return state.deload?'deload':weekToPhase(state.week);}
 
 function buildLiftInputs(){
-  var prs=(window.__savedPlan&&window.__savedPlan.prs)||{};
+  var prs=(window.planSaved&&window.planSaved.prs)||{};
   $('#liftGrid').innerHTML=Object.keys(MAIN).map(function(n){
     var pr=prs[n]||null; var w=pr?pr.w:MAIN[n].bar*4; var r=pr?pr.r:5;
     return '<div class="lift-input"><div class="top"><span class="nm">'+n+'</span><span class="orm" id="orm-'+n+'">1RM \u2013</span></div>'
@@ -359,7 +443,7 @@ function repsToInt(r){
 function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 
 function openImportModal(){
-  const today=window.__today;
+  const today=window.planToday;
   if(!today||!today.items||today.items.length===0){alert('今天是休息日，沒有課表可以匯入喔。');return;}
   $('#impTitle').textContent=today.name+'，練完了嗎？';
   $('#impRows').innerHTML=today.items.map((it,i)=>`
@@ -386,7 +470,7 @@ function openImportModal(){
 }
 function closeImportModal(){$('#importModal').classList.remove('on');}
 function confirmImport(){
-  const today=window.__today;
+  const today=window.planToday;
   document.getElementById('imp-date').value=todayISO();
   document.getElementById('imp-bodypart').value=today.name;
   document.getElementById('imp-note').value='依課表匯入：'+today.name;
@@ -444,55 +528,56 @@ function renderTimeline(){
 function syncWeekUI(){$('#wkNow').textContent='第 '+state.week+' 週';}
 
 function render(){
-  const {mode,days}=state, pk=effPhase(), ph=PHASE[pk];
+  const {mode}=state, pk=effPhase(), ph=PHASE[pk];
   $('#vetBox').style.display=mode==='veteran'?'block':'none';
   $('#noviceHint').style.display=mode==='veteran'?'none':'flex';
   const orm=mode==='veteran'?oneRMs():{};
   renderTimeline();
 
-  const dn=+days;
-  const baseSplit = dn===7?SPLITS[6]:SPLITS[dn];
-  const completedDays=(window.__savedPlan&&window.__savedPlan.completed)||[];
-  // 本次課表＝本週還沒完成的第一個分化天；全部做完了就自然回到第一天（下週期重新開始）
-  const today=baseSplit.find(d=>!completedDays.includes(d.name))||baseSplit[0];
+  const dn=+state.days;
+  if(!state.queue||state.queueDays!==dn)initQueue();
+
+  const today=state.queue[0];
   const todayPlanRaw=planDay(today,mode,pk,orm);
-  const todayItems=todayPlanRaw.items.map(it=>{
-    const orig=it.name, swapped=state.swaps[orig];
-    if(!swapped)return {...it,origName:orig};
-    if(it.isMain){const mw=mainWeight(mode,pk,swapped,orm[swapped]);return {...it,name:swapped,origName:orig,w:mw.w,sub:mw.note};}
-    return {...it,name:swapped,origName:orig};
-  });
-  window.__today={name:today.name,items:todayItems};
+  window.planToday={name:today.name,items:todayPlanRaw.items};
 
-  const rows=todayItems.map(it=>{
-    let badge='';
-    if(it.isMain&&pk!=='deload'){const nx=nextWeight(it.w,MAIN[it.name]?MAIN[it.name].type:'upper');badge=`<span class="nbadge b-up">下次 ${fmt(nx.w)}kg</span>`;}
-    const pool=it.isMain?MAIN_NAMES:ACC_POOL;
-    const opts=pool.map(n=>`<option value="${n}" ${n===it.name?'selected':''}>${n}</option>`).join('');
-    return `<div class="exrow"><div class="l"><select class="ex-swap" data-orig="${it.origName}" onchange="swapExercise(this)">${opts}</select><div class="sub">${it.sub} · 休息 ${fmtRest(it.rest)}</div></div>
-      <div class="r"><div class="wt">${fmt(it.w)}<small>kg</small> <small>· ${it.sets}×${it.reps}</small></div>${badge}</div></div>`;
-  }).join('');
-  const deload=pk==='deload'?`<div class="deload"><span>😴</span><span>減量週：重量降至約 55%、砍組數、<b>不練到力竭</b>，清除中樞神經疲勞。</span></div>`:'';
-  $('#todayWrap').innerHTML=`<div class="pl-card pad today"><div class="bar"></div>
-    <div class="head"><h3>${today.name}</h3>${chip(pk)}</div>
-    <div style="font-size:.83rem;color:var(--faint);margin-top:2px">⏱ 約 ${todayPlanRaw.minutes} 分鐘（含熱身 10 分）· 組間休息 ${fmtRest(ph.rest)}・點動作名稱可換成別的</div>${deload}
-    <div class="exlist">${rows}</div>
-    <div class="cta"><button class="pl-btn pl-btn-primary" onclick="Runner.start()">開始訓練</button><button class="pl-btn pl-btn-ghost" onclick="openImportModal()">✅ 完成訓練</button></div></div>`;
+  if(state.editingIdx===0){
+    $('#todayWrap').innerHTML=`<div class="pl-card pad today"><div class="bar"></div>
+      <div class="head" draggable="true" data-card-idx="0" style="cursor:grab"><h3>${today.name}</h3>${chip(pk)}${cardControlsHtml(0)}</div>
+      ${editPanelHtml(0)}</div>`;
+  } else {
+    const rows=todayPlanRaw.items.map(it=>{
+      let badge='';
+      if(it.isMain&&pk!=='deload'){const nx=nextWeight(it.w,MAIN[it.name]?MAIN[it.name].type:'upper');badge=`<span class="nbadge b-up">下次 ${fmt(nx.w)}kg</span>`;}
+      return `<div class="exrow"><div class="l"><div class="nm">${it.name}</div><div class="sub">${it.sub} · 休息 ${fmtRest(it.rest)}</div></div>
+        <div class="r"><div class="wt">${fmt(it.w)}<small>kg</small> <small>· ${it.sets}×${it.reps}</small></div>${badge}</div></div>`;
+    }).join('');
+    const deload=pk==='deload'?`<div class="deload"><span>😴</span><span>減量週：重量降至約 55%、砍組數、<b>不練到力竭</b>，清除中樞神經疲勞。</span></div>`:'';
+    $('#todayWrap').innerHTML=`<div class="pl-card pad today"><div class="bar"></div>
+      <div class="head" draggable="true" data-card-idx="0" style="cursor:grab"><h3>${today.name}</h3>${chip(pk)}${cardControlsHtml(0)}</div>
+      <div style="font-size:.83rem;color:var(--faint);margin-top:2px">⏱ 約 ${todayPlanRaw.minutes} 分鐘（含熱身 10 分）· 組間休息 ${fmtRest(ph.rest)}</div>${deload}
+      <div class="exlist">${rows}</div>
+      <div class="cta"><button class="pl-btn pl-btn-primary" onclick="Runner.start()">開始訓練</button><button class="pl-btn pl-btn-ghost" onclick="openImportModal()">✅ 完成訓練</button></div></div>`;
+  }
 
-  let cards=baseSplit.filter(day=>!completedDays.includes(day.name)).map(day=>{
+  let cards=state.queue.slice(1).map((day,idx0)=>{
+    const i=idx0+1;
+    if(state.editingIdx===i){
+      return `<div class="day"><div class="dh" draggable="true" data-card-idx="${i}" style="cursor:grab"><span class="tag" style="background:${ph.color}"></span><span style="flex:1">${day.name}</span>${cardControlsHtml(i)}</div>${editPanelHtml(i)}</div>`;
+    }
     const dp=planDay(day,mode,pk,orm);
     const dr=dp.items.map(it=>`<div class="drow"><span class="dn ${it.isMain?'':'acc'}">${it.name}</span><span class="dw">${fmt(it.w)}kg · ${it.sets}×${it.reps}</span></div>`).join('');
-    return `<div class="day"><div class="dh"><span class="tag" style="background:${ph.color}"></span>${day.name}</div><div class="dsub">⏱ 組間休息 ${fmtRest(ph.rest)} · 約 ${dp.minutes} 分</div><div class="db">${dr}</div></div>`;
+    return `<div class="day"><div class="dh" draggable="true" data-card-idx="${i}" style="cursor:grab"><span class="tag" style="background:${ph.color}"></span><span style="flex:1">${day.name}</span>${cardControlsHtml(i)}</div><div class="dsub">⏱ 組間休息 ${fmtRest(ph.rest)} · 約 ${dp.minutes} 分</div><div class="db">${dr}</div></div>`;
   });
   if(dn===7)cards.push(`<div class="day rest"><div class="dh"><span class="tag" style="background:#cbd5e1"></span>第 7 天 · 休息日</div><div class="db"><div class="drow" style="border:0"><span class="dn acc">完全休息或輕度活動（散步／伸展），讓身體恢復。</span></div></div></div>`);
-  if(cards.length===0)cards.push(`<div class="day"><div class="db" style="padding-top:16px;text-align:center;color:var(--faint)">🎉 本週課表都完成了，好好休息！</div></div>`);
+  if(cards.length===0)cards.push(`<div class="day"><div class="db" style="padding-top:16px;text-align:center;color:var(--faint)">目前只剩本次課表這一張，練完後可以按上面「＋ 新增課表」繼續排。</div></div>`);
   $('#weekGrid').innerHTML=cards.join('');
 }
 
 /* ===== 訓練執行流程 ===== */
 const Runner={
   ex:[], exIdx:0, setIdx:0, remain:0, tid:null,
-  start(){this.ex=window.__today?window.__today.items:[];this.exIdx=0;this.setIdx=0;$('#runner').classList.add('on');this.warmup();},
+  start(){this.ex=window.planToday?window.planToday.items:[];this.exIdx=0;this.setIdx=0;$('#runner').classList.add('on');this.warmup();},
   close(){this.stop();$('#runner').classList.remove('on');},
   stop(){if(this.tid){clearInterval(this.tid);this.tid=null;}},
   body(h){$('#runnerBody').innerHTML=h;},
@@ -525,7 +610,7 @@ const Runner={
     if(this.setIdx>=e.sets){this.exIdx++;this.setIdx=0;if(this.exIdx>=this.ex.length){return this.finish();}}
     this.showSet();},
   finish(){this.stop();this.body(`<div class="step">完成</div><h2>訓練完成 💪</h2>
-    <p class="tgt">${window.__today.name} 全部做完了，好好休息、補充蛋白質。</p>
+    <p class="tgt">${window.planToday.name} 全部做完了，好好休息、補充蛋白質。</p>
     <div class="rbtns"><button class="pl-btn-xl" onclick="Runner.saveAndClose()">✅ 存進訓練紀錄</button>
     <button class="pl-btn-mini" onclick="Runner.close()">先不存，關閉</button></div>`);},
   saveAndClose(){this.close();openImportModal();},
@@ -540,7 +625,7 @@ document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
 $('#weekSlider').addEventListener('input',e=>{state.week=+e.target.value;syncWeekUI();render();});
 $('#dlChk').addEventListener('change',e=>{state.deload=e.target.checked;render();});
 
-if(window.__savedPlan){var sp=window.__savedPlan;state.mode=sp.mode==='VETERAN'?'veteran':'novice';state.days=String(Math.min(Math.max(sp.days||3,1),7));state.week=Math.min(Math.max(sp.week||8,1),20);document.querySelectorAll('[data-seg=\"mode\"] button').forEach(function(b){b.classList.toggle('active',b.dataset.val===state.mode);});document.querySelectorAll('[data-seg=\"days\"] button').forEach(function(b){b.classList.toggle('active',b.dataset.val===state.days);});var ws=document.getElementById('weekSlider');if(ws)ws.value=state.week;}
+if(window.planSaved){var sp=window.planSaved;state.mode=sp.mode==='VETERAN'?'veteran':'novice';state.days=String(Math.min(Math.max(sp.days||3,1),7));state.week=Math.min(Math.max(sp.week||8,1),20);document.querySelectorAll('[data-seg=\"mode\"] button').forEach(function(b){b.classList.toggle('active',b.dataset.val===state.mode);});document.querySelectorAll('[data-seg=\"days\"] button').forEach(function(b){b.classList.toggle('active',b.dataset.val===state.days);});var ws=document.getElementById('weekSlider');if(ws)ws.value=state.week;}
 buildLiftInputs();syncWeekUI();render();
 </script>
 </body>
