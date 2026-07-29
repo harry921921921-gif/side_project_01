@@ -82,4 +82,29 @@ class WorkoutPlanServiceIntegrationTest {
         assertEquals("拉日", queue.get(1).dayName());
         assertEquals("腿日", queue.get(2).dayName());
     }
+
+    // ===== DayComposition：/plan 頁前端現在真的打這幾支拿課表組成 =====
+
+    @Test
+    void currentQueueCompositionMatchesRealExerciseTableForThreeDaySplit() {
+        User user = newTestUser();
+
+        List<WorkoutPlanService.DayComposition> queue = workoutPlanService.currentQueueComposition(user, 3);
+
+        assertEquals(3, queue.size());
+        assertEquals("推日", queue.get(0).dayName());
+        assertEquals(List.of("臥推", "肩推"), queue.get(0).mainNames());
+        assertTrue(queue.get(0).accessoryPool().contains("側平舉"));
+        assertFalse(queue.get(0).accessoryPool().contains("硬舉"), "拉的動作不該混進推日的配件池");
+    }
+
+    @Test
+    void nextCompositionInCycleAdvancesToNextRealSplitDay() {
+        User user = newTestUser();
+
+        WorkoutPlanService.DayComposition next = workoutPlanService.nextCompositionInCycle(user, "腿日", 3);
+
+        assertEquals("推日", next.dayName());
+        assertTrue(next.mainNames().contains("臥推"));
+    }
 }

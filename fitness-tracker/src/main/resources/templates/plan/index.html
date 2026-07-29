@@ -198,7 +198,7 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
 
   <!-- 週期進度 -->
   <script th:inline="javascript">
-  window.planSaved = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, prs: /*[[${planPrs}]]*/ {}, completed: /*[[${completedDays}]]*/ [] };
+  window.planSaved = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, prs: /*[[${planPrs}]]*/ {}, completed: /*[[${completedDays}]]*/ [], queue: /*[[${planQueue}]]*/ [], accPool: /*[[${accessoryPool}]]*/ [] };
   </script>
 
   <div class="sec-title">週期進度<span class="ln"></span></div>
@@ -270,29 +270,6 @@ const PHASE={
 const MACRO=[{key:'adapt',start:1,end:6},{key:'hyper',start:7,end:14},{key:'strength',start:15,end:20}];
 const TOTAL=20;
 const MAIN={'深蹲':{type:'lower',bar:20},'臥推':{type:'upper',bar:20},'硬舉':{type:'lower',bar:40},'肩推':{type:'upper',bar:20}};
-const SPLITS={
-  1:[{name:'全身',main:['深蹲','臥推'],acc:['槓鈴划船','肩推','二頭彎舉','三頭下壓']}],
-  2:[{name:'上半身',main:['臥推','肩推'],acc:['槓鈴划船','滑輪下拉','側平舉','二頭彎舉','三頭下壓']},
-     {name:'下半身',main:['深蹲'],acc:['羅馬尼亞硬舉','腿推','腿彎舉','小腿舉','保加利亞分腿蹲']}],
-  3:[{name:'推日',main:['臥推','肩推'],acc:['上斜啞鈴推','側平舉','三頭下壓','飛鳥','三頭伸展']},
-     {name:'拉日',main:['硬舉'],acc:['滑輪下拉','槓鈴划船','坐姿划船','二頭彎舉','面拉']},
-     {name:'腿日',main:['深蹲'],acc:['羅馬尼亞硬舉','腿推','腿彎舉','小腿舉','保加利亞分腿蹲']}],
-  4:[{name:'上肢 A',main:['臥推','肩推'],acc:['槓鈴划船','滑輪下拉','側平舉','三頭下壓','二頭彎舉']},
-     {name:'下肢 A',main:['深蹲'],acc:['羅馬尼亞硬舉','腿推','腿彎舉','小腿舉','弓步蹲']},
-     {name:'上肢 B',main:['肩推','臥推'],acc:['坐姿划船','面拉','側平舉','二頭彎舉','三頭伸展']},
-     {name:'下肢 B',main:['硬舉'],acc:['前蹲','腿推','腿彎舉','小腿舉','保加利亞分腿蹲']}],
-  5:[{name:'胸',main:['臥推'],acc:['上斜啞鈴推','雙槓臂屈伸','飛鳥','纜繩夾胸','伏地挺身']},
-     {name:'背',main:['硬舉'],acc:['滑輪下拉','槓鈴划船','坐姿划船','面拉','引體向上']},
-     {name:'腿',main:['深蹲'],acc:['羅馬尼亞硬舉','腿推','腿彎舉','小腿舉','保加利亞分腿蹲']},
-     {name:'肩',main:['肩推'],acc:['側平舉','面拉','前平舉','聳肩','反向飛鳥']},
-     {name:'手臂',main:[],acc:['二頭彎舉','三頭下壓','錘式彎舉','三頭伸展','集中彎舉','窄握推']}],
-  6:[{name:'推 A',main:['臥推','肩推'],acc:['上斜啞鈴推','側平舉','三頭下壓','飛鳥']},
-     {name:'拉 A',main:['硬舉'],acc:['滑輪下拉','槓鈴划船','二頭彎舉','面拉']},
-     {name:'腿 A',main:['深蹲'],acc:['羅馬尼亞硬舉','腿推','腿彎舉','小腿舉']},
-     {name:'推 B',main:['肩推','臥推'],acc:['上斜臥推','側平舉','三頭伸展','聳肩']},
-     {name:'拉 B',main:['硬舉'],acc:['坐姿划船','引體向上','錘式彎舉','面拉']},
-     {name:'腿 B',main:['深蹲'],acc:['前蹲','腿推','腿彎舉','保加利亞分腿蹲']}],
-};
 /* 時間預算：一天約 60 分鐘 = 熱身 10 分 + Σ每組(動作約 50 秒 + 組間休息) */
 const WARMUP_MIN=10, SET_WORK=50, TIME_CAP=62;
 const r25=w=>Math.round(w/2.5)*2.5, fmt=w=>Number.isInteger(w)?w:w.toFixed(1);
@@ -315,26 +292,25 @@ function nextWeight(w,type){const inc=type==='upper'?2.5:5;return{w:r25(w+inc),t
 function weekToPhase(wk){for(const m of MACRO)if(wk<=m.end)return m.key;return 'strength';}
 
 /* ===== 課表卡片佇列：本次課表＝queue[0]，本週完整課表＝queue[1...]，可拖曳排序、可編輯動作、可刪除、可新增 =====
-   主項只能換另一個主項（重量才算得準，換成別的主項會用該動作自己的 PR 重新算 %1RM），配件可換成任何配件 */
+   主項只能換另一個主項（重量才算得準，換成別的主項會用該動作自己的 PR 重新算 %1RM），配件可換成任何配件。
+   哪些動作排哪一天現在真的查後端 Exercise 表選（/plan/api/queue、/plan/api/next），不再是前端寫死的清單；
+   重量/組數/次數還是前端自己算（跟「打 PR 馬上看到建議重量」共用同一套公式），天數以外的切換不用打後端。 */
 const MAIN_NAMES=Object.keys(MAIN);
-const ACC_POOL=[...new Set(Object.values(SPLITS).flat().flatMap(d=>d.acc))].sort();
-function cloneDay(d){return {name:d.name,main:[...d.main],acc:[...d.acc]};}
-function currentBaseSplit(){const dn=+state.days;return dn===7?SPLITS[6]:SPLITS[dn];}
-function initQueue(){
-  const baseSplit=currentBaseSplit();
-  const completedDays=(window.planSaved&&window.planSaved.completed)||[];
-  state.queue=baseSplit.filter(d=>!completedDays.includes(d.name)).map(cloneDay);
-  if(state.queue.length===0)state.queue=[cloneDay(baseSplit[0])];
-  state.queueDays=+state.days;
+const ACC_POOL=(window.planSaved&&window.planSaved.accPool)||[];
+function toQueueDay(dc){return {name:dc.dayName,main:[...dc.mainNames],acc:[...dc.accessoryPool]};}
+function applyServerQueue(list){state.queue=(list&&list.length?list:[]).map(toQueueDay);}
+function fetchQueue(days){
+  fetch('/plan/api/queue?days='+days).then(r=>r.json()).then(list=>{
+    applyServerQueue(list);
+    state.queueDays=days;
+    render();
+  });
 }
 function addNextCourse(){
-  const baseSplit=currentBaseSplit();
   const last=state.queue[state.queue.length-1];
-  let idx=baseSplit.findIndex(d=>d.name===last.name);
-  if(idx<0)idx=baseSplit.length-1;
-  const nextIdx=(idx+1)%baseSplit.length;
-  state.queue.push(cloneDay(baseSplit[nextIdx]));
-  render();
+  fetch('/plan/api/next?lastDay='+encodeURIComponent(last.name)+'&days='+state.days)
+    .then(r=>r.json())
+    .then(dc=>{state.queue.push(toQueueDay(dc));render();});
 }
 function removeCard(i){
   if(state.queue.length<=1){alert('至少要留一張課表卡喔。');return;}
@@ -555,7 +531,15 @@ function render(){
   renderTimeline();
 
   const dn=+state.days;
-  if(!state.queue||state.queueDays!==dn)initQueue();
+  if(!state.queue){
+    // 第一次渲染：頁面載入時後端已經照目前存的天數算好課表組成了，直接用，不用多打一次 API
+    applyServerQueue(window.planSaved&&window.planSaved.queue);
+    state.queueDays=dn;
+  } else if(state.queueDays!==dn){
+    // 天數被切換成別的數字：後端還沒算過這個天數的組成，打 API 拿新的，拿到後這支函式會自己再呼叫一次 render()
+    fetchQueue(dn);
+    return;
+  }
 
   const today=state.queue[0];
   const todayPlanRaw=planDay(today,mode,pk,orm);

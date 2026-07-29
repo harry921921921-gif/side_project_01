@@ -255,4 +255,65 @@ class WorkoutPlanServiceTest {
 
         assertEquals("推日", next.dayName());
     }
+
+    // ===== DayComposition：/plan 頁課表卡片即時互動用（只給動作名稱，不算重量）=====
+
+    @Test
+    void composeDaySeparatesMainAndAccessoryNamesWithoutComputingWeight() {
+        stubPushDay();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+        DaySplitDef pushDay = DaySplitDef.byMovement("推日", List.of("臥推", "肩推"), "PUSH");
+
+        WorkoutPlanService.DayComposition dc = service.composeDay(user, pushDay);
+
+        assertEquals("推日", dc.dayName());
+        assertEquals(List.of("臥推", "肩推"), dc.mainNames());
+        assertTrue(dc.accessoryPool().contains("側平舉"));
+        assertTrue(dc.accessoryPool().contains("三頭下壓"));
+        assertFalse(dc.accessoryPool().contains("臥推"), "主項不該又出現在配件池裡");
+    }
+
+    @Test
+    void composeDayAppliesWeeklyDedupJustLikeFullPlanDay() {
+        stubPushDay();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of("側平舉"));
+        DaySplitDef pushDay = DaySplitDef.byMovement("推日", List.of("臥推", "肩推"), "PUSH");
+
+        WorkoutPlanService.DayComposition dc = service.composeDay(user, pushDay);
+
+        assertFalse(dc.accessoryPool().contains("側平舉"), "本週已練過的配件不該出現在候選池");
+        assertTrue(dc.accessoryPool().contains("三頭下壓"));
+    }
+
+    @Test
+    void currentQueueCompositionFiltersOutCompletedDaysThisWeek() {
+        // 推日已完成、被排除在佇列外，所以不會呼叫 composeDay 產生推日的組成，這裡不用（也不能）stub PUSH movement
+        when(exerciseRepository.findByMovementAndCategoryOrderByOrderIndexAscNameAsc("PULL", "COMPOUND"))
+                .thenReturn(List.of(ex("硬舉", "背", "COMPOUND", "PULL")));
+        when(exerciseRepository.findByMovementAndCategoryOrderByOrderIndexAscNameAsc("PULL", "ISOLATION"))
+                .thenReturn(List.of());
+        when(exerciseRepository.findByMovementAndCategoryOrderByOrderIndexAscNameAsc("LEGS", "COMPOUND"))
+                .thenReturn(List.of(ex("深蹲", "腿", "COMPOUND", "LEGS")));
+        when(exerciseRepository.findByMovementAndCategoryOrderByOrderIndexAscNameAsc("LEGS", "ISOLATION"))
+                .thenReturn(List.of());
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+        when(workoutService.completedBodyPartsThisWeek(user)).thenReturn(Set.of("推日"));
+
+        List<WorkoutPlanService.DayComposition> queue = service.currentQueueComposition(user, 3);
+
+        List<String> dayNames = queue.stream().map(WorkoutPlanService.DayComposition::dayName).toList();
+        assertFalse(dayNames.contains("推日"));
+        assertTrue(dayNames.contains("拉日"));
+        assertTrue(dayNames.contains("腿日"));
+    }
+
+    @Test
+    void nextCompositionInCycleWrapsAroundJustLikeNextInCycle() {
+        stubPushDay();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+
+        WorkoutPlanService.DayComposition next = service.nextCompositionInCycle(user, "腿日", 3);
+
+        assertEquals("推日", next.dayName());
+    }
 }

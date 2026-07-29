@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 @Service
 public class WorkoutPlanService {
 
-    private static final Set<String> MAIN_LIFT_NAMES = Set.of("深蹲", "臥推", "硬舉", "肩推");
+    public static final Set<String> MAIN_LIFT_NAMES = Set.of("深蹲", "臥推", "硬舉", "肩推");
 
     // 新手模式主項起始重量（空槓／輕重量），跟原本前端 MAIN.bar 一致
     private static final Map<String, Integer> MAIN_LIFT_BAR_KG = Map.of(
@@ -65,17 +65,20 @@ public class WorkoutPlanService {
 
     public record GeneratedDayPlan(String dayName, List<PlannedExercise> exercises, int estimatedMinutes) {}
 
+    // 純「排哪些動作」的結果，不算重量/組數/次數——給前端當即時互動（拖曳、換動作、增減）的資料來源，
+    // 重量算法本來就跟前端既有的即時預覽（打 PR 馬上看到建議重量）共用同一套公式，不用為了接後端把那個體驗拿掉
+    public record DayComposition(String dayName, List<String> mainNames, List<String> accessoryPool) {}
+
     public GeneratedDayPlan planDay(User user, DaySplitDef dayDef, PlanMode mode, PhaseType phaseType, boolean deload) {
-        Map<String, LiftPr> prByName = liftPrService.findByUser(user).stream()
-                .collect(Collectors.toMap(LiftPr::getExerciseName, Function.identity(), (a, b) -> a));
-        Set<String> usedThisWeek = workoutService.exerciseNamesThisWeek(user);
+        Map<String, LiftPr> prByName = prByName(user);
+        List<String> mainNames = dayDef.mainLifts();
+        List<Exercise> pool = accessoryPoolFor(user, dayDef, mainNames);
 
         double workPct = deload ? DELOAD_WORK_PCT : (phase(phaseType).pctLo + phase(phaseType).pctHi) / 2.0;
         int mainSets = deload ? DELOAD_SETS : phase(phaseType).sets;
         int restSeconds = deload ? DELOAD_REST_SECONDS : phase(phaseType).restSeconds();
         int[] mainReps = deload ? new int[]{DELOAD_REPS_LOW, DELOAD_REPS_HIGH} : mainRepsRange(phaseType);
 
-        List<String> mainNames = dayDef.mainLifts();
         List<PlannedExercise> mainItems = new ArrayList<>();
         double minutesSoFar = WARMUP_MIN;
         for (String name : mainNames) {
@@ -85,15 +88,6 @@ public class WorkoutPlanService {
             mainItems.add(new PlannedExercise(name, true, weight, mainSets, mainReps[0], mainReps[1], restSeconds, note));
             minutesSoFar += mainSets * (SET_WORK_SECONDS + restSeconds) / 60.0;
         }
-
-        List<Exercise> compounds = candidatesFor(dayDef, "COMPOUND");
-        List<Exercise> isolations = candidatesFor(dayDef, "ISOLATION");
-        List<Exercise> accessoryPool = new ArrayList<>();
-        compounds.stream().filter(e -> !mainNames.contains(e.getName())).forEach(accessoryPool::add);
-        isolations.stream().filter(e -> !mainNames.contains(e.getName())).forEach(accessoryPool::add);
-
-        List<Exercise> preferred = accessoryPool.stream().filter(e -> !usedThisWeek.contains(e.getName())).toList();
-        List<Exercise> pool = preferred.isEmpty() ? accessoryPool : preferred;
 
         int accSets = deload ? 2 : 3;
         int[] accReps = (phaseType == PhaseType.STRENGTH && !deload) ? new int[]{6, 8} : new int[]{10, 15};
@@ -114,23 +108,62 @@ public class WorkoutPlanService {
 
     // 本次課表佇列：本週分化裡還沒練過的天，依序排好（跟原本前端 initQueue 一致）
     public List<GeneratedDayPlan> currentQueue(User user, int daysPerWeek, PlanMode mode, PhaseType phaseType, boolean deload) {
-        List<DaySplitDef> baseSplit = SplitCatalog.forDays(daysPerWeek);
-        Set<String> completed = workoutService.completedBodyPartsThisWeek(user);
-        List<DaySplitDef> remaining = baseSplit.stream().filter(d -> !completed.contains(d.name())).toList();
-        if (remaining.isEmpty()) remaining = List.of(baseSplit.get(0));
-        return remaining.stream().map(d -> planDay(user, d, mode, phaseType, deload)).toList();
+        return remainingSplitDays(user, daysPerWeek).stream().map(d -> planDay(user, d, mode, phaseType, deload)).toList();
     }
 
     // 佇列最後一張課表練完/被移除後，接續分化循環排下一張（跟原本前端 addNextCourse 一致）
     public GeneratedDayPlan nextInCycle(User user, String lastDayName, int daysPerWeek, PlanMode mode, PhaseType phaseType, boolean deload) {
+        return planDay(user, nextSplitDay(lastDayName, daysPerWeek), mode, phaseType, deload);
+    }
+
+    // 只排動作組成，不算重量——給前端即時互動用，天數以外的任何切換（程度/週次/減量）都不用重打這支
+    public DayComposition composeDay(User user, DaySplitDef dayDef) {
+        List<String> mainNames = dayDef.mainLifts();
+        List<String> accessoryNames = accessoryPoolFor(user, dayDef, mainNames).stream().map(Exercise::getName).toList();
+        return new DayComposition(dayDef.name(), mainNames, accessoryNames);
+    }
+
+    public List<DayComposition> currentQueueComposition(User user, int daysPerWeek) {
+        return remainingSplitDays(user, daysPerWeek).stream().map(d -> composeDay(user, d)).toList();
+    }
+
+    public DayComposition nextCompositionInCycle(User user, String lastDayName, int daysPerWeek) {
+        return composeDay(user, nextSplitDay(lastDayName, daysPerWeek));
+    }
+
+    private List<DaySplitDef> remainingSplitDays(User user, int daysPerWeek) {
+        List<DaySplitDef> baseSplit = SplitCatalog.forDays(daysPerWeek);
+        Set<String> completed = workoutService.completedBodyPartsThisWeek(user);
+        List<DaySplitDef> remaining = baseSplit.stream().filter(d -> !completed.contains(d.name())).toList();
+        return remaining.isEmpty() ? List.of(baseSplit.get(0)) : remaining;
+    }
+
+    private DaySplitDef nextSplitDay(String lastDayName, int daysPerWeek) {
         List<DaySplitDef> baseSplit = SplitCatalog.forDays(daysPerWeek);
         int idx = -1;
         for (int i = 0; i < baseSplit.size(); i++) {
             if (baseSplit.get(i).name().equals(lastDayName)) { idx = i; break; }
         }
         if (idx < 0) idx = baseSplit.size() - 1;
-        DaySplitDef next = baseSplit.get((idx + 1) % baseSplit.size());
-        return planDay(user, next, mode, phaseType, deload);
+        return baseSplit.get((idx + 1) % baseSplit.size());
+    }
+
+    private Map<String, LiftPr> prByName(User user) {
+        return liftPrService.findByUser(user).stream()
+                .collect(Collectors.toMap(LiftPr::getExerciseName, Function.identity(), (a, b) -> a));
+    }
+
+    // 複合先、孤立後；主項另外處理所以要排除；一週內優先排沒練過的，都練過了才放寬重複（寧可重複也不開天窗）
+    private List<Exercise> accessoryPoolFor(User user, DaySplitDef dayDef, List<String> mainNames) {
+        Set<String> usedThisWeek = workoutService.exerciseNamesThisWeek(user);
+        List<Exercise> compounds = candidatesFor(dayDef, "COMPOUND");
+        List<Exercise> isolations = candidatesFor(dayDef, "ISOLATION");
+        List<Exercise> accessoryPool = new ArrayList<>();
+        compounds.stream().filter(e -> !mainNames.contains(e.getName())).forEach(accessoryPool::add);
+        isolations.stream().filter(e -> !mainNames.contains(e.getName())).forEach(accessoryPool::add);
+
+        List<Exercise> preferred = accessoryPool.stream().filter(e -> !usedThisWeek.contains(e.getName())).toList();
+        return preferred.isEmpty() ? accessoryPool : preferred;
     }
 
     private List<Exercise> candidatesFor(DaySplitDef dayDef, String category) {

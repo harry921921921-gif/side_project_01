@@ -5,8 +5,10 @@ import fitness_tracker.entity.TrainingPlan;
 import fitness_tracker.entity.User;
 import fitness_tracker.enums.PlanMode;
 import fitness_tracker.service.CurrentUserService;
+import fitness_tracker.service.ExerciseService;
 import fitness_tracker.service.LiftPrService;
 import fitness_tracker.service.TrainingPlanService;
+import fitness_tracker.service.WorkoutPlanService;
 import fitness_tracker.service.WorkoutService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -26,13 +28,18 @@ public class PlanController {
     private final TrainingPlanService trainingPlanService;
     private final LiftPrService liftPrService;
     private final WorkoutService workoutService;
+    private final WorkoutPlanService workoutPlanService;
+    private final ExerciseService exerciseService;
 
     public PlanController(CurrentUserService currentUserService, TrainingPlanService trainingPlanService,
-                          LiftPrService liftPrService, WorkoutService workoutService) {
+                          LiftPrService liftPrService, WorkoutService workoutService,
+                          WorkoutPlanService workoutPlanService, ExerciseService exerciseService) {
         this.currentUserService = currentUserService;
         this.trainingPlanService = trainingPlanService;
         this.liftPrService = liftPrService;
         this.workoutService = workoutService;
+        this.workoutPlanService = workoutPlanService;
+        this.exerciseService = exerciseService;
     }
 
     @GetMapping("/plan")
@@ -48,6 +55,15 @@ public class PlanController {
         }
         model.addAttribute("planPrs", prs);
         model.addAttribute("completedDays", workoutService.completedBodyPartsThisWeek(user));
+        // 課表卡片組成（哪些主項/配件）現在真的查 Exercise 表選，不再是前端寫死的清單
+        model.addAttribute("planQueue", workoutPlanService.currentQueueComposition(user, p.getDaysPerWeek()));
+        // 配件動作可以換成的清單，來源是 Exercise 表（排除四大主項），給卡片編輯面板的下拉選單用
+        List<String> accessoryPool = exerciseService.findAll().stream()
+                .map(e -> e.getName())
+                .filter(name -> !WorkoutPlanService.MAIN_LIFT_NAMES.contains(name))
+                .sorted()
+                .toList();
+        model.addAttribute("accessoryPool", accessoryPool);
         return "plan/index";
     }
 
