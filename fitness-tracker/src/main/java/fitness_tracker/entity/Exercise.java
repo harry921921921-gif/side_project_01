@@ -24,6 +24,9 @@ public class Exercise {
 
     private Integer orderIndex = 0;
 
+    @Column
+    private String movement;    // PUSH / PULL / LEGS / CORE（決定排哪一天）
+
     public Exercise() {}
 
     public Exercise(String name, String bodyPart, String category) {
@@ -40,6 +43,7 @@ public class Exercise {
     public String  getCategory()      { return category; }
     public boolean isPreset()         { return preset; }
     public Integer getOrderIndex()    { return orderIndex; }
+    public String  getMovement()      { return movement; }
 
     // ── Setters ──────────────────────────────────────────
     public void setId(Long id)                      { this.id = id; }
@@ -48,4 +52,5 @@ public class Exercise {
     public void setCategory(String cat)             { this.category = cat; }
     public void setPreset(boolean preset)           { this.preset = preset; }
     public void setOrderIndex(Integer orderIndex)   { this.orderIndex = orderIndex; }
+    public void setMovement(String movement)        { this.movement = movement; }
 }

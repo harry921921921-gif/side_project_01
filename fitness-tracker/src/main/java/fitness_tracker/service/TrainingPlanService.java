@@ -13,9 +13,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 // 課表的後端真相來源：回答「今天/明天練什麼、目前第幾週/哪個階段」與「本週執行力」。
@@ -44,36 +42,9 @@ public class TrainingPlanService {
         PhaseType(String label, int start, int end) { this.label = label; this.start = start; this.end = end; }
     }
 
-    public record DaySplit(String name, List<String> mainLifts) {}
     public record DayPlan(boolean training, String dayName, List<String> mainLifts, String phaseLabel, int week) {}
     public record Adherence(int planned, int completed) {
         public int missed() { return Math.max(planned - completed, 0); }
-    }
-
-    // 分化：每天的主項（給脈絡用，配件略）
-    private static final Map<Integer, List<DaySplit>> SPLITS = new HashMap<>();
-    static {
-        SPLITS.put(1, List.of(new DaySplit("全身", List.of("深蹲", "臥推"))));
-        SPLITS.put(2, List.of(new DaySplit("上半身", List.of("臥推", "肩推")),
-                              new DaySplit("下半身", List.of("深蹲"))));
-        SPLITS.put(3, List.of(new DaySplit("推日", List.of("臥推", "肩推")),
-                              new DaySplit("拉日", List.of("硬舉")),
-                              new DaySplit("腿日", List.of("深蹲"))));
-        SPLITS.put(4, List.of(new DaySplit("上肢 A", List.of("臥推", "肩推")),
-                              new DaySplit("下肢 A", List.of("深蹲")),
-                              new DaySplit("上肢 B", List.of("肩推", "臥推")),
-                              new DaySplit("下肢 B", List.of("硬舉"))));
-        SPLITS.put(5, List.of(new DaySplit("胸", List.of("臥推")),
-                              new DaySplit("背", List.of("硬舉")),
-                              new DaySplit("腿", List.of("深蹲")),
-                              new DaySplit("肩", List.of("肩推")),
-                              new DaySplit("手臂", List.of())));
-        SPLITS.put(6, List.of(new DaySplit("推 A", List.of("臥推", "肩推")),
-                              new DaySplit("拉 A", List.of("硬舉")),
-                              new DaySplit("腿 A", List.of("深蹲")),
-                              new DaySplit("推 B", List.of("肩推", "臥推")),
-                              new DaySplit("拉 B", List.of("硬舉")),
-                              new DaySplit("腿 B", List.of("深蹲"))));
     }
 
     @Transactional
@@ -129,10 +100,6 @@ public class TrainingPlanService {
         return PhaseType.STRENGTH; // 超過 20 週先當最大力量期
     }
 
-    private int splitDays(TrainingPlan p) {
-        return Math.min(Math.max(p.getDaysPerWeek(), 1), 6);
-    }
-
     // 某一天練什麼：把星期對應到分化第幾天，對不到就是休息日
     public DayPlan dayPlanFor(TrainingPlan p, LocalDate date) {
         int week = currentWeek(p, date);
@@ -144,11 +111,11 @@ public class TrainingPlanService {
         }
         List<DayOfWeek> ordered = new ArrayList<>(days); // TreeSet → 已 Mon→Sun 排序
         int idx = ordered.indexOf(dow);
-        List<DaySplit> split = SPLITS.getOrDefault(splitDays(p), SPLITS.get(3));
+        List<SplitCatalog.DaySplitDef> split = SplitCatalog.forDays(p.getDaysPerWeek());
         if (idx < 0 || idx >= split.size()) {
             return new DayPlan(false, "休息日", List.of(), phase, week);
         }
-        DaySplit ds = split.get(idx);
+        SplitCatalog.DaySplitDef ds = split.get(idx);
         return new DayPlan(true, ds.name(), ds.mainLifts(), phase, week);
     }
 

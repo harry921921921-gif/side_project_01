@@ -129,6 +129,18 @@ public class WorkoutService {
                 .collect(Collectors.toSet());
     }
 
+    // 本週已經練過的動作名稱集合，給 WorkoutPlanService 排配件動作時「一週去重」用
+    @Transactional(readOnly = true)
+    public Set<String> exerciseNamesThisWeek(User user) {
+        LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY);
+        LocalDate sunday = monday.plusDays(6);
+        return repository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateDesc(user, monday, sunday).stream()
+                .flatMap(s -> s.getSets().stream())
+                .map(WorkoutSet::getExerciseName)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
     @Transactional
     public void save(WorkoutSession session,
                      List<String> exerciseNames,
