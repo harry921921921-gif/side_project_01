@@ -39,6 +39,9 @@ class WorkoutServiceTest {
     @Mock
     private BodyPartRepository bodyPartRepository;
 
+    @Mock
+    private LiftPrService liftPrService;
+
     @InjectMocks
     private WorkoutService service;
 
@@ -114,6 +117,35 @@ class WorkoutServiceTest {
         assertTrue(existing.getSets().stream().noneMatch(set -> "舊動作".equals(set.getExerciseName())));
         assertEquals("更新", existing.getNote());
         verify(repository).save(existing);
+    }
+
+    @Test
+    void saveRecordsAccessoryPrButSkipsMainLifts() {
+        BodyPart bodyPart = new BodyPart();
+        bodyPart.setName("推日");
+        when(bodyPartRepository.findByName("推日")).thenReturn(Optional.of(bodyPart));
+
+        User user = new User();
+        WorkoutSession session = new WorkoutSession();
+        session.setUser(user);
+        session.setBodyPart("推日");
+
+        service.save(
+                session,
+                List.of("臥推", "三頭下壓"),
+                List.of(80.0, 15.0),
+                List.of(4, 3),
+                List.of(5, 12),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        verify(liftPrService, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq("臥推"), org.mockito.ArgumentMatchers.anyDouble(), org.mockito.ArgumentMatchers.anyInt());
+        verify(liftPrService).save(user, "三頭下壓", 15.0, 12);
     }
 
     @Test

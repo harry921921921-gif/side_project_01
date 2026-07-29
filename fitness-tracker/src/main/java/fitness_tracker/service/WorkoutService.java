@@ -32,16 +32,22 @@ public class WorkoutService {
 
     private static final Logger log = LoggerFactory.getLogger(WorkoutService.class);
 
+    // 這幾個主項課表頁會用 1RM 百分比算重量，不能被單次記錄的次極限重量覆蓋回 PR
+    private static final Set<String> MAIN_LIFT_NAMES = Set.of("深蹲", "臥推", "硬舉", "肩推");
+
     private final WorkoutSessionRepository repository;
     private final ExerciseService exerciseService;
     private final BodyPartRepository bodyPartRepository;
+    private final LiftPrService liftPrService;
 
     public WorkoutService(WorkoutSessionRepository repository,
                           ExerciseService exerciseService,
-                          BodyPartRepository bodyPartRepository) {
+                          BodyPartRepository bodyPartRepository,
+                          LiftPrService liftPrService) {
         this.repository = repository;
         this.exerciseService = exerciseService;
         this.bodyPartRepository = bodyPartRepository;
+        this.liftPrService = liftPrService;
     }
 
     // ── 舊版（未過濾使用者）：保留給既有呼叫端/測試相容，正式流程請一律用帶 User 的版本 ──
@@ -154,6 +160,7 @@ public class WorkoutService {
                 workoutSet.setNotes(safeGet(notesList, i));
                 workoutSet.setSession(session);
                 session.getSets().add(workoutSet);
+                recordAccessoryPr(session.getUser(), workoutSet);
             }
         }
         log.info("Creating workout session for bodyPart={} with {} exercise(s)", session.getBodyPart(), session.getSets().size());
@@ -267,9 +274,19 @@ public class WorkoutService {
                     ws.setNotes(safeGet(notesList, i));
                     ws.setSession(existing);
                     existing.getSets().add(ws);
+                    recordAccessoryPr(existing.getUser(), ws);
                 }
             }
         }
+    }
+
+    // 小動作沒有 1RM 公式可以算重量，訓練紀錄裡填過一次重量就記住，下次課表頁同一個動作會自動帶入
+    private void recordAccessoryPr(User user, WorkoutSet set) {
+        if (user == null || MAIN_LIFT_NAMES.contains(set.getExerciseName())) return;
+        Double weight = set.getActualWeight() != null ? set.getActualWeight() : set.getWeightKg();
+        if (weight == null || weight <= 0) return;
+        Integer reps = set.getActualReps() != null ? set.getActualReps() : set.getReps();
+        liftPrService.save(user, set.getExerciseName(), weight, reps != null ? reps : 8);
     }
 
     public void delete(Long id) {

@@ -305,6 +305,12 @@ const repsRange=ph=>{if(ph.reps)return ph.reps;const lo=repsAtRir(ph.pctHi,ph.ri
 function estimate1RM(w,r){w=parseFloat(w)||0;r=Math.min(Math.max(parseInt(r)||1,1),12);const rc=Math.min(r,10);return r===1?w:w*(1+rc/30);}
 function mainWeight(mode,pk,name,orm){const ph=PHASE[pk];if(mode==='novice')return{w:MAIN[name]?MAIN[name].bar:20,note:'空槓起步'};const wp=workPct(ph);return{w:r25((orm||0)*wp),note:Math.round(wp*100)+'% 1RM'};}
 function accWeight(mode,pk){if(mode==='novice')return {adapt:10,hyper:12,strength:15,deload:8}[pk];return {adapt:12,hyper:20,strength:25,deload:10}[pk];}
+/* 配件動作沒有 1RM 可以算，重量準確度差，改成優先讀「自己存過的重量」（練完/在課表上手動記過一次就會記住），沒存過才用階段預設值 */
+function accWeightFor(name,mode,pk){
+  const prs=(window.planSaved&&window.planSaved.prs)||{};
+  const pr=prs[name];
+  return (pr&&pr.w>0)?pr.w:accWeight(mode,pk);
+}
 function nextWeight(w,type){const inc=type==='upper'?2.5:5;return{w:r25(w+inc),tag:'完成 +'+inc};}
 function weekToPhase(wk){for(const m of MACRO)if(wk<=m.end)return m.key;return 'strength';}
 
@@ -423,6 +429,20 @@ function savePlan(){
   }
   document.getElementById('planForm').submit();
 }
+/* 配件動作的重量沒有公式可算，讓使用者自己輸入存起來，之後同一個動作再出現在課表上就會自動帶入這個重量 */
+function saveAccWeight(name){
+  const prs=(window.planSaved&&window.planSaved.prs)||{};
+  const cur=prs[name];
+  const val=prompt('「'+name+'」要記住的重量 (kg)：',cur?cur.w:'');
+  if(val===null)return;
+  const w=parseFloat(val);
+  if(!(w>=0)){alert('請輸入有效的重量數字。');return;}
+  document.getElementById('f-mode').value=state.mode;
+  document.getElementById('f-days').value=state.days;
+  var box=document.getElementById('f-prs'); box.innerHTML='';
+  box.insertAdjacentHTML('beforeend','<input type="hidden" name="prName" value="'+name+'"><input type="hidden" name="prWeight" value="'+w+'"><input type="hidden" name="prReps" value="8">');
+  document.getElementById('planForm').submit();
+}
 /* 手動校正「目前第幾週」——跟 savePlan() 分開，拖 slider 只是預覽，按這顆才會真的存 */
 function confirmSetWeek(){
   if(!confirm('確定把「目前第 '+state.week+' 週」存起來嗎？下次登入會停在這裡，之後才會照日曆自動往前走。'))return;
@@ -503,7 +523,7 @@ function planDay(day,mode,pk,orm){
   });
   for(const name of (day.acc||[])){
     if(mins()+accSets*tps/60>TIME_CAP) break;      // 會超過 1 小時就停
-    items.push({name,isMain:false,w:accWeight(mode,pk),sets:accSets,reps:pk==='strength'?'6–8':'10–15',rest:ph.rest,sub:'配件 · 感受控制'});
+    items.push({name,isMain:false,w:accWeightFor(name,mode,pk),sets:accSets,reps:pk==='strength'?'6–8':'10–15',rest:ph.rest,sub:'配件 · 感受控制'});
     sets+=accSets;
   }
   return {items,minutes:Math.round(mins())};
@@ -549,8 +569,9 @@ function render(){
     const rows=todayPlanRaw.items.map(it=>{
       let badge='';
       if(it.isMain&&pk!=='deload'){const nx=nextWeight(it.w,MAIN[it.name]?MAIN[it.name].type:'upper');badge=`<span class="nbadge b-up">下次 ${fmt(nx.w)}kg</span>`;}
+      const accBtn=it.isMain?'':`<button type="button" class="card-icon-btn" style="margin-left:6px" onclick="saveAccWeight('${it.name}')" title="記住這個動作的重量">✎</button>`;
       return `<div class="exrow"><div class="l"><div class="nm">${it.name}</div><div class="sub">${it.sub} · 休息 ${fmtRest(it.rest)}</div></div>
-        <div class="r"><div class="wt">${fmt(it.w)}<small>kg</small> <small>· ${it.sets}×${it.reps}</small></div>${badge}</div></div>`;
+        <div class="r" style="display:flex;align-items:center"><div class="wt">${fmt(it.w)}<small>kg</small> <small>· ${it.sets}×${it.reps}</small></div>${badge}${accBtn}</div></div>`;
     }).join('');
     const deload=pk==='deload'?`<div class="deload"><span>😴</span><span>減量週：重量降至約 55%、砍組數、<b>不練到力竭</b>，清除中樞神經疲勞。</span></div>`:'';
     $('#todayWrap').innerHTML=`<div class="pl-card pad today"><div class="bar"></div>
@@ -566,7 +587,7 @@ function render(){
       return `<div class="day"><div class="dh" draggable="true" data-card-idx="${i}" style="cursor:grab"><span class="tag" style="background:${ph.color}"></span><span style="flex:1">${day.name}</span>${cardControlsHtml(i)}</div>${editPanelHtml(i)}</div>`;
     }
     const dp=planDay(day,mode,pk,orm);
-    const dr=dp.items.map(it=>`<div class="drow"><span class="dn ${it.isMain?'':'acc'}">${it.name}</span><span class="dw">${fmt(it.w)}kg · ${it.sets}×${it.reps}</span></div>`).join('');
+    const dr=dp.items.map(it=>`<div class="drow"><span class="dn ${it.isMain?'':'acc'}">${it.name}</span><span class="dw" style="display:inline-flex;align-items:center;gap:4px">${fmt(it.w)}kg · ${it.sets}×${it.reps}${it.isMain?'':`<button type="button" class="card-icon-btn" style="width:20px;height:20px;font-size:.68rem" onclick="saveAccWeight('${it.name}')" title="記住這個動作的重量">✎</button>`}</span></div>`).join('');
     return `<div class="day"><div class="dh" draggable="true" data-card-idx="${i}" style="cursor:grab"><span class="tag" style="background:${ph.color}"></span><span style="flex:1">${day.name}</span>${cardControlsHtml(i)}</div><div class="dsub">⏱ 組間休息 ${fmtRest(ph.rest)} · 約 ${dp.minutes} 分</div><div class="db">${dr}</div></div>`;
   });
   if(dn===7)cards.push(`<div class="day rest"><div class="dh"><span class="tag" style="background:#cbd5e1"></span>第 7 天 · 休息日</div><div class="db"><div class="drow" style="border:0"><span class="dn acc">完全休息或輕度活動（散步／伸展），讓身體恢復。</span></div></div></div>`);
