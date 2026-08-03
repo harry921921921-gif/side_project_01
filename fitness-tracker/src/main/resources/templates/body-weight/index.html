@@ -211,24 +211,23 @@
         return map;
     }
 
-    // ── 週視圖：本週一到本週日 ────────────────────────────
+    // ── 週視圖：過去 7 天（含今天）──────────────────────
     function getWeekData() {
         const today = new Date();
         const todayStr = today.toISOString().slice(0, 10);
-        const dow = today.getDay(); // 0=Sun
-        const monday = new Date(today);
-        monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+        const start = new Date(today);
+        start.setDate(today.getDate() - 6);
 
-        const dayNames = ['一','二','三','四','五','六','日'];
+        const dayNames = ['日','一','二','三','四','五','六'];
         const labels = [], weights = [];
         const dayMap = buildDayMap(ascData);
         let lastKnown = null;
 
         for (let i = 0; i < 7; i++) {
-            const d = new Date(monday);
-            d.setDate(monday.getDate() + i);
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
             const dateStr = d.toISOString().slice(0, 10);
-            labels.push(dayNames[i] + ' ' + dateStr.slice(5));
+            labels.push(dayNames[d.getDay()] + ' ' + dateStr.slice(5));
             let w = dayMap.get(dateStr);
             if (w == null) {
                 // 只往前帶入（過去空白日補上一次數值），未來還沒到的日期留空
@@ -241,23 +240,22 @@
         return { labels, weights };
     }
 
-    // ── 月視圖：本月 1 日到最後一日 ──────────────────────
+    // ── 月視圖：過去 30 天（含今天）──────────────────────
     function getMonthData() {
         const today = new Date();
         const todayStr = today.toISOString().slice(0, 10);
-        const year  = today.getFullYear();
-        const month = today.getMonth(); // 0-based
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const start = new Date(today);
+        start.setDate(today.getDate() - 29);
 
         const labels = [], weights = [];
         const dayMap = buildDayMap(ascData);
         let lastKnown = null;
 
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = year + '-'
-                + String(month + 1).padStart(2, '0') + '-'
-                + String(d).padStart(2, '0');
-            labels.push(d + '日');
+        for (let i = 0; i < 30; i++) {
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
+            const dateStr = d.toISOString().slice(0, 10);
+            labels.push((d.getMonth() + 1) + '/' + d.getDate());
             let w = dayMap.get(dateStr);
             if (w == null) {
                 // 只往前帶入（過去空白日補上一次數值），未來還沒到的日期留空
@@ -270,7 +268,7 @@
         return { labels, weights };
     }
 
-    // ── 年視圖：近 12 個月，每月取最後一筆 ──────────────
+    // ── 年視圖：過去 12 個月，每月取最後一筆 ──────────────
     function getYearData() {
         const today = new Date();
         const labels = [], weights = [];
