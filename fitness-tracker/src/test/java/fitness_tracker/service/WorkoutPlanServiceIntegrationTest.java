@@ -2,6 +2,7 @@ package fitness_tracker.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -106,5 +107,36 @@ class WorkoutPlanServiceIntegrationTest {
 
         assertEquals("推日", next.dayName());
         assertTrue(next.mainNames().contains("臥推"));
+    }
+
+    // ===== 週次 + A/B 配件輪替：對著真的 Exercise 表驗證「拉 A」跟「拉 B」不再長一樣 =====
+
+    private DaySplitDef sixDaySplitDay(String name) {
+        return SplitCatalog.forDays(6).stream().filter(d -> d.name().equals(name)).findFirst().orElseThrow();
+    }
+
+    @Test
+    void sixDayPullADiffersFromPullBInSameWeekButMainNamesStaySame() {
+        User user = newTestUser();
+        DaySplitDef pullA = sixDaySplitDay("拉 A");
+        DaySplitDef pullB = sixDaySplitDay("拉 B");
+
+        WorkoutPlanService.DayComposition a = workoutPlanService.composeDay(user, pullA, 1);
+        WorkoutPlanService.DayComposition b = workoutPlanService.composeDay(user, pullB, 1);
+
+        assertNotEquals(a.accessoryPool(), b.accessoryPool(), "真實資料庫下，同一週的拉A/拉B配件也應該不一樣");
+        assertEquals(a.mainNames(), b.mainNames(), "主項（進階追蹤依據）不受 A/B 輪替影響");
+    }
+
+    @Test
+    void sixDayPullADiffersAcrossWeeksButMainNamesStaySame() {
+        User user = newTestUser();
+        DaySplitDef pullA = sixDaySplitDay("拉 A");
+
+        WorkoutPlanService.DayComposition week1 = workoutPlanService.composeDay(user, pullA, 1);
+        WorkoutPlanService.DayComposition week3 = workoutPlanService.composeDay(user, pullA, 3);
+
+        assertNotEquals(week1.accessoryPool(), week3.accessoryPool(), "真實資料庫下，換週配件也應該不一樣");
+        assertEquals(week1.mainNames(), week3.mainNames());
     }
 }

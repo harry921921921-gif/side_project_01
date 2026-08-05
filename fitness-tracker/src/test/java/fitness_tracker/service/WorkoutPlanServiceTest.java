@@ -2,6 +2,7 @@ package fitness_tracker.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -52,6 +53,18 @@ class WorkoutPlanServiceTest {
                 .thenReturn(List.of(ex("臥推", "胸", "COMPOUND", "PUSH"), ex("肩推", "肩", "COMPOUND", "PUSH")));
         when(exerciseRepository.findByMovementAndCategoryOrderByOrderIndexAscNameAsc("PUSH", "ISOLATION"))
                 .thenReturn(List.of(ex("側平舉", "肩", "ISOLATION", "PUSH"), ex("三頭下壓", "手臂", "ISOLATION", "PUSH")));
+    }
+
+    // 拉日候選池：主項「硬舉」也在 COMPOUND 清單裡（會被濾掉），剩 1 個複合＋4 個孤立，
+    // 池子夠大才看得出旋轉的效果（複合池只有1個會一直不動，剛好拿來驗證「複合先孤立後」的順序沒被打亂）
+    private void stubPullDayWithBiggerPool() {
+        when(exerciseRepository.findByMovementAndCategoryOrderByOrderIndexAscNameAsc("PULL", "COMPOUND"))
+                .thenReturn(List.of(ex("硬舉", "背", "COMPOUND", "PULL"), ex("槓鈴划船", "背", "COMPOUND", "PULL")));
+        when(exerciseRepository.findByMovementAndCategoryOrderByOrderIndexAscNameAsc("PULL", "ISOLATION"))
+                .thenReturn(List.of(
+                        ex("滑輪下拉", "背", "ISOLATION", "PULL"), ex("坐姿划船", "背", "ISOLATION", "PULL"),
+                        ex("二頭彎舉", "手臂", "ISOLATION", "PULL"), ex("面拉", "肩", "ISOLATION", "PULL")
+                ));
     }
 
     @Test
@@ -313,6 +326,98 @@ class WorkoutPlanServiceTest {
         when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
 
         WorkoutPlanService.DayComposition next = service.nextCompositionInCycle(user, "腿日", 3);
+
+        assertEquals("推日", next.dayName());
+    }
+
+    // ===== 週次 + A/B 配件輪替：composeDay(user, dayDef, week) =====
+
+    @Test
+    void composeDayWithWeekIsStableForRepeatedCallsSameWeek() {
+        stubPullDayWithBiggerPool();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+        DaySplitDef pullA = DaySplitDef.byMovement("拉 A", List.of("硬舉"), "PULL");
+
+        WorkoutPlanService.DayComposition first = service.composeDay(user, pullA, 3);
+        WorkoutPlanService.DayComposition second = service.composeDay(user, pullA, 3);
+
+        assertEquals(first.accessoryPool(), second.accessoryPool(), "同一週重複呼叫應該得到一樣的順序，不能每次隨機");
+    }
+
+    @Test
+    void composeDayWithWeekRotatesIsolationSubPoolByWeekOffsetExactly() {
+        stubPullDayWithBiggerPool();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+        DaySplitDef pullA = DaySplitDef.byMovement("拉 A", List.of("硬舉"), "PULL");
+
+        WorkoutPlanService.DayComposition week1 = service.composeDay(user, pullA, 1);
+        WorkoutPlanService.DayComposition week2 = service.composeDay(user, pullA, 2);
+
+        // 硬舉是主項被濾掉，複合池只剩「槓鈴划船」（size=1，永遠轉不動）；
+        // 孤立池 4 個，week1 offset=0 不轉，week2 offset=1 往前轉一格
+        assertEquals(List.of("槓鈴划船", "滑輪下拉", "坐姿划船", "二頭彎舉", "面拉"), week1.accessoryPool());
+        assertEquals(List.of("槓鈴划船", "坐姿划船", "二頭彎舉", "面拉", "滑輪下拉"), week2.accessoryPool());
+        assertNotEquals(week1.accessoryPool(), week2.accessoryPool(), "換週配件順序應該不同");
+    }
+
+    @Test
+    void composeDayWithWeekDiffersBetweenAAndBSameWeekButMainNamesStaySame() {
+        stubPullDayWithBiggerPool();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+        DaySplitDef pullA = DaySplitDef.byMovement("拉 A", List.of("硬舉"), "PULL");
+        DaySplitDef pullB = DaySplitDef.byMovement("拉 B", List.of("硬舉"), "PULL");
+
+        WorkoutPlanService.DayComposition a = service.composeDay(user, pullA, 1);
+        WorkoutPlanService.DayComposition b = service.composeDay(user, pullB, 1);
+
+        // B 天孤立池額外加半圈（4/2=2 格）：offset=0+2=2
+        assertEquals(List.of("槓鈴划船", "二頭彎舉", "面拉", "滑輪下拉", "坐姿划船"), b.accessoryPool());
+        assertNotEquals(a.accessoryPool(), b.accessoryPool(), "同一週 A 跟 B 配件順序應該不同");
+        assertEquals(a.mainNames(), b.mainNames(), "主項不受 A/B 輪替影響，進階追蹤穩定");
+        assertEquals(List.of("硬舉"), a.mainNames());
+    }
+
+    @Test
+    void composeDayWithWeekKeepsCompoundBeforeIsolationOrderingAfterRotation() {
+        stubPullDayWithBiggerPool();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+        DaySplitDef pullB = DaySplitDef.byMovement("拉 B", List.of("硬舉"), "PULL");
+
+        WorkoutPlanService.DayComposition week4 = service.composeDay(user, pullB, 4);
+
+        assertEquals("槓鈴划船", week4.accessoryPool().get(0), "旋轉後複合動作仍然排在孤立動作前面");
+    }
+
+    @Test
+    void composeDayWithWeekStillAppliesWeeklyDedupPreference() {
+        stubPullDayWithBiggerPool();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of("坐姿划船"));
+        DaySplitDef pullA = DaySplitDef.byMovement("拉 A", List.of("硬舉"), "PULL");
+
+        WorkoutPlanService.DayComposition week1 = service.composeDay(user, pullA, 1);
+
+        assertFalse(week1.accessoryPool().contains("坐姿划船"), "本週已練過的配件依然要被排除，輪替不影響週去重");
+    }
+
+    @Test
+    void currentQueueCompositionWithWeekPassesWeekToEachDay() {
+        // 1 天分化只有「全身」（用 bodyPart 篩選，不牽涉 movement stub），
+        // 確認帶 week 的多載能正常跑完，回傳的就是 SplitCatalog.forDays(1) 那唯一一天
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+
+        List<WorkoutPlanService.DayComposition> queue = service.currentQueueComposition(user, 1, 2);
+
+        assertEquals(1, queue.size());
+        assertEquals("全身", queue.get(0).dayName());
+    }
+
+    @Test
+    void nextCompositionInCycleWithWeekAppliesRotationToTheNextDay() {
+        // 從「腿日」的下一個算起會繞回「推日」（PUSH），只需要 stub PUSH
+        stubPushDay();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+
+        WorkoutPlanService.DayComposition next = service.nextCompositionInCycle(user, "腿日", 3, 5);
 
         assertEquals("推日", next.dayName());
     }

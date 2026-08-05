@@ -46,17 +46,19 @@ public class PlanController {
     public String plan(Model model) {
         User user = currentUserService.getCurrentUser();
         TrainingPlan p = trainingPlanService.getOrCreateForUser(user);
+        int week = trainingPlanService.currentWeek(p, LocalDate.now());
         model.addAttribute("planMode", p.getMode().name());
         model.addAttribute("planDays", p.getDaysPerWeek());
-        model.addAttribute("planWeek", trainingPlanService.currentWeek(p, LocalDate.now()));
+        model.addAttribute("planWeek", week);
         Map<String, Object> prs = new HashMap<>();
         for (LiftPr pr : liftPrService.findByUser(user)) {
             prs.put(pr.getExerciseName(), Map.of("w", pr.getWeightKg(), "r", pr.getReps()));
         }
         model.addAttribute("planPrs", prs);
         model.addAttribute("completedDays", workoutService.completedBodyPartsThisWeek(user));
-        // 課表卡片組成（哪些主項/配件）現在真的查 Exercise 表選，不再是前端寫死的清單
-        model.addAttribute("planQueue", workoutPlanService.currentQueueComposition(user, p.getDaysPerWeek()));
+        // 課表卡片組成（哪些主項/配件）現在真的查 Exercise 表選，不再是前端寫死的清單；
+        // 帶週次讓配件池依「第幾週＋A/B」旋轉，同一天型態不會週週長一樣
+        model.addAttribute("planQueue", workoutPlanService.currentQueueComposition(user, p.getDaysPerWeek(), week));
         // 配件動作可以換成的清單，來源是 Exercise 表（排除四大主項），給卡片編輯面板的下拉選單用
         List<String> accessoryPool = exerciseService.findAll().stream()
                 .map(e -> e.getName())

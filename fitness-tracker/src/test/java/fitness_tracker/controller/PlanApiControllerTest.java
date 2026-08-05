@@ -61,4 +61,33 @@ class PlanApiControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dayName").value("推日"));
     }
+
+    @Test
+    void queueWithWeekParamUsesWeekAwareOverload() throws Exception {
+        User user = new User();
+        user.setEmail("test@example.com");
+        given(currentUserService.getCurrentUser()).willReturn(user);
+        given(workoutPlanService.currentQueueComposition(user, 6, 3)).willReturn(List.of(
+                new DayComposition("拉 A", List.of("硬舉"), List.of("面拉", "二頭彎舉"))
+        ));
+
+        mockMvc.perform(get("/plan/api/queue").param("days", "6").param("week", "3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].dayName").value("拉 A"))
+                .andExpect(jsonPath("$[0].accessoryPool[0]").value("面拉"));
+    }
+
+    @Test
+    void nextWithWeekParamUsesWeekAwareOverload() throws Exception {
+        User user = new User();
+        user.setEmail("test@example.com");
+        given(currentUserService.getCurrentUser()).willReturn(user);
+        given(workoutPlanService.nextCompositionInCycle(user, "腿 B", 6, 3)).willReturn(
+                new DayComposition("推 A", List.of("臥推", "肩推"), List.of("側平舉"))
+        );
+
+        mockMvc.perform(get("/plan/api/next").param("lastDay", "腿 B").param("days", "6").param("week", "3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dayName").value("推 A"));
+    }
 }

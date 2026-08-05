@@ -116,10 +116,18 @@ public class WorkoutPlanService {
         return planDay(user, nextSplitDay(lastDayName, daysPerWeek), mode, phaseType, deload);
     }
 
-    // 只排動作組成，不算重量——給前端即時互動用，天數以外的任何切換（程度/週次/減量）都不用重打這支
+    // 只排動作組成，不算重量——給前端即時互動用，天數以外的任何切換（程度/減量）都不用重打這支
     public DayComposition composeDay(User user, DaySplitDef dayDef) {
         List<String> mainNames = dayDef.mainLifts();
         List<String> accessoryNames = accessoryPoolFor(user, dayDef, mainNames).stream().map(Exercise::getName).toList();
+        return new DayComposition(dayDef.name(), mainNames, accessoryNames);
+    }
+
+    // 帶週次版本：同一天型態（例如「拉 A」）依「第幾週＋A/B」旋轉配件池，讓週與週、同一週的 A 跟 B 都不會長一樣；
+    // 主項完全不受影響（dayDef.mainLifts() 不變），進階追蹤（1RM／PR）需要的主項穩定性不會被打亂
+    public DayComposition composeDay(User user, DaySplitDef dayDef, int week) {
+        List<String> mainNames = dayDef.mainLifts();
+        List<String> accessoryNames = accessoryPoolFor(user, dayDef, mainNames, week).stream().map(Exercise::getName).toList();
         return new DayComposition(dayDef.name(), mainNames, accessoryNames);
     }
 
@@ -127,8 +135,16 @@ public class WorkoutPlanService {
         return remainingSplitDays(user, daysPerWeek).stream().map(d -> composeDay(user, d)).toList();
     }
 
+    public List<DayComposition> currentQueueComposition(User user, int daysPerWeek, int week) {
+        return remainingSplitDays(user, daysPerWeek).stream().map(d -> composeDay(user, d, week)).toList();
+    }
+
     public DayComposition nextCompositionInCycle(User user, String lastDayName, int daysPerWeek) {
         return composeDay(user, nextSplitDay(lastDayName, daysPerWeek));
+    }
+
+    public DayComposition nextCompositionInCycle(User user, String lastDayName, int daysPerWeek, int week) {
+        return composeDay(user, nextSplitDay(lastDayName, daysPerWeek), week);
     }
 
     private List<DaySplitDef> remainingSplitDays(User user, int daysPerWeek) {
@@ -154,6 +170,7 @@ public class WorkoutPlanService {
     }
 
     // 複合先、孤立後；主項另外處理所以要排除；一週內優先排沒練過的，都練過了才放寬重複（寧可重複也不開天窗）
+    // 沒有 week 的版本：固定順序、不旋轉——給 planDay／舊呼叫端用，重量流程完全不動
     private List<Exercise> accessoryPoolFor(User user, DaySplitDef dayDef, List<String> mainNames) {
         Set<String> usedThisWeek = workoutService.exerciseNamesThisWeek(user);
         List<Exercise> compounds = candidatesFor(dayDef, "COMPOUND");
@@ -164,6 +181,37 @@ public class WorkoutPlanService {
 
         List<Exercise> preferred = accessoryPool.stream().filter(e -> !usedThisWeek.contains(e.getName())).toList();
         return preferred.isEmpty() ? accessoryPool : preferred;
+    }
+
+    // 帶週次版本：複合子池、孤立子池「各自」旋轉再接起來（複合仍在前、孤立仍在後），
+    // 旋轉量 = (week-1) + 天名結尾是 B 的話再加半圈（該子池大小的一半）——同一週同一天型態穩定、
+    // 換週或換 A/B 就會轉出不同的起點，主項（mainNames）完全不受影響
+    private List<Exercise> accessoryPoolFor(User user, DaySplitDef dayDef, List<String> mainNames, int week) {
+        Set<String> usedThisWeek = workoutService.exerciseNamesThisWeek(user);
+        List<Exercise> compounds = candidatesFor(dayDef, "COMPOUND").stream()
+                .filter(e -> !mainNames.contains(e.getName())).toList();
+        List<Exercise> isolations = candidatesFor(dayDef, "ISOLATION").stream()
+                .filter(e -> !mainNames.contains(e.getName())).toList();
+
+        int weekOffset = Math.max(week, 1) - 1;
+        boolean isB = dayDef.name() != null && dayDef.name().endsWith("B");
+
+        List<Exercise> accessoryPool = new ArrayList<>(rotate(compounds, weekOffset, isB));
+        accessoryPool.addAll(rotate(isolations, weekOffset, isB));
+
+        List<Exercise> preferred = accessoryPool.stream().filter(e -> !usedThisWeek.contains(e.getName())).toList();
+        return preferred.isEmpty() ? accessoryPool : preferred;
+    }
+
+    private static <T> List<T> rotate(List<T> list, int weekOffset, boolean addHalfTurnForB) {
+        int n = list.size();
+        if (n == 0) return list;
+        int offset = weekOffset + (addHalfTurnForB ? n / 2 : 0);
+        int shift = ((offset % n) + n) % n;
+        if (shift == 0) return list;
+        List<T> rotated = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) rotated.add(list.get((i + shift) % n));
+        return rotated;
     }
 
     private List<Exercise> candidatesFor(DaySplitDef dayDef, String category) {

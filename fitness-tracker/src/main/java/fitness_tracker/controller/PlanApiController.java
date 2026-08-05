@@ -26,15 +26,21 @@ public class PlanApiController {
         this.workoutPlanService = workoutPlanService;
     }
 
+    // week 選填：帶了就用「週次＋A/B」旋轉配件池，讓同一天型態週與週、A跟B不一樣；不帶就退回舊的固定順序
     @GetMapping("/queue")
-    public List<DayComposition> queue(@RequestParam int days) {
+    public List<DayComposition> queue(@RequestParam int days, @RequestParam(required = false) Integer week) {
         User user = currentUserService.getCurrentUser();
-        return workoutPlanService.currentQueueComposition(user, days);
+        return week != null
+                ? workoutPlanService.currentQueueComposition(user, days, week)
+                : workoutPlanService.currentQueueComposition(user, days);
     }
 
     @GetMapping("/next")
-    public DayComposition next(@RequestParam String lastDay, @RequestParam int days) {
+    public DayComposition next(@RequestParam String lastDay, @RequestParam int days,
+                               @RequestParam(required = false) Integer week) {
         User user = currentUserService.getCurrentUser();
-        return workoutPlanService.nextCompositionInCycle(user, lastDay, days);
+        return week != null
+                ? workoutPlanService.nextCompositionInCycle(user, lastDay, days, week)
+                : workoutPlanService.nextCompositionInCycle(user, lastDay, days);
     }
 }
