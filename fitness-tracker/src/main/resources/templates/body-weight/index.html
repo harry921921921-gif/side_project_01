@@ -211,22 +211,45 @@
         return map;
     }
 
-    // ── 週視圖：過去 7 天（含今天）──────────────────────
+    // ── 本地日期字串（YYYY-MM-DD）：故意不用 toISOString().slice(0,10)，那個是轉成 UTC 再切，
+    //    在 UTC+8 時區每天 00:00–07:59 之間會切出「前一天」的日期，跟後端存的 LocalDate 對不起來 ──
+    function toLocalDateStr(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    // 歸零時分秒，只留日期——兩個 Date 相減才會剛好是整數天，不會因為當下的時分秒而算錯天數
+    function startOfDay(d) {
+        const r = new Date(d);
+        r.setHours(0, 0, 0, 0);
+        return r;
+    }
+
+    // ── 使用者第一筆紀錄的日期：歷史不夠長時，視窗跟著縮短，讓線圖真的畫滿整個寬度，
+    //    不會像行事曆格線一樣把還沒開始記錄的空白日期也畫出來（一般健身 App 都是這樣處理）──
+    function firstRecordDate() {
+        if (!ascData.length) return null;
+        return startOfDay(new Date(ascData[0].date + 'T00:00:00'));
+    }
+
+    // ── 週視圖：過去 7 天（含今天），歷史不足 7 天就從第一筆紀錄畫起 ──────
     function getWeekData() {
-        const today = new Date();
-        const todayStr = today.toISOString().slice(0, 10);
-        const start = new Date(today);
-        start.setDate(today.getDate() - 6);
+        const today = startOfDay(new Date());
+        const todayStr = toLocalDateStr(today);
+        const nominalStart = startOfDay(today);
+        nominalStart.setDate(today.getDate() - 6);
+        const first = firstRecordDate();
+        const start = (first && first > nominalStart) ? first : nominalStart;
+        const dayCount = Math.round((today - start) / 86400000) + 1;
 
         const dayNames = ['日','一','二','三','四','五','六'];
         const labels = [], weights = [];
         const dayMap = buildDayMap(ascData);
         let lastKnown = null;
 
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < dayCount; i++) {
             const d = new Date(start);
             d.setDate(start.getDate() + i);
-            const dateStr = d.toISOString().slice(0, 10);
+            const dateStr = toLocalDateStr(d);
             labels.push(dayNames[d.getDay()] + ' ' + dateStr.slice(5));
             let w = dayMap.get(dateStr);
             if (w == null) {
@@ -240,21 +263,24 @@
         return { labels, weights };
     }
 
-    // ── 月視圖：過去 30 天（含今天）──────────────────────
+    // ── 月視圖：過去 30 天（含今天），歷史不足 30 天就從第一筆紀錄畫起 ──────
     function getMonthData() {
-        const today = new Date();
-        const todayStr = today.toISOString().slice(0, 10);
-        const start = new Date(today);
-        start.setDate(today.getDate() - 29);
+        const today = startOfDay(new Date());
+        const todayStr = toLocalDateStr(today);
+        const nominalStart = startOfDay(today);
+        nominalStart.setDate(today.getDate() - 29);
+        const first = firstRecordDate();
+        const start = (first && first > nominalStart) ? first : nominalStart;
+        const dayCount = Math.round((today - start) / 86400000) + 1;
 
         const labels = [], weights = [];
         const dayMap = buildDayMap(ascData);
         let lastKnown = null;
 
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < dayCount; i++) {
             const d = new Date(start);
             d.setDate(start.getDate() + i);
-            const dateStr = d.toISOString().slice(0, 10);
+            const dateStr = toLocalDateStr(d);
             labels.push((d.getMonth() + 1) + '/' + d.getDate());
             let w = dayMap.get(dateStr);
             if (w == null) {
@@ -268,11 +294,17 @@
         return { labels, weights };
     }
 
-    // ── 年視圖：過去 12 個月，每月取最後一筆 ──────────────
+    // ── 年視圖：過去 12 個月，每月取最後一筆；歷史不足 12 個月就從第一筆紀錄那個月畫起 ──
     function getYearData() {
         const today = new Date();
+        const first = firstRecordDate();
+        let monthsBack = 11;
+        if (first) {
+            const monthsSinceFirst = (today.getFullYear() - first.getFullYear()) * 12 + (today.getMonth() - first.getMonth());
+            monthsBack = Math.min(11, Math.max(monthsSinceFirst, 0));
+        }
         const labels = [], weights = [];
-        for (let i = 11; i >= 0; i--) {
+        for (let i = monthsBack; i >= 0; i--) {
             const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
             const prefix = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
             labels.push(prefix);
