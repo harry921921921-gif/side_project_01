@@ -126,8 +126,15 @@ public class WorkoutPlanService {
     // 帶週次版本：同一天型態（例如「拉 A」）依「第幾週＋A/B」旋轉配件池，讓週與週、同一週的 A 跟 B 都不會長一樣；
     // 主項完全不受影響（dayDef.mainLifts() 不變），進階追蹤（1RM／PR）需要的主項穩定性不會被打亂
     public DayComposition composeDay(User user, DaySplitDef dayDef, int week) {
+        return composeDay(user, dayDef, week, 0);
+    }
+
+    // extraOffset：分化天數較少（例如 3 天）時，「新增課表」會在同一週內把整個分化循環繞回第二圈，
+    // 此時同一個天名（例如「拉日」，沒有 A/B 可分）在同一週、同一次請求脈絡下光靠 week 轉不出差異，
+    // 需要呼叫端（目前是 nextCompositionInCycle）額外帶入「這是第幾張卡片」之類的遞增值，疊加到旋轉量上
+    public DayComposition composeDay(User user, DaySplitDef dayDef, int week, int extraOffset) {
         List<String> mainNames = dayDef.mainLifts();
-        List<String> accessoryNames = accessoryPoolFor(user, dayDef, mainNames, week).stream().map(Exercise::getName).toList();
+        List<String> accessoryNames = accessoryPoolFor(user, dayDef, mainNames, week, extraOffset).stream().map(Exercise::getName).toList();
         return new DayComposition(dayDef.name(), mainNames, accessoryNames);
     }
 
@@ -145,6 +152,12 @@ public class WorkoutPlanService {
 
     public DayComposition nextCompositionInCycle(User user, String lastDayName, int daysPerWeek, int week) {
         return composeDay(user, nextSplitDay(lastDayName, daysPerWeek), week);
+    }
+
+    // extraOffset 由前端傳「目前佇列已經有幾張卡」——每加一張就遞增，確保分化循環繞第二圈時
+    // 就算天名（無A/B）、週次都跟第一圈的那張卡一樣，配件也還是會轉到不同位置，不會一模一樣
+    public DayComposition nextCompositionInCycle(User user, String lastDayName, int daysPerWeek, int week, int extraOffset) {
+        return composeDay(user, nextSplitDay(lastDayName, daysPerWeek), week, extraOffset);
     }
 
     private List<DaySplitDef> remainingSplitDays(User user, int daysPerWeek) {
@@ -184,16 +197,17 @@ public class WorkoutPlanService {
     }
 
     // 帶週次版本：複合子池、孤立子池「各自」旋轉再接起來（複合仍在前、孤立仍在後），
-    // 旋轉量 = (week-1) + 天名結尾是 B 的話再加半圈（該子池大小的一半）——同一週同一天型態穩定、
-    // 換週或換 A/B 就會轉出不同的起點，主項（mainNames）完全不受影響
-    private List<Exercise> accessoryPoolFor(User user, DaySplitDef dayDef, List<String> mainNames, int week) {
+    // 旋轉量 = (week-1) + extraOffset + 天名結尾是 B 的話再加半圈（該子池大小的一半）——
+    // 同一週同一天型態穩定、換週或換 A/B 就會轉出不同的起點，extraOffset 讓分化循環繞第二圈時
+    // 就算天名（無A/B）跟週次都相同也還是會轉出不同結果；主項（mainNames）完全不受影響
+    private List<Exercise> accessoryPoolFor(User user, DaySplitDef dayDef, List<String> mainNames, int week, int extraOffset) {
         Set<String> usedThisWeek = workoutService.exerciseNamesThisWeek(user);
         List<Exercise> compounds = candidatesFor(dayDef, "COMPOUND").stream()
                 .filter(e -> !mainNames.contains(e.getName())).toList();
         List<Exercise> isolations = candidatesFor(dayDef, "ISOLATION").stream()
                 .filter(e -> !mainNames.contains(e.getName())).toList();
 
-        int weekOffset = Math.max(week, 1) - 1;
+        int weekOffset = Math.max(week, 1) - 1 + extraOffset;
         boolean isB = dayDef.name() != null && dayDef.name().endsWith("B");
 
         List<Exercise> accessoryPool = new ArrayList<>(rotate(compounds, weekOffset, isB));

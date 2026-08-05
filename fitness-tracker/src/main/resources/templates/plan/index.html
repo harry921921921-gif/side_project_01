@@ -316,7 +316,10 @@ function scheduleQueueFetch(days,week){
 }
 function addNextCourse(){
   const last=state.queue[state.queue.length-1];
-  fetch('/plan/api/next?lastDay='+encodeURIComponent(last.name)+'&days='+state.days+'&week='+state.week)
+  // extra=目前佇列已經有幾張卡：分化天數少時新增課表會在同一週繞回第二圈，同一天名（沒有A/B可分）
+  // 光靠 week 轉不出差異，帶這個遞增值讓後端疊加旋轉量，避免繞第二圈時配件跟第一圈一模一樣
+  const extra=state.queue.length;
+  fetch('/plan/api/next?lastDay='+encodeURIComponent(last.name)+'&days='+state.days+'&week='+state.week+'&extra='+extra)
     .then(r=>r.json())
     .then(dc=>{state.queue.push(toQueueDay(dc));render();});
 }

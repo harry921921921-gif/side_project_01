@@ -421,4 +421,38 @@ class WorkoutPlanServiceTest {
 
         assertEquals("推日", next.dayName());
     }
+
+    // ===== extraOffset：分化天數少時「新增課表」在同一週繞回第二圈，同一天名（無A/B）也要轉出不同結果 =====
+
+    @Test
+    void composeDayWithExtraOffsetDiffersFromWithoutEvenAtSameWeekAndSameDayName() {
+        stubPullDayWithBiggerPool();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+        // 「拉日」沒有 A/B 尾字，模擬 3 天分化這種沒有 A/B 可分的天名
+        DaySplitDef pullDay = DaySplitDef.byMovement("拉日", List.of("硬舉"), "PULL");
+
+        WorkoutPlanService.DayComposition firstLap = service.composeDay(user, pullDay, 2, 0);
+        WorkoutPlanService.DayComposition secondLap = service.composeDay(user, pullDay, 2, 3);
+
+        assertNotEquals(firstLap.accessoryPool(), secondLap.accessoryPool(),
+                "同一週、同一個沒有A/B的天名，光靠 extraOffset 不同也要轉出不同配件順序");
+        assertEquals(firstLap.mainNames(), secondLap.mainNames(), "主項不受 extraOffset 影響");
+    }
+
+    @Test
+    void nextCompositionInCycleWithExtraOffsetMakesSecondLapDifferFromFirstLap() {
+        // 模擬使用者把 3 天分化的「新增課表」按到分化繞回第二圈：從「腿日」的下一個算起會繞回「推日」，
+        // 這正是螢幕截圖回報的情境——同一週、同一個「推日」，只因為是第二次出現，配件也該不一樣
+        stubPushDay();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+
+        // extra=0 對應第一圈第一次出現「推日」；extra=3（佇列已經有3張卡，模擬繞完一圈後又加一張）對應第二圈
+        WorkoutPlanService.DayComposition firstLapPush = service.nextCompositionInCycle(user, "腿日", 3, 8, 0);
+        WorkoutPlanService.DayComposition secondLapPush = service.nextCompositionInCycle(user, "腿日", 3, 8, 3);
+
+        assertEquals("推日", firstLapPush.dayName());
+        assertEquals("推日", secondLapPush.dayName());
+        assertNotEquals(firstLapPush.accessoryPool(), secondLapPush.accessoryPool(),
+                "同一週繞第二圈遇到同一個天名，配件不該跟第一圈一模一樣");
+    }
 }

@@ -35,12 +35,15 @@ public class PlanApiController {
                 : workoutPlanService.currentQueueComposition(user, days);
     }
 
+    // extra 選填：分化天數少（如3天）時「新增課表」可能在同一週把分化繞回第二圈，此時同一天名
+    // （沒有 A/B 可分）光靠 week 轉不出差異，前端帶「目前佇列已經有幾張卡」進來疊加旋轉量避免撞列
     @GetMapping("/next")
     public DayComposition next(@RequestParam String lastDay, @RequestParam int days,
-                               @RequestParam(required = false) Integer week) {
+                               @RequestParam(required = false) Integer week,
+                               @RequestParam(required = false, defaultValue = "0") int extra) {
         User user = currentUserService.getCurrentUser();
         return week != null
-                ? workoutPlanService.nextCompositionInCycle(user, lastDay, days, week)
+                ? workoutPlanService.nextCompositionInCycle(user, lastDay, days, week, extra)
                 : workoutPlanService.nextCompositionInCycle(user, lastDay, days);
     }
 }

@@ -139,4 +139,25 @@ class WorkoutPlanServiceIntegrationTest {
         assertNotEquals(week1.accessoryPool(), week3.accessoryPool(), "真實資料庫下，換週配件也應該不一樣");
         assertEquals(week1.mainNames(), week3.mainNames());
     }
+
+    // ===== 重現使用者回報的問題：3 天分化用「新增課表」把分化繞回第二圈，同一天名（無A/B）不該一模一樣 =====
+
+    @Test
+    void threeDaySplitAddingCoursesPastFirstLapProducesDifferentAccessoriesForSameDayName() {
+        User user = newTestUser();
+        int week = 8;
+
+        // 模擬使用者一路按「新增課表」：本次課表(推日,extra=0/1/2 佔位由前端state.queue.length決定)
+        // 佇列先有 3 張（推/拉/腿），第 4 張再按新增課表 -> 繞回「推日」，此時 extra = 3（佇列已有3張）
+        WorkoutPlanService.DayComposition firstPush = workoutPlanService.composeDay(user,
+                SplitCatalog.forDays(3).get(0), week, 0); // 佇列第 1 張：推日
+        WorkoutPlanService.DayComposition secondLapPush = workoutPlanService.nextCompositionInCycle(user,
+                "腿日", 3, week, 3); // 繞完一圈後新增的第 4 張，又回到「推日」
+
+        assertEquals("推日", firstPush.dayName());
+        assertEquals("推日", secondLapPush.dayName());
+        assertNotEquals(firstPush.accessoryPool(), secondLapPush.accessoryPool(),
+                "真實資料庫下，同一週繞第二圈遇到同一個天名，配件不該跟第一圈一模一樣（這是使用者截圖回報的問題）");
+        assertEquals(firstPush.mainNames(), secondLapPush.mainNames(), "主項不受影響");
+    }
 }
