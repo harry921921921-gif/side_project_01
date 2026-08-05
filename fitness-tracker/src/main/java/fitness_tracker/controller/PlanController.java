@@ -57,8 +57,10 @@ public class PlanController {
         model.addAttribute("planPrs", prs);
         model.addAttribute("completedDays", workoutService.completedBodyPartsThisWeek(user));
         // 課表卡片組成（哪些主項/配件）現在真的查 Exercise 表選，不再是前端寫死的清單；
-        // 帶週次讓配件池依「第幾週＋A/B」旋轉，同一天型態不會週週長一樣
-        model.addAttribute("planQueue", workoutPlanService.currentQueueComposition(user, p.getDaysPerWeek(), week));
+        // 帶週次讓配件池依「第幾週＋A/B」旋轉，同一天型態不會週週長一樣；
+        // 帶 extraQueueCount 把「新增課表」多排出來、已持久化的張數重建回來，重新登入不會不見
+        model.addAttribute("planQueue",
+                workoutPlanService.currentQueueComposition(user, p.getDaysPerWeek(), week, p.getExtraQueueCount()));
         // 配件動作可以換成的清單，來源是 Exercise 表（排除四大主項），給卡片編輯面板的下拉選單用
         List<String> accessoryPool = exerciseService.findAll().stream()
                 .map(e -> e.getName())

@@ -135,4 +135,68 @@ class TrainingPlanServiceTest {
 
         assertEquals(104, service.currentWeek(updated, LocalDate.now()));
     }
+
+    // ===== extraQueueCount：「新增課表」多排出來的張數要跨登入保留，只有換天數/手動校正週次才歸零 =====
+
+    @Test
+    void saveOrUpdateKeepsExtraQueueCountWhenDaysPerWeekUnchanged() {
+        TrainingPlan plan = new TrainingPlan();
+        plan.setDaysPerWeek(3);
+        plan.setExtraQueueCount(4);
+        when(repo.findByUser(user)).thenReturn(Optional.of(plan));
+        when(repo.save(any(TrainingPlan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TrainingPlan updated = service.saveOrUpdate(user, PlanMode.VETERAN, 3, "MONDAY", null);
+
+        assertEquals(4, updated.getExtraQueueCount(), "天數沒變，新增課表排出來的張數應該保留");
+    }
+
+    @Test
+    void saveOrUpdateResetsExtraQueueCountWhenDaysPerWeekChanges() {
+        TrainingPlan plan = new TrainingPlan();
+        plan.setDaysPerWeek(3);
+        plan.setExtraQueueCount(4);
+        when(repo.findByUser(user)).thenReturn(Optional.of(plan));
+        when(repo.save(any(TrainingPlan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TrainingPlan updated = service.saveOrUpdate(user, PlanMode.VETERAN, 5, "MONDAY", null);
+
+        assertEquals(0, updated.getExtraQueueCount(), "天數改變後，舊的延伸卡片對新分化沒意義，應該歸零");
+    }
+
+    @Test
+    void saveOrUpdateForBrandNewPlanStartsExtraQueueCountAtZero() {
+        when(repo.findByUser(user)).thenReturn(Optional.empty());
+        when(repo.save(any(TrainingPlan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TrainingPlan plan = service.saveOrUpdate(user, PlanMode.NOVICE, 4, "MONDAY", null);
+
+        assertEquals(0, plan.getExtraQueueCount());
+    }
+
+    @Test
+    void setCurrentWeekResetsExtraQueueCount() {
+        TrainingPlan plan = new TrainingPlan();
+        plan.setExtraQueueCount(3);
+        when(repo.findByUser(user)).thenReturn(Optional.of(plan));
+        when(repo.save(any(TrainingPlan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TrainingPlan updated = service.setCurrentWeek(user, 10);
+
+        assertEquals(0, updated.getExtraQueueCount(), "手動校正週次算主動更改訓練週期，延伸卡片應該歸零");
+    }
+
+    @Test
+    void incrementExtraQueueCountAddsOneAndPersists() {
+        TrainingPlan plan = new TrainingPlan();
+        plan.setExtraQueueCount(2);
+        when(repo.findByUser(user)).thenReturn(Optional.of(plan));
+        when(repo.save(any(TrainingPlan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        int result = service.incrementExtraQueueCount(user);
+
+        assertEquals(3, result);
+        assertEquals(3, plan.getExtraQueueCount());
+        verify(repo).save(plan);
+    }
 }

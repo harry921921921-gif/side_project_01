@@ -146,6 +146,23 @@ public class WorkoutPlanService {
         return remainingSplitDays(user, daysPerWeek).stream().map(d -> composeDay(user, d, week)).toList();
     }
 
+    // extraQueueCount：使用者用「新增課表」多排出來、已經持久化的張數（見 TrainingPlan.extraQueueCount）。
+    // 重新登入時要把這些延伸卡片重建回來，不能只顯示本週分化的基本張數。extraOffset 算法跟前端
+    // addNextCourse() 送出的 extra（目前佇列已有幾張卡）完全對齊，重建出來的旋轉結果才會一致。
+    public List<DayComposition> currentQueueComposition(User user, int daysPerWeek, int week, int extraQueueCount) {
+        List<DaySplitDef> remaining = remainingSplitDays(user, daysPerWeek);
+        List<DayComposition> result = new ArrayList<>(remaining.stream().map(d -> composeDay(user, d, week)).toList());
+
+        String lastDayName = remaining.get(remaining.size() - 1).name();
+        for (int i = 0; i < extraQueueCount; i++) {
+            int extraOffset = remaining.size() + i;
+            DaySplitDef next = nextSplitDay(lastDayName, daysPerWeek);
+            result.add(composeDay(user, next, week, extraOffset));
+            lastDayName = next.name();
+        }
+        return result;
+    }
+
     public DayComposition nextCompositionInCycle(User user, String lastDayName, int daysPerWeek) {
         return composeDay(user, nextSplitDay(lastDayName, daysPerWeek));
     }

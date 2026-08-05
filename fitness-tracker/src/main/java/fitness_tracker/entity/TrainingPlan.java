@@ -36,6 +36,11 @@ public class TrainingPlan {
     @Column(nullable = false)
     private LocalDate phaseStartDate;
 
+    // 「本週完整課表」用「新增課表」多排出來的張數（超出當週分化基本張數的部分）。
+    // 換天數或手動校正週次時歸零，其餘情況（含重新登入）都要保留，不然使用者剛排好的課表一登出就不見。
+    @Column(nullable = false)
+    private int extraQueueCount = 0;
+
     // 選填：BULK / CUT / MAINTAIN，只當 AI 語氣標籤，不影響重量
     private String bodyGoal;
 
@@ -76,6 +81,7 @@ public class TrainingPlan {
     public int getDaysPerWeek()          { return daysPerWeek; }
     public String getTrainingWeekdays()  { return trainingWeekdays; }
     public LocalDate getPhaseStartDate() { return phaseStartDate; }
+    public int getExtraQueueCount()      { return extraQueueCount; }
     public String getBodyGoal()          { return bodyGoal; }
     public String getStatus()            { return status; }
     public LocalDateTime getCreatedAt()  { return createdAt; }
@@ -86,6 +92,7 @@ public class TrainingPlan {
     public void setDaysPerWeek(int daysPerWeek)          { this.daysPerWeek = daysPerWeek; }
     public void setTrainingWeekdays(String w)            { this.trainingWeekdays = w; }
     public void setPhaseStartDate(LocalDate d)           { this.phaseStartDate = d; }
+    public void setExtraQueueCount(int n)                { this.extraQueueCount = Math.max(n, 0); }
     public void setBodyGoal(String bodyGoal)             { this.bodyGoal = bodyGoal; }
     public void setStatus(String status)                 { this.status = status; }
 }

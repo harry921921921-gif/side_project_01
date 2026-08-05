@@ -455,4 +455,59 @@ class WorkoutPlanServiceTest {
         assertNotEquals(firstLapPush.accessoryPool(), secondLapPush.accessoryPool(),
                 "同一週繞第二圈遇到同一個天名，配件不該跟第一圈一模一樣");
     }
+
+    // ===== extraQueueCount：重新登入時把「新增課表」多排出來、已持久化的張數重建回佇列 =====
+
+    private void stubAllThreeMovementsForThreeDaySplit() {
+        stubPushDay();
+        when(exerciseRepository.findByMovementAndCategoryOrderByOrderIndexAscNameAsc("PULL", "COMPOUND"))
+                .thenReturn(List.of(ex("硬舉", "背", "COMPOUND", "PULL")));
+        when(exerciseRepository.findByMovementAndCategoryOrderByOrderIndexAscNameAsc("PULL", "ISOLATION"))
+                .thenReturn(List.of(ex("滑輪下拉", "背", "ISOLATION", "PULL")));
+        when(exerciseRepository.findByMovementAndCategoryOrderByOrderIndexAscNameAsc("LEGS", "COMPOUND"))
+                .thenReturn(List.of(ex("深蹲", "腿", "COMPOUND", "LEGS")));
+        when(exerciseRepository.findByMovementAndCategoryOrderByOrderIndexAscNameAsc("LEGS", "ISOLATION"))
+                .thenReturn(List.of(ex("腿彎舉", "腿", "ISOLATION", "LEGS")));
+    }
+
+    @Test
+    void currentQueueCompositionWithExtraQueueCountAppendsPersistedExtraCards() {
+        stubAllThreeMovementsForThreeDaySplit();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+        when(workoutService.completedBodyPartsThisWeek(user)).thenReturn(Set.of());
+
+        List<WorkoutPlanService.DayComposition> queue = service.currentQueueComposition(user, 3, 8, 2);
+
+        List<String> names = queue.stream().map(WorkoutPlanService.DayComposition::dayName).toList();
+        assertEquals(List.of("推日", "拉日", "腿日", "推日", "拉日"), names,
+                "3 天基本分化 + 持久化的 2 張延伸卡片，應該接續分化循環（推->拉）");
+    }
+
+    @Test
+    void currentQueueCompositionWithExtraQueueCountRotatesRepeatedDayNameDifferently() {
+        stubAllThreeMovementsForThreeDaySplit();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+        when(workoutService.completedBodyPartsThisWeek(user)).thenReturn(Set.of());
+
+        // extraQueueCount=3 剛好繞完一整圈，第 4 張（index 3）又是「推日」，應該跟第 1 張的推日配件不同
+        List<WorkoutPlanService.DayComposition> queue = service.currentQueueComposition(user, 3, 8, 3);
+
+        assertEquals(6, queue.size());
+        assertEquals("推日", queue.get(0).dayName());
+        assertEquals("推日", queue.get(3).dayName());
+        assertNotEquals(queue.get(0).accessoryPool(), queue.get(3).accessoryPool(),
+                "重建佇列時，繞第二圈的同一天名也要轉出不同配件，不能重建成一模一樣");
+    }
+
+    @Test
+    void currentQueueCompositionWithZeroExtraQueueCountMatchesThreeArgOverload() {
+        stubAllThreeMovementsForThreeDaySplit();
+        when(workoutService.exerciseNamesThisWeek(user)).thenReturn(Set.of());
+        when(workoutService.completedBodyPartsThisWeek(user)).thenReturn(Set.of());
+
+        List<WorkoutPlanService.DayComposition> withZeroExtra = service.currentQueueComposition(user, 3, 8, 0);
+        List<WorkoutPlanService.DayComposition> withoutExtraParam = service.currentQueueComposition(user, 3, 8);
+
+        assertEquals(withoutExtraParam, withZeroExtra, "extraQueueCount=0 應該跟原本三參數版本結果一致");
+    }
 }

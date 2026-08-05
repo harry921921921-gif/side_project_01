@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 // 課表的後端真相來源：回答「今天/明天練什麼、目前第幾週/哪個階段」與「本週執行力」。
@@ -65,10 +66,16 @@ public class TrainingPlanService {
     @Transactional
     public TrainingPlan saveOrUpdate(User user, PlanMode mode, int daysPerWeek,
                                      String weekdaysCsv, LocalDate phaseStartDate) {
-        TrainingPlan p = repo.findByUser(user).orElseGet(TrainingPlan::new);
+        Optional<TrainingPlan> existing = repo.findByUser(user);
+        TrainingPlan p = existing.orElseGet(TrainingPlan::new);
+        int clampedDays = Math.min(Math.max(daysPerWeek, 1), 7);
+        // 天數真的改變才歸零「新增課表」多排出來的張數——分化整個不一樣了，舊的延伸卡片沒意義了
+        if (existing.isPresent() && p.getDaysPerWeek() != clampedDays) {
+            p.setExtraQueueCount(0);
+        }
         p.setUser(user);
         p.setMode(mode == null ? PlanMode.NOVICE : mode);
-        p.setDaysPerWeek(Math.min(Math.max(daysPerWeek, 1), 7));
+        p.setDaysPerWeek(clampedDays);
         if (weekdaysCsv != null && !weekdaysCsv.isBlank()) p.setTrainingWeekdays(weekdaysCsv);
         if (phaseStartDate != null) p.setPhaseStartDate(phaseStartDate);
         if (p.getStatus() == null) p.setStatus("ACTIVE");
@@ -77,14 +84,25 @@ public class TrainingPlanService {
     }
 
     // 手動校正「目前第幾週」：只動 phaseStartDate，跟 saveOrUpdate（存模式/天數/PR）分開，
-    // 避免使用者只是想存 PR，卻因為 slider 停在別的位置而把週次意外洗掉
+    // 避免使用者只是想存 PR，卻因為 slider 停在別的位置而把週次意外洗掉。
+    // 這算使用者主動「更改訓練週期」，「新增課表」多排出來的張數一併歸零。
     @Transactional
     public TrainingPlan setCurrentWeek(User user, int week) {
         TrainingPlan p = getOrCreateForUser(user);
         int clamped = Math.min(Math.max(week, 1), 104);
         p.setPhaseStartDate(LocalDate.now().minusWeeks(clamped - 1L));
+        p.setExtraQueueCount(0);
         log.info("Manually setting current week for userId={} to week={}", user.getId(), clamped);
         return repo.save(p);
+    }
+
+    // 使用者按一次「新增課表」，「本週完整課表」多排出來的張數就＋1，換登入裝置/重新整理都要保留
+    @Transactional
+    public int incrementExtraQueueCount(User user) {
+        TrainingPlan p = getOrCreateForUser(user);
+        p.setExtraQueueCount(p.getExtraQueueCount() + 1);
+        repo.save(p);
+        return p.getExtraQueueCount();
     }
 
     // 週次 = 今天與起算日相差幾週 + 1（隨時間自動前進）
