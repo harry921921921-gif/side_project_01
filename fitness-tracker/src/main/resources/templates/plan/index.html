@@ -198,7 +198,7 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
 
   <!-- 週期進度 -->
   <script th:inline="javascript">
-  window.planSaved = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, prs: /*[[${planPrs}]]*/ {}, completed: /*[[${completedDays}]]*/ [], queue: /*[[${planQueue}]]*/ [], accPool: /*[[${accessoryPool}]]*/ [] };
+  window.planSaved = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, prs: /*[[${planPrs}]]*/ {}, mainProgress: /*[[${mainProgress}]]*/ {}, completed: /*[[${completedDays}]]*/ [], queue: /*[[${planQueue}]]*/ [], accPool: /*[[${accessoryPool}]]*/ [] };
   </script>
 
   <div class="sec-title">週期進度<span class="ln"></span></div>
@@ -280,7 +280,21 @@ const repsAtRir=(p,rir)=>Math.max(Math.round(maxRepsAt(p))-rir,1);
 const workPct=ph=>(ph.pctLo+ph.pctHi)/2;
 const repsRange=ph=>{if(ph.reps)return ph.reps;const lo=repsAtRir(ph.pctHi,ph.rir),hi=repsAtRir(ph.pctLo,ph.rir);return lo===hi?(''+lo):(lo+'–'+hi);};
 function estimate1RM(w,r){w=parseFloat(w)||0;r=Math.min(Math.max(parseInt(r)||1,1),12);const rc=Math.min(r,10);return r===1?w:w*(1+rc/30);}
-function mainWeight(mode,pk,name,orm){const ph=PHASE[pk];if(mode==='novice')return{w:MAIN[name]?MAIN[name].bar:20,note:'空槓起步'};const wp=workPct(ph);return{w:r25((orm||0)*wp),note:Math.round(wp*100)+'% 1RM'};}
+/* 新手模式主項重量：接續「上一次真的完成」的重量往上疊加（上肢+2.5kg／下肢+5kg），
+   還沒有任何完成紀錄的動作才從空槓起步；資料來自後端 mainProgress（真實訓練紀錄），不是 LiftPr */
+function mainWeight(mode,pk,name,orm){
+  const ph=PHASE[pk];
+  if(mode==='novice'){
+    const bar=MAIN[name]?MAIN[name].bar:20;
+    const last=((window.planSaved&&window.planSaved.mainProgress)||{})[name];
+    if(last&&last.w>0){
+      const inc=MAIN[name]&&MAIN[name].type==='upper'?2.5:5;
+      return{w:r25(last.w+inc),note:'上次完成 '+fmt(last.w)+'kg · +'+inc};
+    }
+    return{w:bar,note:'空槓起步'};
+  }
+  const wp=workPct(ph);return{w:r25((orm||0)*wp),note:Math.round(wp*100)+'% 1RM'};
+}
 function accWeight(mode,pk){if(mode==='novice')return {adapt:10,hyper:12,strength:15,deload:8}[pk];return {adapt:12,hyper:20,strength:25,deload:10}[pk];}
 /* 配件動作沒有 1RM 可以算，重量準確度差，改成優先讀「自己存過的重量」（練完/在課表上手動記過一次就會記住），沒存過才用階段預設值 */
 function accWeightFor(name,mode,pk){

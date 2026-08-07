@@ -26,6 +26,7 @@ import fitness_tracker.enums.CompletionStatus;
 import fitness_tracker.exception.ResourceNotFoundException;
 import fitness_tracker.repository.BodyPartRepository;
 import fitness_tracker.repository.WorkoutSessionRepository;
+import fitness_tracker.repository.WorkoutSetRepository;
 
 @Service
 public class WorkoutService {
@@ -36,15 +37,18 @@ public class WorkoutService {
     private static final Set<String> MAIN_LIFT_NAMES = Set.of("深蹲", "臥推", "硬舉", "肩推");
 
     private final WorkoutSessionRepository repository;
+    private final WorkoutSetRepository workoutSetRepository;
     private final ExerciseService exerciseService;
     private final BodyPartRepository bodyPartRepository;
     private final LiftPrService liftPrService;
 
     public WorkoutService(WorkoutSessionRepository repository,
+                          WorkoutSetRepository workoutSetRepository,
                           ExerciseService exerciseService,
                           BodyPartRepository bodyPartRepository,
                           LiftPrService liftPrService) {
         this.repository = repository;
+        this.workoutSetRepository = workoutSetRepository;
         this.exerciseService = exerciseService;
         this.bodyPartRepository = bodyPartRepository;
         this.liftPrService = liftPrService;
@@ -127,6 +131,20 @@ public class WorkoutService {
                 .map(WorkoutSession::getBodyPart)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
+    }
+
+    // 新手模式主項重量要接續「上一次真的完成」的那次往上疊加，不能每次都停在空槓——查每個主項
+    // 最近一次 completionStatus=COMPLETE 的紀錄；失敗/中途放棄/疼痛那幾筆不算，維持原重量不貿然加重
+    @Transactional(readOnly = true)
+    public Map<String, WorkoutSet> lastCompletedMainLifts(User user) {
+        List<WorkoutSet> sets = workoutSetRepository
+                .findBySession_UserAndExerciseNameInAndCompletionStatusOrderBySession_WorkoutDateDescIdDesc(
+                        user, MAIN_LIFT_NAMES, CompletionStatus.COMPLETE);
+        Map<String, WorkoutSet> latest = new LinkedHashMap<>();
+        for (WorkoutSet ws : sets) {
+            latest.putIfAbsent(ws.getExerciseName(), ws);
+        }
+        return latest;
     }
 
     // 本週已經練過的動作名稱集合，給 WorkoutPlanService 排配件動作時「一週去重」用
