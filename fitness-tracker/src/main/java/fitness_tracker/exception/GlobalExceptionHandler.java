@@ -11,8 +11,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.ModelAndView;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -56,6 +58,34 @@ public class GlobalExceptionHandler {
                 .toList();
         body.put("message", "請修正輸入資料");
         body.put("errors", fieldErrors);
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    // 表單欄位打了無法轉成數字/日期的內容（例如體重打成文字、或整個欄位被清空後送出）——
+    // 這種本質上就是「使用者輸入錯了」，不該落到最下面那個通用 500 崩潰頁
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public Object handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        log.warn("Type mismatch for {} {} on parameter '{}': {}", request.getMethod(), request.getRequestURI(), ex.getName(), ex.getValue());
+        return badRequest(request, "「" + ex.getName() + "」欄位的格式不正確，請確認輸入內容後再送出");
+    }
+
+    // 必填的表單欄位整個沒有送出（例如日期欄位被清空、或請求被截斷）——同樣是輸入問題，不是系統錯誤
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public Object handleMissingParameter(MissingServletRequestParameterException ex, HttpServletRequest request) {
+        log.warn("Missing parameter for {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getParameterName());
+        return badRequest(request, "「" + ex.getParameterName() + "」為必填欄位，請填寫後再送出");
+    }
+
+    private Object badRequest(HttpServletRequest request, String message) {
+        if (isHtmlRequest(request)) {
+            ModelAndView modelAndView = new ModelAndView("error");
+            modelAndView.setStatus(HttpStatus.BAD_REQUEST);
+            modelAndView.addObject("message", message);
+            return modelAndView;
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "BAD_REQUEST");
+        body.put("message", message);
         return ResponseEntity.badRequest().body(body);
     }
 
