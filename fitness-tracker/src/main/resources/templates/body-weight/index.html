@@ -83,6 +83,7 @@
                 <div class="text-muted small">最高</div>
             </div>
         </div>
+        <div class="text-muted text-center mt-2" style="font-size:.76rem">全部歷史紀錄，不受上方週/月/年切換影響</div>
     </div>
 
     <!-- ── 骨骼肌 & 體脂率圖表（有資料才顯示） ── -->
@@ -359,14 +360,19 @@
                 }
             }
         });
-        // 統計
-        if (valid.length) {
-            document.getElementById('statMin').textContent = Math.min(...valid).toFixed(1) + ' kg';
-            document.getElementById('statMax').textContent = Math.max(...valid).toFixed(1) + ' kg';
-            document.getElementById('statAvg').textContent =
-                (valid.reduce((a,b) => a+b, 0) / valid.length).toFixed(1) + ' kg';
-        }
     }
+
+    // ── 最低/平均/最高：固定用「全部歷史紀錄」的每一筆原始資料計算，跟圖表目前顯示週/月/年無關，
+    //    也不像圖表那樣同一天只挑早上——早晚都記錄的話，晚上的數字一樣算進最高/平均 ──
+    function updateStats() {
+        const all = ascData.map(r => r.weight).filter(w => w != null);
+        if (!all.length) return;
+        document.getElementById('statMin').textContent = Math.min(...all).toFixed(1) + ' kg';
+        document.getElementById('statMax').textContent = Math.max(...all).toFixed(1) + ' kg';
+        document.getElementById('statAvg').textContent =
+            (all.reduce((a,b) => a+b, 0) / all.length).toFixed(1) + ' kg';
+    }
+    updateStats();
 
     function setChartView(view, btn) {
         document.querySelectorAll('.view-toggle .btn').forEach(b => b.classList.remove('active'));

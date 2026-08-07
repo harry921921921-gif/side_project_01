@@ -75,8 +75,24 @@ public class BodyWeightService {
         return repository.findTopByUserOrderByRecordedDateDescCreatedAtDesc(user);
     }
 
+    // 同一天、同時間點（早上/晚上/其他）再存一次時，改成更新既有那筆而不是新增一筆重複的，
+    // 避免手殘連點兩次、或表單重送，把歷史紀錄表格跟趨勢圖悄悄灌出一堆一模一樣的資料
     public void save(BodyWeight bodyWeight, User user) {
         bodyWeight.setUser(user);
+        String timeOfDay = bodyWeight.getTimeOfDay();
+        if (timeOfDay != null && !timeOfDay.isBlank()) {
+            Optional<BodyWeight> existing = repository.findByUserAndRecordedDateAndTimeOfDay(
+                    user, bodyWeight.getRecordedDate(), timeOfDay);
+            if (existing.isPresent()) {
+                BodyWeight target = existing.get();
+                target.setWeightKg(bodyWeight.getWeightKg());
+                target.setBodyFatPct(bodyWeight.getBodyFatPct());
+                target.setSkeletalMuscleKg(bodyWeight.getSkeletalMuscleKg());
+                target.setNote(bodyWeight.getNote());
+                save(target);
+                return;
+            }
+        }
         save(bodyWeight);
     }
 

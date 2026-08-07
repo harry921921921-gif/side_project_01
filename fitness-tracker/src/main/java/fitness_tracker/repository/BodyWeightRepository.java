@@ -1,5 +1,6 @@
 package fitness_tracker.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,6 +35,9 @@ public interface BodyWeightRepository extends JpaRepository<BodyWeight, Long> {
     Optional<BodyWeight> findTopByUserOrderByRecordedDateDescCreatedAtDesc(User user);
 
     Optional<BodyWeight> findByIdAndUser(Long id, User user);
+
+    // 同一天同時間點（早上/晚上/其他）重複送出時，用來找出既有那筆改成更新，避免灌出重複列
+    Optional<BodyWeight> findByUserAndRecordedDateAndTimeOfDay(User user, LocalDate recordedDate, String timeOfDay);
 
     // 舊資料遷移用：撈出還沒有擁有者的紀錄
     List<BodyWeight> findByUserIsNull();
