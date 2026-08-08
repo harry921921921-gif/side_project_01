@@ -96,6 +96,8 @@ body{font-family:'Inter','Noto Sans TC',sans-serif;background:var(--bg);color:va
 .day .db{padding:8px 18px 16px}
 .card-icon-btn{border:0;background:#f1f5f9;color:var(--muted);width:26px;height:26px;border-radius:8px;font-size:.85rem;cursor:pointer;flex-shrink:0;line-height:1}
 .card-icon-btn:hover{background:#e5ebf2;color:var(--ink)}
+.card-icon-btn:disabled{opacity:.35;cursor:default}
+.card-icon-btn:disabled:hover{background:#f1f5f9;color:var(--muted)}
 [data-card-idx]{cursor:grab}
 [data-card-idx].dragging{opacity:.35}
 .edit-panel{padding:6px 18px 18px}
@@ -351,6 +353,17 @@ function removeCard(i){
   if(state.editingIdx===i)state.editingIdx=null;
   render();
 }
+// 拖曳排序的鍵盤/觸控替代方案：跟下面 drop 事件用同一套 splice 邏輯，只是改成點一下移動一格，
+// 鍵盤跟螢幕閱讀器使用者才有辦法排序課表卡（純拖放對這兩種使用情境完全無法操作）
+function moveCard(i,delta){
+  const target=i+delta;
+  if(target<0||target>=state.queue.length)return;
+  const moved=state.queue.splice(i,1)[0];
+  state.queue.splice(target,0,moved);
+  if(state.editingIdx===i)state.editingIdx=target;
+  else if(state.editingIdx===target)state.editingIdx=i;
+  render();
+}
 function toggleEditCard(i){state.editingIdx=state.editingIdx===i?null:i;render();}
 function removeCardExercise(i,list,idx){
   const d=state.queue[i];
@@ -389,9 +402,12 @@ document.addEventListener('drop',e=>{
   dragSrcIdx=null;
 });
 function cardControlsHtml(i){
+  const canUp=i>0, canDown=i<state.queue.length-1;
   return `<span style="display:inline-flex;gap:4px;margin-left:auto">
-    <button type="button" class="card-icon-btn" onclick="event.stopPropagation();toggleEditCard(${i})" title="編輯動作">✎</button>
-    <button type="button" class="card-icon-btn" onclick="event.stopPropagation();removeCard(${i})" title="移除這張課表卡">✕</button>
+    <button type="button" class="card-icon-btn" onclick="event.stopPropagation();moveCard(${i},-1)" ${canUp?'':'disabled'} title="往前移動這張課表卡" aria-label="往前移動這張課表卡">▲</button>
+    <button type="button" class="card-icon-btn" onclick="event.stopPropagation();moveCard(${i},1)" ${canDown?'':'disabled'} title="往後移動這張課表卡" aria-label="往後移動這張課表卡">▼</button>
+    <button type="button" class="card-icon-btn" onclick="event.stopPropagation();toggleEditCard(${i})" title="編輯動作" aria-label="編輯這張課表卡的動作">✎</button>
+    <button type="button" class="card-icon-btn" onclick="event.stopPropagation();removeCard(${i})" title="移除這張課表卡" aria-label="移除這張課表卡">✕</button>
   </span>`;
 }
 function editPanelHtml(i){
