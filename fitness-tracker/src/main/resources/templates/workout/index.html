@@ -37,11 +37,11 @@
             <form th:action="@{/workout}" method="post">
                 <div class="row g-3 mb-3">
                     <div class="col-md-3">
-                        <label class="form-label fw-semibold">日期</label>
+                        <label class="form-label fw-semibold" for="workoutDate">日期</label>
                         <input type="date" name="workoutDate" id="workoutDate" class="form-control" required>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label fw-semibold">訓練部位</label>
+                        <label class="form-label fw-semibold" for="bodyPartSelect">訓練部位</label>
                         <select name="bodyPart" id="bodyPartSelect" class="form-select" required
                                 onchange="filterExercisesByBodyPart(this.value)">
                             <option value="">請選擇</option>
@@ -49,8 +49,8 @@
                         </select>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">備註（選填）</label>
-                        <input type="text" name="note" class="form-control" placeholder="今天狀態如何？">
+                        <label class="form-label fw-semibold" for="workoutNote">備註（選填）</label>
+                        <input type="text" name="note" id="workoutNote" class="form-control" placeholder="今天狀態如何？">
                     </div>
                 </div>
 
@@ -65,43 +65,43 @@
                     <div class="exercise-row-wrapper border rounded p-2 mb-2">
                         <div class="row g-2 align-items-center mb-1">
                             <div class="col-md-4">
-                                <input type="text" name="exerciseNames" class="form-control exercise-name-input"
+                                <input type="text" name="exerciseNames" class="form-control exercise-name-input" aria-label="動作名稱"
                                        list="exerciseSuggestions" placeholder="輸入或選擇動作..." required>
                             </div>
                             <div class="col-md-2">
-                                <input type="number" name="weightKgs" class="form-control" placeholder="80" step="0.5" min="0">
+                                <input type="number" name="weightKgs" class="form-control" aria-label="重量(kg)" placeholder="80" step="0.5" min="0">
                             </div>
                             <div class="col-md-1">
-                                <input type="number" name="sets" class="form-control" placeholder="4" min="1">
+                                <input type="number" name="sets" class="form-control" aria-label="組數" placeholder="4" min="1">
                             </div>
                             <div class="col-md-1">
-                                <input type="number" name="reps" class="form-control" placeholder="8" min="1">
+                                <input type="number" name="reps" class="form-control" aria-label="次數" placeholder="8" min="1">
                             </div>
                             <div class="col-md-2">
-                                <input type="number" name="restSeconds" class="form-control" placeholder="90" min="0" step="10">
+                                <input type="number" name="restSeconds" class="form-control" aria-label="休息(秒)" placeholder="90" min="0" step="10">
                             </div>
                             <div class="col-md-2">
-                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeRow(this)" disabled>✕</button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" aria-label="移除這個動作" onclick="removeRow(this)" disabled>✕</button>
                             </div>
                         </div>
                         <div class="row g-2 align-items-center">
                             <div class="col-md-2">
-                                <input type="number" name="rpes" class="form-control form-control-sm" placeholder="RPE" step="0.5" min="1" max="10">
+                                <input type="number" name="rpes" class="form-control form-control-sm" aria-label="RPE 疲勞度" placeholder="RPE" step="0.5" min="1" max="10">
                             </div>
                             <div class="col-md-3">
-                                <select name="completionStatuses" class="form-select form-select-sm">
+                                <select name="completionStatuses" class="form-select form-select-sm" aria-label="完成狀態">
                                     <option value="">完成狀態（選填）</option>
                                     <option th:each="status : ${completionStatuses}" th:value="${status.name()}" th:text="${status.name()}"></option>
                                 </select>
                             </div>
                             <div class="col-md-2">
-                                <input type="number" name="actualReps" class="form-control form-control-sm" placeholder="實際次數" min="0">
+                                <input type="number" name="actualReps" class="form-control form-control-sm" aria-label="實際次數" placeholder="實際次數" min="0">
                             </div>
                             <div class="col-md-2">
-                                <input type="number" name="actualWeights" class="form-control form-control-sm" placeholder="實際重量" step="0.5" min="0">
+                                <input type="number" name="actualWeights" class="form-control form-control-sm" aria-label="實際重量" placeholder="實際重量" step="0.5" min="0">
                             </div>
                             <div class="col-md-3">
-                                <input type="text" name="setNotes" class="form-control form-control-sm" placeholder="動作備註（選填）">
+                                <input type="text" name="setNotes" class="form-control form-control-sm" aria-label="動作備註" placeholder="動作備註（選填）">
                             </div>
                         </div>
                     </div>
@@ -109,7 +109,7 @@
                 <datalist id="exerciseSuggestions"></datalist>
                 <div class="d-flex gap-2 mt-2">
                     <button type="button" class="btn btn-outline-secondary" onclick="addExerciseRow()">＋ 新增動作</button>
-                    <button type="submit" class="btn btn-primary">✔ 儲存訓練</button>
+                    <button type="submit" class="btn btn-primary">💾 儲存訓練</button>
                 </div>
             </form>
         </div>
@@ -122,9 +122,12 @@
             <div th:if="${recentWeekSessions.empty}" class="text-muted text-center py-3">近 7 天尚無訓練紀錄，快去流汗！</div>
             <div th:unless="${recentWeekSessions.empty}">
                 <div th:each="ws : ${recentWeekSessions}" class="card mb-2 border">
-                    <!-- 摘要列：只顯示日期與部位，點擊展開詳情 -->
+                    <!-- 摘要列：只顯示日期與部位，點擊或鍵盤 Enter/Space 展開詳情 -->
                     <div class="d-flex justify-content-between align-items-center p-2" style="cursor:pointer"
-                         th:onclick="'toggleDetail(' + ${ws.id} + ')'">
+                         role="button" tabindex="0"
+                         th:attr="aria-label='展開 ' + ${ws.workoutDate} + ' ' + ${ws.bodyPart} + ' 的訓練詳情'"
+                         th:onclick="'toggleDetail(' + ${ws.id} + ')'"
+                         th:onkeydown="'if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDetail(' + ${ws.id} + ');}'">
                         <div>
                             <strong th:text="${ws.workoutDate}"></strong>
                             <span class="badge bg-primary ms-2" th:text="${ws.bodyPart}"></span>
@@ -450,31 +453,31 @@
         div.innerHTML = `
             <div class="row g-2 align-items-center mb-1">
                 <div class="col-md-4">
-                    <input type="text" name="exerciseNames" class="form-control exercise-name-input"
+                    <input type="text" name="exerciseNames" class="form-control exercise-name-input" aria-label="動作名稱"
                            list="exerciseSuggestions" placeholder="輸入或選擇動作...">
                 </div>
                 <div class="col-md-2">
-                    <input type="number" name="weightKgs" class="form-control" placeholder="80" step="0.5" min="0">
+                    <input type="number" name="weightKgs" class="form-control" aria-label="重量(kg)" placeholder="80" step="0.5" min="0">
                 </div>
                 <div class="col-md-1">
-                    <input type="number" name="sets" class="form-control" placeholder="4" min="1">
+                    <input type="number" name="sets" class="form-control" aria-label="組數" placeholder="4" min="1">
                 </div>
                 <div class="col-md-1">
-                    <input type="number" name="reps" class="form-control" placeholder="8" min="1">
+                    <input type="number" name="reps" class="form-control" aria-label="次數" placeholder="8" min="1">
                 </div>
                 <div class="col-md-2">
-                    <input type="number" name="restSeconds" class="form-control" placeholder="90" min="0" step="10">
+                    <input type="number" name="restSeconds" class="form-control" aria-label="休息(秒)" placeholder="90" min="0" step="10">
                 </div>
                 <div class="col-md-2">
-                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeRow(this)">✕</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" aria-label="移除這個動作" onclick="removeRow(this)">✕</button>
                 </div>
             </div>
             <div class="row g-2 align-items-center">
                 <div class="col-md-2">
-                    <input type="number" name="rpes" class="form-control form-control-sm" placeholder="RPE" step="0.5" min="1" max="10">
+                    <input type="number" name="rpes" class="form-control form-control-sm" aria-label="RPE 疲勞度" placeholder="RPE" step="0.5" min="1" max="10">
                 </div>
                 <div class="col-md-3">
-                    <select name="completionStatuses" class="form-select form-select-sm">
+                    <select name="completionStatuses" class="form-select form-select-sm" aria-label="完成狀態">
                         <option value="">完成狀態（選填）</option>
                         <option value="COMPLETE">✅ 完成</option>
                         <option value="FAILED">❌ 失敗</option>
@@ -483,13 +486,13 @@
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <input type="number" name="actualReps" class="form-control form-control-sm" placeholder="實際次數" min="0">
+                    <input type="number" name="actualReps" class="form-control form-control-sm" aria-label="實際次數" placeholder="實際次數" min="0">
                 </div>
                 <div class="col-md-2">
-                    <input type="number" name="actualWeights" class="form-control form-control-sm" placeholder="實際重量" step="0.5" min="0">
+                    <input type="number" name="actualWeights" class="form-control form-control-sm" aria-label="實際重量" placeholder="實際重量" step="0.5" min="0">
                 </div>
                 <div class="col-md-3">
-                    <input type="text" name="setNotes" class="form-control form-control-sm" placeholder="動作備註（選填）">
+                    <input type="text" name="setNotes" class="form-control form-control-sm" aria-label="動作備註" placeholder="動作備註（選填）">
                 </div>
             </div>`;
         container.appendChild(div);

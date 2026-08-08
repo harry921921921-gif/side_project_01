@@ -1,5 +1,5 @@
 
-:root{--bg:#f4f6fb;--surface:#fff;--ink:#0f172a;--muted:#64748b;--faint:#94a3b8;
+:root{--bg:#f4f6fb;--surface:#fff;--ink:#0f172a;--muted:#64748b;--faint:#7c8aa0;
 --line:#e6e9ef;--accent:#10b981;--accent-ink:#065f46;--accent-soft:#d1fae5;--danger:#dc2626;--radius:12px;--shadow:0 10px 40px rgba(15,23,42,.08);}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter','Noto Sans TC',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;-webkit-font-smoothing:antialiased}

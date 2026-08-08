@@ -27,35 +27,35 @@
             <form th:action="@{/body-weight}" method="post">
                 <div class="row g-3">
                     <div class="col-md-2">
-                        <label class="form-label fw-semibold">日期</label>
+                        <label class="form-label fw-semibold" for="recordedDate">日期</label>
                         <input type="date" name="recordedDate" id="recordedDate" class="form-control" required>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-semibold">體重 (kg)</label>
-                        <input type="number" name="weightKg" class="form-control" step="0.1" min="20" max="300" placeholder="72.5" required>
+                        <label class="form-label fw-semibold" for="bwWeightKg">體重 (kg)</label>
+                        <input type="number" name="weightKg" id="bwWeightKg" class="form-control" step="0.1" min="20" max="300" placeholder="72.5" required>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-semibold">時間點</label>
-                        <select name="timeOfDay" class="form-select">
+                        <label class="form-label fw-semibold" for="bwTimeOfDay">時間點</label>
+                        <select name="timeOfDay" id="bwTimeOfDay" class="form-select">
                             <option value="MORNING">☀️ 早上空腹</option>
                             <option value="EVENING">🌙 晚上</option>
                             <option value="OTHER">其他</option>
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-semibold">體脂率 (%)</label>
-                        <input type="number" name="bodyFatPct" class="form-control" step="0.1" min="1" max="70" placeholder="18.5">
+                        <label class="form-label fw-semibold" for="bwBodyFatPct">體脂率 (%)</label>
+                        <input type="number" name="bodyFatPct" id="bwBodyFatPct" class="form-control" step="0.1" min="1" max="70" placeholder="18.5">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-semibold">骨骼肌 (kg)</label>
-                        <input type="number" name="skeletalMuscleKg" class="form-control" step="0.1" min="1" max="100" placeholder="35.0">
+                        <label class="form-label fw-semibold" for="bwSkeletalMuscleKg">骨骼肌 (kg)</label>
+                        <input type="number" name="skeletalMuscleKg" id="bwSkeletalMuscleKg" class="form-control" step="0.1" min="1" max="100" placeholder="35.0">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-semibold">備註</label>
-                        <input type="text" name="note" class="form-control" placeholder="運動後、睡前...">
+                        <label class="form-label fw-semibold" for="bwNote">備註</label>
+                        <input type="text" name="note" id="bwNote" class="form-control" placeholder="運動後、睡前...">
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary mt-3">✔ 儲存</button>
+                <button type="submit" class="btn btn-primary mt-3">💾 儲存體重</button>
             </form>
         </div>
     </div>
@@ -125,13 +125,13 @@
                             <td th:text="${record.skeletalMuscleKg != null ? record.skeletalMuscleKg + ' kg' : '-'}"></td>
                             <td th:text="${record.note}"></td>
                             <td>
-                                <button class="btn btn-sm btn-outline-secondary"
+                                <button class="btn btn-sm btn-outline-secondary" aria-label="編輯這筆體重紀錄"
                                         th:onclick="'toggleBwEdit(' + ${record.id} + ')'">✏️</button>
                                 <form th:action="@{/body-weight/delete/{id}(id=${record.id})}"
                                       method="post" class="d-inline"
                                       onsubmit="return confirm('確定刪除這筆紀錄？')">
                                     <input type="hidden" name="page" th:value="${currentPage}">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">🗑</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="刪除這筆體重紀錄">🗑</button>
                                 </form>
                             </td>
                         </tr>
@@ -178,7 +178,7 @@
                                                    th:value="${record.note}">
                                         </div>
                                         <div class="col-md-2 d-flex gap-1">
-                                            <button type="submit" class="btn btn-success btn-sm">💾</button>
+                                            <button type="submit" class="btn btn-success btn-sm">💾 儲存修改</button>
                                             <button type="button" class="btn btn-secondary btn-sm"
                                                     th:onclick="'toggleBwEdit(' + ${record.id} + ')'">取消</button>
                                         </div>

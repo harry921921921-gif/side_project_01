@@ -11,7 +11,7 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
 :root{
-  --bg:#f4f6fb;--surface:#fff;--ink:#0f172a;--muted:#64748b;--faint:#94a3b8;
+  --bg:#f4f6fb;--surface:#fff;--ink:#0f172a;--muted:#64748b;--faint:#7c8aa0;
   --line:#eaeef5;--accent:#10b981;--accent-ink:#065f46;--accent-soft:#d1fae5;
   --radius:18px;--radius-sm:12px;--shadow:0 6px 24px rgba(15,23,42,.06);--shadow-lg:0 12px 40px rgba(15,23,42,.10);
 }
@@ -100,6 +100,7 @@ body{font-family:'Inter','Noto Sans TC',sans-serif;background:var(--bg);color:va
 .card-icon-btn:disabled:hover{background:#f1f5f9;color:var(--muted)}
 [data-card-idx]{cursor:grab}
 [data-card-idx].dragging{opacity:.35}
+[data-card-idx].drag-over{box-shadow:0 0 0 3px var(--accent) inset;background:var(--accent-soft)}
 .edit-panel{padding:6px 18px 18px}
 .today .edit-panel{padding:6px 0 0}
 .edit-label{display:block;font-size:.72rem;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin:10px 0 8px}
@@ -205,7 +206,7 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
   window.planSaved = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, prs: /*[[${planPrs}]]*/ {}, mainProgress: /*[[${mainProgress}]]*/ {}, completed: /*[[${completedDays}]]*/ [], queue: /*[[${planQueue}]]*/ [], accPool: /*[[${accessoryPool}]]*/ [] };
   </script>
 
-  <div class="sec-title">週期進度<span class="ln"></span></div>
+  <h2 class="sec-title">週期進度<span class="ln"></span></h2>
   <div class="pl-card pad">
     <div class="tl-head">
       <div><div class="big" id="tlNow">肌肥大期</div></div>
@@ -226,11 +227,11 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
   </div>
 
   <!-- 本次課表：本週還沒完成的第一個分化天，不是死板的「今天固定練第一天」 -->
-  <div class="sec-title">本次課表<span class="ln"></span></div>
+  <h2 class="sec-title">本次課表<span class="ln"></span></h2>
   <div id="todayWrap"></div>
 
   <!-- 週課表 -->
-  <div class="sec-title">本週完整課表<span class="ln"></span><button type="button" class="pl-btn pl-btn-ghost" style="padding:6px 14px;font-size:.82rem" onclick="addNextCourse()">＋ 新增課表</button></div>
+  <h2 class="sec-title">本週完整課表<span class="ln"></span><button type="button" class="pl-btn pl-btn-ghost" style="padding:6px 14px;font-size:.82rem" onclick="addNextCourse()">＋ 新增課表</button><span id="queueLoading" style="display:none;font-size:.78rem;font-weight:600;color:var(--muted)">載入中…</span></h2>
   <div class="week" id="weekGrid"></div>
 
   <footer>FitTracker · 訓練計劃原型　·　規則引擎即時算重量，之後接 Spring AI 產生白話課表</footer>
@@ -251,6 +252,22 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
     <div class="modal-btns">
       <button type="button" class="pl-btn pl-btn-ghost" onclick="closeImportModal()">取消</button>
       <button type="button" class="pl-btn pl-btn-primary" onclick="confirmImport()">✅ 確認匯入</button>
+    </div>
+  </div>
+</div>
+<!-- 取代原生 prompt()/confirm() 用的小型彈窗，跟頁面其他彈窗（上面完成訓練）視覺風格一致，
+     不會像瀏覽器原生對話框那樣風格突兀、也沒辦法客製 -->
+<div class="modal-overlay" id="promptModal">
+  <div class="modal-box" style="max-width:380px">
+    <h2 id="promptTitle">確認</h2>
+    <div class="sub" id="promptMessage"></div>
+    <div id="promptInputWrap" style="margin-bottom:16px">
+      <input type="number" id="promptInput" step="0.5" aria-label="輸入重量"
+             style="width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font:inherit;font-size:.95rem">
+    </div>
+    <div class="modal-btns">
+      <button type="button" class="pl-btn pl-btn-ghost" onclick="closePromptModal(false)">取消</button>
+      <button type="button" class="pl-btn pl-btn-primary" onclick="closePromptModal(true)">確定</button>
     </div>
   </div>
 </div>
@@ -324,12 +341,14 @@ const ACC_POOL=(window.planSaved&&window.planSaved.accPool)||[];
 function toQueueDay(dc){return {name:dc.dayName,main:[...dc.mainNames],acc:[...dc.accessoryPool]};}
 function applyServerQueue(list){state.queue=(list&&list.length?list:[]).map(toQueueDay);}
 function fetchQueue(days,week){
+  const loading=$('#queueLoading');
+  if(loading)loading.style.display='inline';
   fetch('/plan/api/queue?days='+days+'&week='+week).then(r=>r.json()).then(list=>{
     applyServerQueue(list);
     state.queueDays=days;
     state.queueWeek=week;
     render();
-  });
+  }).finally(()=>{ if(loading)loading.style.display='none'; });
 }
 /* 天數/週次改變都要重打後端拿新組成（週次影響配件輪替），但週次滑桿拖曳時 input 事件會連續觸發，
    debounce 一下避免拖曳過程中連續打很多次 API */
@@ -376,6 +395,7 @@ function changeCardExercise(i,list,idx,name){state.queue[i][list][idx]=name;rend
 
 /* 拖曳排序：卡片標成 draggable，跨「本次課表」跟「本週完整課表」兩個容器都算同一個 queue，用事件代理不用每次重綁 */
 let dragSrcIdx=null;
+let dragOverEl=null;
 document.addEventListener('dragstart',e=>{
   const card=e.target.closest('[data-card-idx]');
   if(!card)return;
@@ -386,10 +406,22 @@ document.addEventListener('dragstart',e=>{
 document.addEventListener('dragend',e=>{
   const card=e.target.closest('[data-card-idx]');
   if(card)card.classList.remove('dragging');
+  if(dragOverEl){dragOverEl.classList.remove('drag-over');dragOverEl=null;}
 });
-document.addEventListener('dragover',e=>{if(e.target.closest('[data-card-idx]'))e.preventDefault();});
+// 拖過每張卡片時加上高亮，讓使用者知道放開會插在哪裡，不是盲拖
+document.addEventListener('dragover',e=>{
+  const card=e.target.closest('[data-card-idx]');
+  if(!card)return;
+  e.preventDefault();
+  if(dragOverEl&&dragOverEl!==card)dragOverEl.classList.remove('drag-over');
+  if(+card.dataset.cardIdx!==dragSrcIdx){
+    card.classList.add('drag-over');
+    dragOverEl=card;
+  }
+});
 document.addEventListener('drop',e=>{
   const card=e.target.closest('[data-card-idx]');
+  if(dragOverEl){dragOverEl.classList.remove('drag-over');dragOverEl=null;}
   if(!card||dragSrcIdx===null)return;
   e.preventDefault();
   const targetIdx=+card.dataset.cardIdx;
@@ -454,11 +486,36 @@ function savePlan(){
   }
   document.getElementById('planForm').submit();
 }
+/* 自訂輸入/確認彈窗，取代原生 prompt()/confirm()：withInput=true 顯示數字輸入框，
+   resolve 出來的值跟原生 prompt 對齊——按取消是 null，按確定是輸入框內容（或 true）*/
+let promptCallback=null;
+function showPromptModal(title,message,opts){
+  opts=opts||{};
+  return new Promise(function(resolve){
+    document.getElementById('promptTitle').textContent=title;
+    document.getElementById('promptMessage').textContent=message;
+    const inputWrap=document.getElementById('promptInputWrap');
+    const input=document.getElementById('promptInput');
+    inputWrap.style.display=opts.withInput?'block':'none';
+    input.value=opts.defaultValue!=null?opts.defaultValue:'';
+    promptCallback=function(confirmed){
+      resolve(confirmed?(opts.withInput?input.value:true):null);
+    };
+    document.getElementById('promptModal').classList.add('on');
+    if(opts.withInput)setTimeout(function(){input.focus();},50);
+  });
+}
+function closePromptModal(confirmed){
+  document.getElementById('promptModal').classList.remove('on');
+  if(promptCallback)promptCallback(confirmed);
+  promptCallback=null;
+}
+
 /* 配件動作的重量沒有公式可算，讓使用者自己輸入存起來，之後同一個動作再出現在課表上就會自動帶入這個重量 */
-function saveAccWeight(name){
+async function saveAccWeight(name){
   const prs=(window.planSaved&&window.planSaved.prs)||{};
   const cur=prs[name];
-  const val=prompt('「'+name+'」要記住的重量 (kg)：',cur?cur.w:'');
+  const val=await showPromptModal('記住這個動作的重量','「'+name+'」要記住的重量 (kg)：',{withInput:true,defaultValue:cur?cur.w:''});
   if(val===null)return;
   const w=parseFloat(val);
   if(!(w>=0)){alert('請輸入有效的重量數字。');return;}
@@ -469,8 +526,9 @@ function saveAccWeight(name){
   document.getElementById('planForm').submit();
 }
 /* 手動校正「目前第幾週」——跟 savePlan() 分開，拖 slider 只是預覽，按這顆才會真的存 */
-function confirmSetWeek(){
-  if(!confirm('確定把「目前第 '+state.week+' 週」存起來嗎？下次登入會停在這裡，之後才會照日曆自動往前走。'))return;
+async function confirmSetWeek(){
+  const ok=await showPromptModal('確認校正週次','確定把「目前第 '+state.week+' 週」存起來嗎？下次登入會停在這裡，之後才會照日曆自動往前走。',{});
+  if(!ok)return;
   document.getElementById('f-week-only').value=state.week;
   document.getElementById('weekForm').submit();
 }

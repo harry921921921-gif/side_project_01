@@ -17,16 +17,16 @@
     <form th:action="@{/reset}" method="post" onsubmit="return chk()">
       <input type="hidden" name="token" th:value="${token}">
       <div class="fld">
-        <label>新密碼</label>
+        <label for="pw">新密碼</label>
         <div class="inwrap">
           <input type="password" name="password" id="pw" placeholder="至少 8 碼" autocomplete="new-password" required>
           <button type="button" class="eye" onclick="tp('pw',this)">顯示</button>
         </div>
       </div>
       <div class="fld">
-        <label>確認新密碼</label>
+        <label for="pw2">確認新密碼</label>
         <input type="password" id="pw2" placeholder="再次輸入" autocomplete="new-password" required>
-        <div class="msg" id="m"></div>
+        <div class="msg" id="m" aria-live="polite"></div>
       </div>
       <button class="btn" type="submit">更新密碼</button>
     </form>
