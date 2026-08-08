@@ -28,6 +28,8 @@
 <div class="container mt-4">
     <h2 class="mb-4">🏋️ 訓練紀錄</h2>
 
+    <div class="alert alert-danger" th:if="${formError}" th:text="${formError}"></div>
+
     <!-- ── 新增訓練 ── -->
     <div class="card mb-4 shadow-sm">
         <div class="card-header bg-white"><h5 class="mb-0">➕ 新增訓練</h5></div>

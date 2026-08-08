@@ -1,5 +1,6 @@
 package fitness_tracker.exception;
 
+import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,10 +15,15 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.FlashMap;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.support.RequestContextUtils;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -84,8 +90,28 @@ public class GlobalExceptionHandler {
         return badRequest(request, ex.getMessage());
     }
 
+    // 表單打錯格式時，優先導回原本那頁並用 flash 訊息顯示錯誤（跟 AuthController 註冊/重設密碼
+    // 已經在用的模式一致），不要把使用者丟到一個空白的通用錯誤頁、剛才填的東西全部消失——
+    // 這對訓練紀錄這種一次要填好幾個動作的表單特別重要。只有在抓不到 Referer（沒有上一頁可回）
+    // 時才退回顯示原本的錯誤頁當保底。
+    //
+    // HttpServletResponse 故意不當方法參數宣告——一旦某個 @ExceptionHandler 方法的簽章裡出現
+    // HttpServletResponse，Spring 的參數解析器會把這次請求標成「已經處理過」，連帶讓後面要靠
+    // ModelAndView 走 Thymeleaf 正常算圖的保底分支失效、掉回 Spring 內建的 Whitelabel 錯誤頁。
+    // 改成需要時才用 RequestContextHolder 動態拿，繞開這個副作用。
     private Object badRequest(HttpServletRequest request, String message) {
         if (isHtmlRequest(request)) {
+            String targetPath = refererPath(request.getHeader("Referer"));
+            if (targetPath != null) {
+                HttpServletResponse response = currentResponse();
+                if (response != null) {
+                    FlashMap flashMap = new FlashMap();
+                    flashMap.put("formError", message);
+                    flashMap.setTargetRequestPath(targetPath);
+                    RequestContextUtils.getFlashMapManager(request).saveOutputFlashMap(flashMap, request, response);
+                    return new ModelAndView("redirect:" + targetPath, HttpStatus.FOUND);
+                }
+            }
             ModelAndView modelAndView = new ModelAndView("error");
             modelAndView.setStatus(HttpStatus.BAD_REQUEST);
             modelAndView.addObject("message", message);
@@ -95,6 +121,23 @@ public class GlobalExceptionHandler {
         body.put("error", "BAD_REQUEST");
         body.put("message", message);
         return ResponseEntity.badRequest().body(body);
+    }
+
+    private HttpServletResponse currentResponse() {
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs) {
+            return attrs.getResponse();
+        }
+        return null;
+    }
+
+    private String refererPath(String referer) {
+        if (referer == null || referer.isBlank()) return null;
+        try {
+            String path = URI.create(referer).getPath();
+            return (path == null || path.isBlank()) ? null : path;
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     @ExceptionHandler(Exception.class)
