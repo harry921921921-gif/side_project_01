@@ -1,5 +1,6 @@
 package fitness_tracker.controller;
 
+import fitness_tracker.dto.WorkoutRequest;
 import fitness_tracker.entity.User;
 import fitness_tracker.entity.WorkoutSession;
 import fitness_tracker.enums.CompletionStatus;
@@ -124,9 +125,8 @@ public class WorkoutController {
         session.setNote(note);
 
         service.save(session,
-                exerciseNames != null ? exerciseNames : List.of(),
-                weightKgs, sets, reps, restSeconds,
-                rpes, completionStatuses, actualReps, actualWeights, setNotes,
+                zipExercises(exerciseNames, weightKgs, sets, reps, restSeconds,
+                        rpes, completionStatuses, actualReps, actualWeights, setNotes),
                 currentUserService.getCurrentUser());
         return "redirect:/workout";
     }
@@ -149,8 +149,8 @@ public class WorkoutController {
             @RequestParam(required = false) List<String> setNotes) {
 
         service.update(id, workoutDate, bodyPart, note,
-                exerciseNames, weightKgs, sets, reps, restSeconds,
-                rpes, completionStatuses, actualReps, actualWeights, setNotes,
+                zipExercises(exerciseNames, weightKgs, sets, reps, restSeconds,
+                        rpes, completionStatuses, actualReps, actualWeights, setNotes),
                 currentUserService.getCurrentUser());
         return "redirect:/workout";
     }
@@ -159,5 +159,36 @@ public class WorkoutController {
     public String delete(@PathVariable Long id) {
         service.delete(id, currentUserService.getCurrentUser());
         return "redirect:/workout";
+    }
+
+    // 表單送出的是「一個欄位一個 List」的平行陣列（exerciseNames[0] 對應 weightKgs[0]...），
+    // 這裡統一 zip 成結構化的 ExerciseDto，讓 Service 層不用再靠 index 對齊各個 List
+    private List<WorkoutRequest.ExerciseDto> zipExercises(
+            List<String> exerciseNames, List<Double> weightKgs, List<Integer> sets, List<Integer> reps,
+            List<Integer> restSeconds, List<Double> rpes, List<String> completionStatuses,
+            List<Integer> actualReps, List<Double> actualWeights, List<String> setNotes) {
+        if (exerciseNames == null) {
+            return List.of();
+        }
+        List<WorkoutRequest.ExerciseDto> result = new ArrayList<>();
+        for (int i = 0; i < exerciseNames.size(); i++) {
+            result.add(new WorkoutRequest.ExerciseDto(
+                    exerciseNames.get(i),
+                    safeGet(weightKgs, i),
+                    safeGet(sets, i),
+                    safeGet(reps, i),
+                    safeGet(restSeconds, i),
+                    safeGet(rpes, i),
+                    CompletionStatus.fromString(safeGet(completionStatuses, i)),
+                    safeGet(actualReps, i),
+                    safeGet(actualWeights, i),
+                    safeGet(setNotes, i)
+            ));
+        }
+        return result;
+    }
+
+    private <T> T safeGet(List<T> list, int i) {
+        return (list != null && i < list.size()) ? list.get(i) : null;
     }
 }

@@ -17,6 +17,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import fitness_tracker.dto.WorkoutRequest;
 import fitness_tracker.entity.BodyPart;
 import fitness_tracker.entity.Exercise;
 import fitness_tracker.entity.User;
@@ -56,16 +57,11 @@ class WorkoutServiceTest {
 
         service.save(
                 session,
-                List.of("深蹲", "   ", "臥推"),
-                List.of(100.0, 90.0, 80.0),
-                List.of(3, 2, 3),
-                List.of(5, 8, 10),
-                null,
-                List.of(8.5, 7.0, 9.0),
-                List.of("COMPLETE", "FAILED", "COMPLETE"),
-                List.of(5, 8, 10),
-                List.of(100.0, 90.0, 80.0),
-                List.of("主計畫", "", "補充")
+                List.of(
+                        new WorkoutRequest.ExerciseDto("深蹲", 100.0, 3, 5, null, 8.5, CompletionStatus.COMPLETE, 5, 100.0, "主計畫"),
+                        new WorkoutRequest.ExerciseDto("   ", 90.0, 2, 8, null, 7.0, CompletionStatus.FAILED, 8, 90.0, ""),
+                        new WorkoutRequest.ExerciseDto("臥推", 80.0, 3, 10, null, 9.0, CompletionStatus.COMPLETE, 10, 80.0, "補充")
+                )
         );
 
         assertEquals(2, session.getSets().size());
@@ -101,16 +97,7 @@ class WorkoutServiceTest {
                 LocalDate.of(2026, 7, 2),
                 "胸",
                 "更新",
-                List.of("新動作"),
-                List.of(60.0),
-                List.of(4),
-                List.of(8),
-                null,
-                List.of(7.5),
-                List.of("COMPLETE"),
-                List.of(8),
-                List.of(60.0),
-                List.of("新筆記"),
+                List.of(new WorkoutRequest.ExerciseDto("新動作", 60.0, 4, 8, null, 7.5, CompletionStatus.COMPLETE, 8, 60.0, "新筆記")),
                 user
         );
 
@@ -134,16 +121,10 @@ class WorkoutServiceTest {
 
         service.save(
                 session,
-                List.of("臥推", "三頭下壓"),
-                List.of(80.0, 15.0),
-                List.of(4, 3),
-                List.of(5, 12),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
+                List.of(
+                        new WorkoutRequest.ExerciseDto("臥推", 80.0, 4, 5, null, null, null, null, null, null),
+                        new WorkoutRequest.ExerciseDto("三頭下壓", 15.0, 3, 12, null, null, null, null, null, null)
+                )
         );
 
         verify(liftPrService, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq("臥推"), org.mockito.ArgumentMatchers.anyDouble(), org.mockito.ArgumentMatchers.anyInt());

@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import fitness_tracker.dto.WorkoutRequest;
 import fitness_tracker.entity.Exercise;
 import fitness_tracker.entity.User;
 import fitness_tracker.entity.WorkoutSession;
@@ -187,35 +188,17 @@ public class WorkoutService {
                 .collect(Collectors.toSet());
     }
 
+    // exercises 是一個動作一筆的結構化資料（跟 REST API 的 WorkoutRequest.ExerciseDto 共用同一個
+    // 形狀），不是 8 個要靠 index 對齊的平行 List——不然兩個同型別的參數順序寫反，編譯器完全看不出來，
+    // 會安靜把重量存成組數。MVC 表單控制器負責把送出來的平行欄位 zip 成這個 list 再呼叫這裡。
     @Transactional
-    public void save(WorkoutSession session,
-                     List<String> exerciseNames,
-                     List<Double> weightKgs,
-                     List<Integer> sets,
-                     List<Integer> reps,
-                     List<Integer> restSeconds,
-                     List<Double> rpes,
-                     List<String> completionStatuses,
-                     List<Integer> actualRepsList,
-                     List<Double> actualWeights,
-                     List<String> notesList) {
-
+    public void save(WorkoutSession session, List<WorkoutRequest.ExerciseDto> exercises) {
         validateBodyPart(session.getBodyPart());
 
-        for (int i = 0; i < exerciseNames.size(); i++) {
-            String name = exerciseNames.get(i);
+        for (WorkoutRequest.ExerciseDto ex : exercises) {
+            String name = ex.exerciseName();
             if (name != null && !name.trim().isEmpty()) {
-                WorkoutSet workoutSet = new WorkoutSet();
-                workoutSet.setExerciseName(name.trim());
-                workoutSet.setWeightKg(safeGet(weightKgs, i));
-                workoutSet.setSets(safeGet(sets, i));
-                workoutSet.setReps(safeGet(reps, i));
-                workoutSet.setRestSeconds(safeGet(restSeconds, i));
-                workoutSet.setRpe(safeGet(rpes, i));
-                workoutSet.setCompletionStatus(parseCompletionStatus(safeGet(completionStatuses, i)));
-                workoutSet.setActualReps(safeGet(actualRepsList, i));
-                workoutSet.setActualWeight(safeGet(actualWeights, i));
-                workoutSet.setNotes(safeGet(notesList, i));
+                WorkoutSet workoutSet = toWorkoutSet(ex, name);
                 workoutSet.setSession(session);
                 validateSet(workoutSet);
                 session.getSets().add(workoutSet);
@@ -228,84 +211,35 @@ public class WorkoutService {
     }
 
     @Transactional
-    public void save(WorkoutSession session,
-                     List<String> exerciseNames,
-                     List<Double> weightKgs,
-                     List<Integer> sets,
-                     List<Integer> reps,
-                     List<Integer> restSeconds,
-                     List<Double> rpes,
-                     List<String> completionStatuses,
-                     List<Integer> actualRepsList,
-                     List<Double> actualWeights,
-                     List<String> notesList,
-                     User user) {
+    public void save(WorkoutSession session, List<WorkoutRequest.ExerciseDto> exercises, User user) {
         session.setUser(user);
-        save(session, exerciseNames, weightKgs, sets, reps, restSeconds,
-                rpes, completionStatuses, actualRepsList, actualWeights, notesList);
+        save(session, exercises);
     }
 
     @Transactional
-    public void update(Long id,
-                       LocalDate workoutDate,
-                       String bodyPart,
-                       String note,
-                       List<String> exerciseNames,
-                       List<Double> weightKgs,
-                       List<Integer> sets,
-                       List<Integer> reps,
-                       List<Integer> restSeconds,
-                       List<Double> rpes,
-                       List<String> completionStatuses,
-                       List<Integer> actualRepsList,
-                       List<Double> actualWeights,
-                       List<String> notesList,
-                       User user) {
-
+    public void update(Long id, LocalDate workoutDate, String bodyPart, String note,
+                       List<WorkoutRequest.ExerciseDto> exercises, User user) {
         WorkoutSession existing = repository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄"));
-        applyUpdate(existing, workoutDate, bodyPart, note, exerciseNames, weightKgs, sets, reps,
-                restSeconds, rpes, completionStatuses, actualRepsList, actualWeights, notesList);
+        applyUpdate(existing, workoutDate, bodyPart, note, exercises);
         log.info("Updating workout session id={}", id);
         repository.save(existing);
         log.info("Updated workout session id={}", id);
     }
 
-    private void applyUpdate(WorkoutSession existing,
-                             LocalDate workoutDate,
-                             String bodyPart,
-                             String note,
-                             List<String> exerciseNames,
-                             List<Double> weightKgs,
-                             List<Integer> sets,
-                             List<Integer> reps,
-                             List<Integer> restSeconds,
-                             List<Double> rpes,
-                             List<String> completionStatuses,
-                             List<Integer> actualRepsList,
-                             List<Double> actualWeights,
-                             List<String> notesList) {
+    private void applyUpdate(WorkoutSession existing, LocalDate workoutDate, String bodyPart, String note,
+                             List<WorkoutRequest.ExerciseDto> exercises) {
         validateBodyPart(bodyPart);
         existing.setWorkoutDate(workoutDate);
         existing.setBodyPart(bodyPart);
         existing.setNote(note);
         existing.getSets().clear();
 
-        if (exerciseNames != null) {
-            for (int i = 0; i < exerciseNames.size(); i++) {
-                String name = exerciseNames.get(i);
+        if (exercises != null) {
+            for (WorkoutRequest.ExerciseDto ex : exercises) {
+                String name = ex.exerciseName();
                 if (name != null && !name.trim().isEmpty()) {
-                    WorkoutSet ws = new WorkoutSet();
-                    ws.setExerciseName(name.trim());
-                    ws.setWeightKg(safeGet(weightKgs, i));
-                    ws.setSets(safeGet(sets, i));
-                    ws.setReps(safeGet(reps, i));
-                    ws.setRestSeconds(safeGet(restSeconds, i));
-                    ws.setRpe(safeGet(rpes, i));
-                    ws.setCompletionStatus(parseCompletionStatus(safeGet(completionStatuses, i)));
-                    ws.setActualReps(safeGet(actualRepsList, i));
-                    ws.setActualWeight(safeGet(actualWeights, i));
-                    ws.setNotes(safeGet(notesList, i));
+                    WorkoutSet ws = toWorkoutSet(ex, name);
                     ws.setSession(existing);
                     validateSet(ws);
                     existing.getSets().add(ws);
@@ -313,6 +247,21 @@ public class WorkoutService {
                 }
             }
         }
+    }
+
+    private WorkoutSet toWorkoutSet(WorkoutRequest.ExerciseDto ex, String trimmedName) {
+        WorkoutSet ws = new WorkoutSet();
+        ws.setExerciseName(trimmedName.trim());
+        ws.setWeightKg(ex.weightKg());
+        ws.setSets(ex.sets());
+        ws.setReps(ex.reps());
+        ws.setRestSeconds(ex.restSeconds());
+        ws.setRpe(ex.rpe());
+        ws.setCompletionStatus(ex.completionStatus());
+        ws.setActualReps(ex.actualReps());
+        ws.setActualWeight(ex.actualWeight());
+        ws.setNotes(ex.notes());
+        return ws;
     }
 
     // 小動作沒有 1RM 公式可以算重量，訓練紀錄裡填過一次重量就記住，下次課表頁同一個動作會自動帶入
@@ -330,10 +279,6 @@ public class WorkoutService {
         log.info("Deleting workout session id={}", id);
         repository.delete(existing);
         log.info("Deleted workout session id={}", id);
-    }
-
-    private <T> T safeGet(List<T> list, int i) {
-        return (list != null && i < list.size()) ? list.get(i) : null;
     }
 
     private void validateBodyPart(String bodyPart) {
@@ -370,17 +315,6 @@ public class WorkoutService {
         }
         if (set.getRpe() != null && (set.getRpe() < 1 || set.getRpe() > 10)) {
             throw new IllegalArgumentException("「" + name + "」的 RPE 必須介於 1～10 之間");
-        }
-    }
-
-    private CompletionStatus parseCompletionStatus(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            return CompletionStatus.valueOf(value.trim().toUpperCase());
-        } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("completionStatus 不合法");
         }
     }
 

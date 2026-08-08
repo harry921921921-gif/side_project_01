@@ -60,20 +60,7 @@ public class WorkoutApiController {
 
         List<WorkoutRequest.ExerciseDto> exercises = req.exercises() != null ? req.exercises() : List.of();
         User user = currentUserService.getCurrentUser();
-        service.save(
-                session,
-                exercises.stream().map(WorkoutRequest.ExerciseDto::exerciseName).toList(),
-                exercises.stream().map(WorkoutRequest.ExerciseDto::weightKg).toList(),
-                exercises.stream().map(WorkoutRequest.ExerciseDto::sets).toList(),
-                exercises.stream().map(WorkoutRequest.ExerciseDto::reps).toList(),
-                exercises.stream().<Integer>map(w -> null).toList(),
-                exercises.stream().map(WorkoutRequest.ExerciseDto::rpe).toList(),
-                exercises.stream().map(e -> e.completionStatus() != null ? e.completionStatus().name() : null).toList(),
-                exercises.stream().map(WorkoutRequest.ExerciseDto::actualReps).toList(),
-                exercises.stream().map(WorkoutRequest.ExerciseDto::actualWeight).toList(),
-                exercises.stream().map(WorkoutRequest.ExerciseDto::notes).toList(),
-                user
-        );
+        service.save(session, exercises, user);
         return ResponseEntity.ok(toResponse(session));
     }
 

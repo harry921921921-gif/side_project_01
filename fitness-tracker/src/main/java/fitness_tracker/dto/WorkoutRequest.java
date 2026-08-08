@@ -30,6 +30,8 @@ public record WorkoutRequest(
             Integer sets,
             @PositiveOrZero(message = "reps 不能為負")
             Integer reps,
+            @PositiveOrZero(message = "restSeconds 不能為負")
+            Integer restSeconds,
             @DecimalMin(value = "0.0", message = "rpe 不能小於 0")
             @DecimalMax(value = "10.0", message = "rpe 不能大於 10")
             Double rpe,
