@@ -76,6 +76,14 @@ public class GlobalExceptionHandler {
         return badRequest(request, "「" + ex.getParameterName() + "」為必填欄位，請填寫後再送出");
     }
 
+    // Service 層自己判斷輸入不合理時丟出來的（例如體重超出合理範圍、身體部位不存在）——
+    // 訊息本身就是寫給使用者看的，直接回傳即可
+    @ExceptionHandler(IllegalArgumentException.class)
+    public Object handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
+        log.warn("Invalid input for {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return badRequest(request, ex.getMessage());
+    }
+
     private Object badRequest(HttpServletRequest request, String message) {
         if (isHtmlRequest(request)) {
             ModelAndView modelAndView = new ModelAndView("error");

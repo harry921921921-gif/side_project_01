@@ -189,6 +189,7 @@ public class WorkoutService {
                 workoutSet.setActualWeight(safeGet(actualWeights, i));
                 workoutSet.setNotes(safeGet(notesList, i));
                 workoutSet.setSession(session);
+                validateSet(workoutSet);
                 session.getSets().add(workoutSet);
                 recordAccessoryPr(session.getUser(), workoutSet);
             }
@@ -303,6 +304,7 @@ public class WorkoutService {
                     ws.setActualWeight(safeGet(actualWeights, i));
                     ws.setNotes(safeGet(notesList, i));
                     ws.setSession(existing);
+                    validateSet(ws);
                     existing.getSets().add(ws);
                     recordAccessoryPr(existing.getUser(), ws);
                 }
@@ -348,6 +350,33 @@ public class WorkoutService {
         boolean exists = bodyPartRepository.findByName(bodyPart.trim()).isPresent();
         if (!exists) {
             throw new IllegalArgumentException("bodyPart 必須存在於 BodyPart 清單中");
+        }
+    }
+
+    // 重量/組數/次數/RPE 技術上都是合法數字，但負數、0、誇張大的數字（例如打錯多打了幾個 0）
+    // 完全不合理，不擋下來的話會悄悄污染歷史紀錄、PR 估算、還有課表頁後續帶入的重量建議
+    private void validateSet(WorkoutSet set) {
+        String name = set.getExerciseName();
+        if (set.getWeightKg() != null && (set.getWeightKg() < 0 || set.getWeightKg() > 500)) {
+            throw new IllegalArgumentException("「" + name + "」的重量必須介於 0～500 公斤之間");
+        }
+        if (set.getActualWeight() != null && (set.getActualWeight() < 0 || set.getActualWeight() > 500)) {
+            throw new IllegalArgumentException("「" + name + "」的實際重量必須介於 0～500 公斤之間");
+        }
+        if (set.getSets() != null && (set.getSets() < 1 || set.getSets() > 20)) {
+            throw new IllegalArgumentException("「" + name + "」的組數必須介於 1～20 之間");
+        }
+        if (set.getReps() != null && (set.getReps() < 1 || set.getReps() > 50)) {
+            throw new IllegalArgumentException("「" + name + "」的次數必須介於 1～50 之間");
+        }
+        if (set.getActualReps() != null && (set.getActualReps() < 0 || set.getActualReps() > 50)) {
+            throw new IllegalArgumentException("「" + name + "」的實際完成次數必須介於 0～50 之間");
+        }
+        if (set.getRestSeconds() != null && (set.getRestSeconds() < 0 || set.getRestSeconds() > 1800)) {
+            throw new IllegalArgumentException("「" + name + "」的休息秒數必須介於 0～1800 秒之間");
+        }
+        if (set.getRpe() != null && (set.getRpe() < 1 || set.getRpe() > 10)) {
+            throw new IllegalArgumentException("「" + name + "」的 RPE 必須介於 1～10 之間");
         }
     }
 

@@ -44,9 +44,27 @@ public class BodyWeightService {
     }
 
     public void save(BodyWeight bodyWeight) {
+        validate(bodyWeight);
         log.info("Creating body weight record for date={} weightKg={}", bodyWeight.getRecordedDate(), bodyWeight.getWeightKg());
         repository.save(bodyWeight);
         log.info("Created body weight record id={}", bodyWeight.getId());
+    }
+
+    // 數字技術上合法但明顯不合理（負數、0、誇張大的數字）時要擋下來，不然會悄悄污染歷史紀錄跟趨勢圖統計；
+    // 範圍跟表單上 <input> 的 min/max 保持一致，這裡只是補上伺服器端沒有前端擋住時的最後一道防線
+    private void validate(BodyWeight bodyWeight) {
+        Double weight = bodyWeight.getWeightKg();
+        if (weight == null || weight < 20 || weight > 300) {
+            throw new IllegalArgumentException("體重必須介於 20～300 公斤之間");
+        }
+        Double bodyFat = bodyWeight.getBodyFatPct();
+        if (bodyFat != null && (bodyFat < 1 || bodyFat > 70)) {
+            throw new IllegalArgumentException("體脂率必須介於 1～70% 之間");
+        }
+        Double muscle = bodyWeight.getSkeletalMuscleKg();
+        if (muscle != null && (muscle < 1 || muscle > 100)) {
+            throw new IllegalArgumentException("骨骼肌重必須介於 1～100 公斤之間");
+        }
     }
 
     public Optional<BodyWeight> findById(long id) {
