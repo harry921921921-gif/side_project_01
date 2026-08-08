@@ -56,12 +56,11 @@ public class PlanController {
         }
         model.addAttribute("planPrs", prs);
         // 新手模式主項重量進階用：每個主項最近一次「真的完成」的實際重量，前端拿來 +2.5/+5kg 疊加，
-        // 不是套用 LiftPr（那個是給老手模式 %1RM 算重量用，語意不同、不能混用）
+        // 不是套用 LiftPr（那個是給老手模式 %1RM 算重量用，語意不同、不能混用）。
+        // stalled=true 代表最近連續好幾次都沒真的完成，前端要改成建議降重量，不能再往上疊加
         Map<String, Object> mainProgress = new HashMap<>();
-        workoutService.lastCompletedMainLifts(user).forEach((name, set) -> {
-            double w = set.getActualWeight() != null ? set.getActualWeight() : set.getWeightKg();
-            mainProgress.put(name, Map.of("w", w));
-        });
+        workoutService.mainLiftProgress(user).forEach((name, progress) ->
+                mainProgress.put(name, Map.of("w", progress.lastCompletedWeightKg(), "stalled", progress.stalled())));
         model.addAttribute("mainProgress", mainProgress);
         model.addAttribute("completedDays", workoutService.completedBodyPartsThisWeek(user));
         // 課表卡片組成（哪些主項/配件）現在真的查 Exercise 表選，不再是前端寫死的清單；

@@ -281,13 +281,19 @@ const workPct=ph=>(ph.pctLo+ph.pctHi)/2;
 const repsRange=ph=>{if(ph.reps)return ph.reps;const lo=repsAtRir(ph.pctHi,ph.rir),hi=repsAtRir(ph.pctLo,ph.rir);return lo===hi?(''+lo):(lo+'–'+hi);};
 function estimate1RM(w,r){w=parseFloat(w)||0;r=Math.min(Math.max(parseInt(r)||1,1),12);const rc=Math.min(r,10);return r===1?w:w*(1+rc/30);}
 /* 新手模式主項重量：接續「上一次真的完成」的重量往上疊加（上肢+2.5kg／下肢+5kg），
-   還沒有任何完成紀錄的動作才從空槓起步；資料來自後端 mainProgress（真實訓練紀錄），不是 LiftPr */
+   還沒有任何完成紀錄的動作才從空槓起步；資料來自後端 mainProgress（真實訓練紀錄），不是 LiftPr。
+   stalled=連續好幾次都沒真的完成（後端判定，見 WorkoutService.isStalled）——這種情況不能再往上疊加，
+   不然線性進步拉長時間會算出不合理的天文數字，改成建議降到約 9 成重新累積 */
 function mainWeight(mode,pk,name,orm){
   const ph=PHASE[pk];
   if(mode==='novice'){
     const bar=MAIN[name]?MAIN[name].bar:20;
     const last=((window.planSaved&&window.planSaved.mainProgress)||{})[name];
     if(last&&last.w>0){
+      if(last.stalled){
+        const deload=r25(last.w*0.9);
+        return{w:deload,note:'連續卡關，先降到 '+fmt(deload)+'kg 重新累積信心'};
+      }
       const inc=MAIN[name]&&MAIN[name].type==='upper'?2.5:5;
       return{w:r25(last.w+inc),note:'上次完成 '+fmt(last.w)+'kg · +'+inc};
     }

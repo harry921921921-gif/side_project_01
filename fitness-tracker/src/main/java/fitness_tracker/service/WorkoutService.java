@@ -147,6 +147,39 @@ public class WorkoutService {
         return latest;
     }
 
+    // 連續卡關次數的門檻：從最新一筆往回數，連續幾次不是 COMPLETE 就視為卡關
+    private static final int STALL_THRESHOLD = 3;
+
+    public record MainLiftProgress(double lastCompletedWeightKg, boolean stalled) {}
+
+    // 新手模式主項重量進階的完整版本：帶「是否卡關」——只會一直 +2.5/+5kg 疊加、完全不管
+    // 使用者其實一直練失敗的話，線性進步拉長時間會算出不合理的天文數字。這裡額外查每個主項
+    // 最近幾筆紀錄（不分完成狀態），如果從最新的往回數連續 N 次都不是 COMPLETE，
+    // 代表使用者已經卡在這個重量了，下次不該再往上加，而是先降回約 90% 讓對方重新累積信心
+    @Transactional(readOnly = true)
+    public Map<String, MainLiftProgress> mainLiftProgress(User user) {
+        Map<String, WorkoutSet> lastCompleted = lastCompletedMainLifts(user);
+        Map<String, MainLiftProgress> result = new LinkedHashMap<>();
+        for (Map.Entry<String, WorkoutSet> entry : lastCompleted.entrySet()) {
+            String name = entry.getKey();
+            WorkoutSet last = entry.getValue();
+            double weight = last.getActualWeight() != null ? last.getActualWeight() : last.getWeightKg();
+            result.put(name, new MainLiftProgress(weight, isStalled(user, name)));
+        }
+        return result;
+    }
+
+    private boolean isStalled(User user, String exerciseName) {
+        List<WorkoutSet> recent = workoutSetRepository
+                .findTop10BySession_UserAndExerciseNameOrderBySession_WorkoutDateDescIdDesc(user, exerciseName);
+        int consecutiveFails = 0;
+        for (WorkoutSet ws : recent) {
+            if (ws.getCompletionStatus() == CompletionStatus.COMPLETE) break;
+            consecutiveFails++;
+        }
+        return consecutiveFails >= STALL_THRESHOLD;
+    }
+
     // 本週已經練過的動作名稱集合，給 WorkoutPlanService 排配件動作時「一週去重」用
     @Transactional(readOnly = true)
     public Set<String> exerciseNamesThisWeek(User user) {
