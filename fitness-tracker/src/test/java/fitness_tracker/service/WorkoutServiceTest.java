@@ -93,7 +93,8 @@ class WorkoutServiceTest {
         oldSet.setExerciseName("舊動作");
         existing.getSets().add(oldSet);
 
-        when(repository.findById(7L)).thenReturn(Optional.of(existing));
+        User user = new User();
+        when(repository.findByIdAndUser(7L, user)).thenReturn(Optional.of(existing));
 
         service.update(
                 7L,
@@ -109,7 +110,8 @@ class WorkoutServiceTest {
                 List.of("COMPLETE"),
                 List.of(8),
                 List.of(60.0),
-                List.of("新筆記")
+                List.of("新筆記"),
+                user
         );
 
         assertEquals(1, existing.getSets().size());

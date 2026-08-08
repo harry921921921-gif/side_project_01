@@ -56,11 +56,6 @@ public class WorkoutService {
 
     // ── 舊版（未過濾使用者）：保留給既有呼叫端/測試相容，正式流程請一律用帶 User 的版本 ──
     @Transactional(readOnly = true)
-    public Optional<WorkoutSession> findById(long id) {
-        return repository.findById(id);
-    }
-
-    @Transactional(readOnly = true)
     public List<WorkoutSession> findAll() {
         return repository.findAllByOrderByWorkoutDateDesc();
     }
@@ -264,31 +259,6 @@ public class WorkoutService {
                        List<String> completionStatuses,
                        List<Integer> actualRepsList,
                        List<Double> actualWeights,
-                       List<String> notesList) {
-
-        WorkoutSession existing = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄"));
-        applyUpdate(existing, workoutDate, bodyPart, note, exerciseNames, weightKgs, sets, reps,
-                restSeconds, rpes, completionStatuses, actualRepsList, actualWeights, notesList);
-        log.info("Updating workout session id={}", id);
-        repository.save(existing);
-        log.info("Updated workout session id={}", id);
-    }
-
-    @Transactional
-    public void update(Long id,
-                       LocalDate workoutDate,
-                       String bodyPart,
-                       String note,
-                       List<String> exerciseNames,
-                       List<Double> weightKgs,
-                       List<Integer> sets,
-                       List<Integer> reps,
-                       List<Integer> restSeconds,
-                       List<Double> rpes,
-                       List<String> completionStatuses,
-                       List<Integer> actualRepsList,
-                       List<Double> actualWeights,
                        List<String> notesList,
                        User user) {
 
@@ -352,16 +322,6 @@ public class WorkoutService {
         if (weight == null || weight <= 0) return;
         Integer reps = set.getActualReps() != null ? set.getActualReps() : set.getReps();
         liftPrService.save(user, set.getExerciseName(), weight, reps != null ? reps : 8);
-    }
-
-    public void delete(Long id) {
-        if (!repository.existsById(id)) {
-            log.warn("Attempted to delete missing workout session id={}", id);
-            throw new ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄");
-        }
-        log.info("Deleting workout session id={}", id);
-        repository.deleteById(id);
-        log.info("Deleted workout session id={}", id);
     }
 
     public void delete(Long id, User user) {

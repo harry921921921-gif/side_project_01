@@ -67,16 +67,6 @@ public class BodyWeightService {
         }
     }
 
-    public Optional<BodyWeight> findById(long id) {
-        return repository.findById(id);
-    }
-
-    public void delete(long id) {
-        log.info("Deleting body weight record id={}", id);
-        repository.deleteById(id);
-        log.info("Deleted body weight record id={}", id);
-    }
-
     // ── 使用者過濾版：controller 一律用這組 ──
     @Transactional(readOnly = true)
     public List<BodyWeight> findAll(User user) {
