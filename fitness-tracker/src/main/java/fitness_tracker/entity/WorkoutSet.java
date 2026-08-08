@@ -11,12 +11,16 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+// session_id+exercise_name：新手模式重量進階/停滯偵測那幾支查詢會用 join 依動作名稱撈某使用者的歷史紀錄
 @Entity
-@Table(name = "workout_set")
+@Table(name = "workout_set", indexes = {
+        @Index(name = "idx_workout_set_session_exercise", columnList = "session_id, exercise_name")
+})
 public class WorkoutSet {
 
     @Id

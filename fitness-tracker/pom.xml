@@ -11,21 +11,8 @@
 	<groupId>com.fitness</groupId>
 	<artifactId>fitness-tracker</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+	<name>fitness-tracker</name>
+	<description>個人健身訓練與體重紀錄追蹤系統</description>
 	<properties>
 		<java.version>17</java.version>
 	</properties>

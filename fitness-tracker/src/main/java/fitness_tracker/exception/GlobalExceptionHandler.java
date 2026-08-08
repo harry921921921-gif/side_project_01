@@ -7,10 +7,12 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -88,6 +90,32 @@ public class GlobalExceptionHandler {
     public Object handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
         log.warn("Invalid input for {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
         return badRequest(request, ex.getMessage());
+    }
+
+    // 資料庫唯一性衝突（例如同時間有兩個請求搶著建立同一筆資料）——不是系統掛了，是使用者這次
+    // 操作剛好撞到別的資料，一樣走友善的表單錯誤流程
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public Object handleDataIntegrityViolation(DataIntegrityViolationException ex, HttpServletRequest request) {
+        log.warn("Data integrity violation for {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMostSpecificCause().getMessage());
+        return badRequest(request, "這筆資料跟現有資料衝突（可能是名稱重複），請確認後再試一次");
+    }
+
+    // 用錯 HTTP 方法（例如直接用瀏覽器 GET 一個只接受 POST 的網址）是使用者/連結本身的問題，
+    // 該回 405，不該被通用 Exception 處理器吞成看起來像系統掛掉的 500
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public Object handleMethodNotSupported(HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+        log.warn("Method not supported for {} {}", request.getMethod(), request.getRequestURI());
+        String message = "這個網址不支援「" + ex.getMethod() + "」這種請求方式";
+        if (isHtmlRequest(request)) {
+            ModelAndView modelAndView = new ModelAndView("error");
+            modelAndView.setStatus(HttpStatus.METHOD_NOT_ALLOWED);
+            modelAndView.addObject("message", message);
+            return modelAndView;
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "METHOD_NOT_ALLOWED");
+        body.put("message", message);
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(body);
     }
 
     // 表單打錯格式時，優先導回原本那頁並用 flash 訊息顯示錯誤（跟 AuthController 註冊/重設密碼
