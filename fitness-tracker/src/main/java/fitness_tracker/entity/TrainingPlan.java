@@ -44,6 +44,12 @@ public class TrainingPlan {
     // 選填：BULK / CUT / MAINTAIN，只當 AI 語氣標籤，不影響重量
     private String bodyGoal;
 
+    // 使用者編輯過某天型態（例如「上肢 A」）課表卡片的動作組成（換動作/加/刪動作）時存這裡，
+    // key 是天型態名稱、value 是 TrainingPlanService.CardOverride 序列化後的 JSON。
+    // 用天型態名稱而不是佇列位置當 key，因為位置會隨完成進度、週次一直變，型態名稱才是使用者真正想固定下來的東西
+    @Column(columnDefinition = "TEXT")
+    private String cardOverridesJson;
+
     @Column(nullable = false)
     private String status = "ACTIVE";
 
@@ -83,6 +89,7 @@ public class TrainingPlan {
     public LocalDate getPhaseStartDate() { return phaseStartDate; }
     public int getExtraQueueCount()      { return extraQueueCount; }
     public String getBodyGoal()          { return bodyGoal; }
+    public String getCardOverridesJson() { return cardOverridesJson; }
     public String getStatus()            { return status; }
     public LocalDateTime getCreatedAt()  { return createdAt; }
     public LocalDateTime getUpdatedAt()  { return updatedAt; }
@@ -94,5 +101,6 @@ public class TrainingPlan {
     public void setPhaseStartDate(LocalDate d)           { this.phaseStartDate = d; }
     public void setExtraQueueCount(int n)                { this.extraQueueCount = Math.max(n, 0); }
     public void setBodyGoal(String bodyGoal)             { this.bodyGoal = bodyGoal; }
+    public void setCardOverridesJson(String json)        { this.cardOverridesJson = json; }
     public void setStatus(String status)                 { this.status = status; }
 }

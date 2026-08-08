@@ -65,9 +65,11 @@ public class PlanController {
         model.addAttribute("completedDays", workoutService.completedBodyPartsThisWeek(user));
         // 課表卡片組成（哪些主項/配件）現在真的查 Exercise 表選，不再是前端寫死的清單；
         // 帶週次讓配件池依「第幾週＋A/B」旋轉，同一天型態不會週週長一樣；
-        // 帶 extraQueueCount 把「新增課表」多排出來、已持久化的張數重建回來，重新登入不會不見
-        model.addAttribute("planQueue",
-                workoutPlanService.currentQueueComposition(user, p.getDaysPerWeek(), week, p.getExtraQueueCount()));
+        // 帶 extraQueueCount 把「新增課表」多排出來、已持久化的張數重建回來，重新登入不會不見；
+        // 使用者編輯過某天型態卡片的動作組成也要套用，不然重新整理又會被自動排的組成蓋掉
+        List<WorkoutPlanService.DayComposition> planQueue =
+                workoutPlanService.currentQueueComposition(user, p.getDaysPerWeek(), week, p.getExtraQueueCount());
+        model.addAttribute("planQueue", trainingPlanService.applyOverrides(trainingPlanService.getCardOverrides(user), planQueue));
         // 配件動作可以換成的清單，來源是 Exercise 表（排除四大主項），給卡片編輯面板的下拉選單用
         List<String> accessoryPool = exerciseService.findAll().stream()
                 .map(e -> e.getName())
@@ -106,6 +108,30 @@ public class PlanController {
     public String setWeek(@RequestParam int week) {
         User user = currentUserService.getCurrentUser();
         trainingPlanService.setCurrentWeek(user, week);
+        return "redirect:/plan?saved";
+    }
+
+    // 課表卡片編輯完（換動作/加/刪動作）按「完成編輯」時存檔——用天型態名稱記住，
+    // 下次同型態的卡片會直接套用這次調整，不用每次重編一次
+    @PostMapping("/plan/card/save")
+    public String saveCard(@RequestParam String dayName,
+                           @RequestParam(required = false) List<String> main,
+                           @RequestParam(required = false) List<String> acc) {
+        List<String> mainNames = main == null ? List.of() : main;
+        List<String> accNames = acc == null ? List.of() : acc;
+        if (mainNames.isEmpty() && accNames.isEmpty()) {
+            throw new IllegalArgumentException("課表卡片至少要留一個動作");
+        }
+        User user = currentUserService.getCurrentUser();
+        trainingPlanService.saveCardOverride(user, dayName, mainNames, accNames);
+        return "redirect:/plan?saved";
+    }
+
+    // 把某天型態的卡片重設回伺服器自動排的組成，取消先前存過的編輯
+    @PostMapping("/plan/card/reset")
+    public String resetCard(@RequestParam String dayName) {
+        User user = currentUserService.getCurrentUser();
+        trainingPlanService.resetCardOverride(user, dayName);
         return "redirect:/plan?saved";
     }
 

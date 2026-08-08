@@ -1,5 +1,6 @@
 package fitness_tracker.controller;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -57,6 +58,7 @@ class PlanApiControllerTest {
         given(workoutPlanService.currentQueueComposition(user, 3)).willReturn(List.of(
                 new DayComposition("推日", List.of("臥推", "肩推"), List.of("側平舉", "三頭下壓"))
         ));
+        given(trainingPlanService.applyOverrides(any(), any())).willAnswer(inv -> inv.getArgument(1));
 
         mockMvc.perform(get("/plan/api/queue").param("days", "3"))
                 .andExpect(status().isOk())
@@ -86,6 +88,7 @@ class PlanApiControllerTest {
         given(workoutPlanService.currentQueueComposition(user, 6, 3, 2)).willReturn(List.of(
                 new DayComposition("拉 A", List.of("硬舉"), List.of("面拉", "二頭彎舉"))
         ));
+        given(trainingPlanService.applyOverrides(any(), any())).willAnswer(inv -> inv.getArgument(1));
 
         mockMvc.perform(get("/plan/api/queue").param("days", "6").param("week", "3"))
                 .andExpect(status().isOk())

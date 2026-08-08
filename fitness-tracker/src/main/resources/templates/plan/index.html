@@ -226,6 +226,16 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
     </form>
   </div>
 
+  <!-- 課表卡片編輯完存檔／重設用：跟上面幾個表單一樣走隱藏表單送出，沿用既有 CSRF 機制 -->
+  <form id="cardOverrideForm" th:action="@{/plan/card/save}" method="post" style="display:none">
+    <input type="hidden" name="dayName" id="f-card-dayname">
+    <div id="f-card-main"></div>
+    <div id="f-card-acc"></div>
+  </form>
+  <form id="cardResetForm" th:action="@{/plan/card/reset}" method="post" style="display:none">
+    <input type="hidden" name="dayName" id="f-card-reset-dayname">
+  </form>
+
   <!-- 本次課表：本週還沒完成的第一個分化天，不是死板的「今天固定練第一天」 -->
   <h2 class="sec-title">本次課表<span class="ln"></span></h2>
   <div id="todayWrap"></div>
@@ -452,8 +462,24 @@ function editPanelHtml(i){
     <label class="edit-label">配件動作</label>
     <div class="edit-list">${d.acc.map((n,idx)=>row('acc',n,idx)).join('')}</div>
     <button type="button" class="pl-btn pl-btn-ghost" style="padding:6px 12px;font-size:.8rem;margin-top:6px" onclick="addCardExercise(${i},'acc')">＋ 新增配件動作</button>
-    <button type="button" class="pl-btn pl-btn-primary" style="width:100%;margin-top:14px" onclick="toggleEditCard(${i})">完成編輯</button>
+    <button type="button" class="pl-btn pl-btn-primary" style="width:100%;margin-top:14px" onclick="finishEditCard(${i})">完成編輯（會記住這次調整）</button>
+    <button type="button" class="pl-btn pl-btn-ghost" style="width:100%;margin-top:8px;font-size:.82rem" onclick="resetEditCard(${i})">↺ 重設回自動排的動作</button>
   </div>`;
+}
+/* 卡片編輯完存檔：換動作/加/刪動作用「天型態名稱」記住，下次同型態的卡片會直接套用，
+   不用每次重編一次；跟 saveAccWeight 一樣走隱藏表單送出（沿用既有 CSRF/驗證），不用另外拉 fetch */
+function finishEditCard(i){
+  const d=state.queue[i];
+  document.getElementById('f-card-dayname').value=d.name;
+  const mainBox=document.getElementById('f-card-main'); mainBox.innerHTML='';
+  d.main.forEach(n=>mainBox.insertAdjacentHTML('beforeend','<input type="hidden" name="main" value="'+n+'">'));
+  const accBox=document.getElementById('f-card-acc'); accBox.innerHTML='';
+  d.acc.forEach(n=>accBox.insertAdjacentHTML('beforeend','<input type="hidden" name="acc" value="'+n+'">'));
+  document.getElementById('cardOverrideForm').submit();
+}
+function resetEditCard(i){
+  document.getElementById('f-card-reset-dayname').value=state.queue[i].name;
+  document.getElementById('cardResetForm').submit();
 }
 
 /* ===== state ===== */
@@ -545,12 +571,10 @@ function repsToInt(r){
 }
 function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 
-function openImportModal(){
-  const today=window.planToday;
-  if(!today||!today.items||today.items.length===0){alert('今天是休息日，沒有課表可以匯入喔。');return;}
-  $('#impTitle').textContent=today.name+'，練完了嗎？';
-  $('#impRows').innerHTML=today.items.map((it,i)=>`
-    <div class="imp-row" data-i="${i}" style="flex-direction:column;align-items:stretch;gap:8px">
+// 配件動作預設用 <details> 收起來，只留主項在最上面直接看得到——課表一天常常排到 7、8 個配件，
+// 全部攤開要逐一檢查很累，多數人配件都是照課表原封不動完成，需要調整的人再自己點開來改
+function impRowHtml(it,i){
+  return `<div class="imp-row" data-i="${i}" style="flex-direction:column;align-items:stretch;gap:8px">
       <div style="display:flex;align-items:center;gap:8px">
         <span class="nm" style="flex:1">${it.name}</span>
         <input type="number" class="imp-w" value="${fmt(it.w)}" min="0" step="2.5"><span class="x">kg</span>
@@ -568,7 +592,20 @@ function openImportModal(){
           <option value="PAIN">⚠️ 疼痛</option>
         </select>
       </div>
-    </div>`).join('');
+    </div>`;
+}
+function openImportModal(){
+  const today=window.planToday;
+  if(!today||!today.items||today.items.length===0){alert('今天是休息日，沒有課表可以匯入喔。');return;}
+  $('#impTitle').textContent=today.name+'，練完了嗎？';
+  const mainRows=today.items.map((it,i)=>({it,i})).filter(x=>x.it.isMain);
+  const accRows=today.items.map((it,i)=>({it,i})).filter(x=>!x.it.isMain);
+  const mainHtml=mainRows.map(x=>impRowHtml(x.it,x.i)).join('');
+  const accHtml=accRows.length===0?'':`<details class="imp-acc-details" style="margin-top:4px">
+      <summary style="cursor:pointer;padding:8px 0;color:var(--accent);font-size:.88rem;font-weight:600">配件動作（${accRows.length} 個，照課表都算完成，要調整再點開看）▾</summary>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">${accRows.map(x=>impRowHtml(x.it,x.i)).join('')}</div>
+    </details>`;
+  $('#impRows').innerHTML=mainHtml+accHtml;
   $('#importModal').classList.add('on');
 }
 function closeImportModal(){$('#importModal').classList.remove('on');}

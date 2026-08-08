@@ -1,9 +1,12 @@
 package fitness_tracker.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import fitness_tracker.entity.TrainingPlan;
 import fitness_tracker.entity.User;
 import fitness_tracker.enums.PlanMode;
 import fitness_tracker.repository.TrainingPlanRepository;
+import fitness_tracker.service.WorkoutPlanService.DayComposition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -13,7 +16,9 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -26,10 +31,12 @@ public class TrainingPlanService {
 
     private final TrainingPlanRepository repo;
     private final WorkoutService workoutService;
+    private final ObjectMapper objectMapper;
 
-    public TrainingPlanService(TrainingPlanRepository repo, WorkoutService workoutService) {
+    public TrainingPlanService(TrainingPlanRepository repo, WorkoutService workoutService, ObjectMapper objectMapper) {
         this.repo = repo;
         this.workoutService = workoutService;
+        this.objectMapper = objectMapper;
     }
 
     // ── 週期階段（與前端一致）：適應1–6 / 肌肥大7–14 / 最大力量15–20 ──
@@ -47,6 +54,7 @@ public class TrainingPlanService {
     public record Adherence(int planned, int completed) {
         public int missed() { return Math.max(planned - completed, 0); }
     }
+    public record CardOverride(List<String> main, List<String> acc) {}
 
     @Transactional
     public TrainingPlan getOrCreateForUser(User user) {
@@ -154,5 +162,59 @@ public class TrainingPlanService {
         int planned = p.getDaysPerWeek();
         int completed = (int) workoutService.countThisWeek(user);
         return new Adherence(planned, completed);
+    }
+
+    // ── 課表卡片的動作組成覆寫：使用者編輯過某天型態的卡片（換動作/加/刪動作）就記住，
+    //    不然重新整理又會被伺服器自動排的組成蓋掉。key 用天型態名稱，不是佇列位置 ──
+    @Transactional(readOnly = true)
+    public Map<String, CardOverride> getCardOverrides(User user) {
+        return parseOverrides(getOrCreateForUser(user).getCardOverridesJson());
+    }
+
+    @Transactional
+    public void saveCardOverride(User user, String dayName, List<String> main, List<String> acc) {
+        TrainingPlan p = getOrCreateForUser(user);
+        Map<String, CardOverride> overrides = new LinkedHashMap<>(parseOverrides(p.getCardOverridesJson()));
+        overrides.put(dayName, new CardOverride(main, acc));
+        p.setCardOverridesJson(writeOverrides(overrides));
+        repo.save(p);
+    }
+
+    @Transactional
+    public void resetCardOverride(User user, String dayName) {
+        TrainingPlan p = getOrCreateForUser(user);
+        Map<String, CardOverride> overrides = new LinkedHashMap<>(parseOverrides(p.getCardOverridesJson()));
+        overrides.remove(dayName);
+        p.setCardOverridesJson(writeOverrides(overrides));
+        repo.save(p);
+    }
+
+    // 把使用者存過的覆寫套進伺服器自動算出來的課表組成；沒被使用者動過的天型態照舊回傳自動算的結果
+    public List<DayComposition> applyOverrides(Map<String, CardOverride> overrides, List<DayComposition> compositions) {
+        if (overrides.isEmpty()) return compositions;
+        return compositions.stream()
+                .map(dc -> {
+                    CardOverride ov = overrides.get(dc.dayName());
+                    return ov == null ? dc : new DayComposition(dc.dayName(), ov.main(), ov.acc());
+                })
+                .toList();
+    }
+
+    private Map<String, CardOverride> parseOverrides(String json) {
+        if (json == null || json.isBlank()) return Map.of();
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, CardOverride>>() {});
+        } catch (Exception ex) {
+            log.warn("Failed to parse card overrides, ignoring: {}", ex.getMessage());
+            return Map.of();
+        }
+    }
+
+    private String writeOverrides(Map<String, CardOverride> overrides) {
+        try {
+            return objectMapper.writeValueAsString(overrides);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to serialize card overrides", ex);
+        }
     }
 }
