@@ -147,14 +147,45 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
 .modal-box{width:100%;max-width:480px;max-height:86vh;overflow-y:auto;background:var(--surface);border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(15,23,42,.3)}
 .modal-box h2{font-size:1.15rem;font-weight:800;margin-bottom:4px}
 .modal-box .sub{font-size:.85rem;color:var(--muted);margin-bottom:16px}
-.imp-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.imp-row{padding:10px 0;border-bottom:1px solid var(--line)}
 .imp-row:last-child{border-bottom:0}
-.imp-row .nm{flex:1;font-weight:700;font-size:.92rem}
-.imp-row input{width:56px;border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit;text-align:center;font-weight:600}
-.imp-row .x{color:var(--faint);font-size:.8rem}
+.imp-fields{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.imp-fields:last-child{margin-bottom:0}
+.imp-field{display:flex;align-items:center;gap:4px}
+.imp-field label{display:none}
+.imp-field input,.imp-field select{border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit;text-align:center;font-weight:600}
+.imp-field input{width:56px}
+.imp-fields-status .imp-field:first-child input{width:64px}
+.imp-field-name{flex:1}
+.imp-field-name .imp-nm{font-weight:700;font-size:.92rem;display:flex;align-items:center;gap:6px}
+.imp-main-tag{font-size:.66rem;font-weight:800;background:var(--accent-soft);color:var(--accent-ink);padding:2px 7px;border-radius:7px;flex-shrink:0}
+.imp-field-wide{flex:1}
+.imp-field-wide select{width:100%;text-align:left}
+.imp-field .unit{color:var(--faint);font-size:.8rem}
 .modal-btns{display:flex;gap:10px;margin-top:18px}
 .modal-btns button{flex:1}
-@media(max-width:600px){.hero h1{font-size:1.5rem}.pad{padding:18px}.tl-seg .pw{display:none}}
+@media(max-width:600px){
+  .hero h1{font-size:1.5rem}
+  .pad{padding:18px}
+  .tl-seg .pw{display:none}
+  /* 本次課表動作列：重量／備註／徽章擠在同一行右邊時容易溢出，窄螢幕改成重量自己一行、
+     其餘資訊換到第二行，靠 flex-wrap 自然換行，不用另外判斷裝置 */
+  .exrow{flex-wrap:wrap;row-gap:6px}
+  .exrow .l{flex:1 1 100%}
+  .exrow .r{flex:1 1 100%;justify-content:space-between}
+  .exrow .wt{font-size:1.15rem}
+  /* 完成訓練彈窗每一列：桌面版維持原本緊湊的單行＋小字單位；窄螢幕改成有標籤的網格排列，
+     輸入框高度拉到 40px 方便手指點，動作名稱獨立一行不跟重量/組數/次數擠在一起 */
+  .imp-fields{flex-wrap:wrap;row-gap:8px}
+  .imp-field-name{flex:1 1 100%}
+  .imp-field:not(.imp-field-name){flex:1 1 0}
+  .imp-field label{display:block;font-size:.66rem;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px}
+  .imp-field{flex-direction:column;align-items:stretch;gap:0}
+  .imp-field-name{flex-direction:row;align-items:center}
+  .imp-field input,.imp-field select{width:100%;height:40px;font-size:.92rem}
+  .imp-field .unit{display:none}
+  .imp-field-wide{flex:1 1 160px}
+}
 </style>
 </head>
 <body>
@@ -574,23 +605,24 @@ function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMo
 // 配件動作預設用 <details> 收起來，只留主項在最上面直接看得到——課表一天常常排到 7、8 個配件，
 // 全部攤開要逐一檢查很累，多數人配件都是照課表原封不動完成，需要調整的人再自己點開來改
 function impRowHtml(it,i){
-  return `<div class="imp-row" data-i="${i}" style="flex-direction:column;align-items:stretch;gap:8px">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="nm" style="flex:1">${it.name}</span>
-        <input type="number" class="imp-w" value="${fmt(it.w)}" min="0" step="2.5"><span class="x">kg</span>
-        <input type="number" class="imp-s" value="${it.sets}" min="1" max="20"><span class="x">組</span>
-        <input type="number" class="imp-r" value="${repsToInt(it.reps)}" min="1" max="30"><span class="x">下</span>
+  const mainTag=it.isMain?'<span class="imp-main-tag">主項</span>':'';
+  return `<div class="imp-row" data-i="${i}">
+      <div class="imp-fields imp-fields-main">
+        <div class="imp-field imp-field-name"><span class="imp-nm">${mainTag}${it.name}</span></div>
+        <div class="imp-field"><label>重量</label><input type="number" class="imp-w" value="${fmt(it.w)}" min="0" step="2.5"><span class="unit">kg</span></div>
+        <div class="imp-field"><label>組數</label><input type="number" class="imp-s" value="${it.sets}" min="1" max="20"><span class="unit">組</span></div>
+        <div class="imp-field"><label>次數</label><input type="number" class="imp-r" value="${repsToInt(it.reps)}" min="1" max="30"><span class="unit">下</span></div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="x">疲勞度 RPE</span>
-        <input type="number" class="imp-rpe" min="1" max="10" step="0.5" placeholder="1–10" style="width:64px">
-        <span class="x" style="margin-left:6px">完成度</span>
-        <select class="imp-status" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit">
-          <option value="COMPLETE" selected>✅ 完成</option>
-          <option value="FAILED">❌ 失敗</option>
-          <option value="DROPPED">⏸️ 中途放棄</option>
-          <option value="PAIN">⚠️ 疼痛</option>
-        </select>
+      <div class="imp-fields imp-fields-status">
+        <div class="imp-field"><label>RPE</label><input type="number" class="imp-rpe" min="1" max="10" step="0.5" placeholder="1–10"></div>
+        <div class="imp-field imp-field-wide"><label>完成度</label>
+          <select class="imp-status">
+            <option value="COMPLETE" selected>✅ 完成</option>
+            <option value="FAILED">❌ 失敗</option>
+            <option value="DROPPED">⏸️ 中途放棄</option>
+            <option value="PAIN">⚠️ 疼痛</option>
+          </select>
+        </div>
       </div>
     </div>`;
 }
