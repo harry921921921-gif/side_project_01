@@ -4,6 +4,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import fitness_tracker.dto.WorkoutRequest;
 import fitness_tracker.entity.Exercise;
+import fitness_tracker.entity.LiftPr;
 import fitness_tracker.entity.User;
 import fitness_tracker.entity.WorkoutSession;
 import fitness_tracker.entity.WorkoutSet;
@@ -151,16 +153,30 @@ public class WorkoutService {
     // 新手模式主項重量進階的完整版本：帶「是否卡關」——只會一直 +2.5/+5kg 疊加、完全不管
     // 使用者其實一直練失敗的話，線性進步拉長時間會算出不合理的天文數字。這裡額外查每個主項
     // 最近幾筆紀錄（不分完成狀態），如果從最新的往回數連續 N 次都不是 COMPLETE，
-    // 代表使用者已經卡在這個重量了，下次不該再往上加，而是先降回約 90% 讓對方重新累積信心
+    // 代表使用者已經卡在這個重量了，下次不該再往上加，而是先降回約 90% 讓對方重新累積信心。
+    //
+    // 使用者也可能在課表頁編輯彈窗手動指定過某個主項的重量（LiftPr.saveManual）——這個手動值
+    // 要接管漸進起點，直到使用者又真的完成一次新的訓練紀錄為止：比較「手動覆寫的存檔時間」
+    // 跟「最近一次真實完成紀錄的訓練日期」誰比較新，較新的那個當作這次的基準重量。
     @Transactional(readOnly = true)
     public Map<String, MainLiftProgress> mainLiftProgress(User user) {
         Map<String, WorkoutSet> lastCompleted = lastCompletedMainLifts(user);
         Map<String, MainLiftProgress> result = new LinkedHashMap<>();
+        Set<String> names = new LinkedHashSet<>(MAIN_LIFT_NAMES);
         for (Map.Entry<String, WorkoutSet> entry : lastCompleted.entrySet()) {
-            String name = entry.getKey();
-            WorkoutSet last = entry.getValue();
-            double weight = last.getActualWeight() != null ? last.getActualWeight() : last.getWeightKg();
-            result.put(name, new MainLiftProgress(weight, isStalled(user, name)));
+            names.add(entry.getKey());
+        }
+        for (String name : names) {
+            WorkoutSet last = lastCompleted.get(name);
+            Optional<LiftPr> override = liftPrService.findOverride(user, name);
+            boolean overrideWins = override.isPresent() && (last == null
+                    || !override.get().getUpdatedAt().toLocalDate().isBefore(last.getSession().getWorkoutDate()));
+            if (overrideWins) {
+                result.put(name, new MainLiftProgress(override.get().getWeightKg(), false));
+            } else if (last != null) {
+                double weight = last.getActualWeight() != null ? last.getActualWeight() : last.getWeightKg();
+                result.put(name, new MainLiftProgress(weight, isStalled(user, name)));
+            }
         }
         return result;
     }

@@ -22,6 +22,9 @@ public class LiftPr {
     private Double weightKg;
     private Integer reps;
     private Double oneRepMax;
+    // 使用者在課表頁手動編輯動作時一起存的組數／休息秒數（可空——沒手動存過就沿用階段公式算出來的值）
+    private Integer sets;
+    private Integer restSeconds;
     private LocalDateTime updatedAt;
 
     @PrePersist @PreUpdate
@@ -33,10 +36,15 @@ public class LiftPr {
     public Double getWeightKg()    { return weightKg; }
     public Integer getReps()       { return reps; }
     public Double getOneRepMax()   { return oneRepMax; }
+    public Integer getSets()       { return sets; }
+    public Integer getRestSeconds(){ return restSeconds; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
 
     public void setUser(User user)              { this.user = user; }
     public void setExerciseName(String n)       { this.exerciseName = n; }
     public void setWeightKg(Double w)           { this.weightKg = w; }
     public void setReps(Integer r)              { this.reps = r; }
     public void setOneRepMax(Double o)          { this.oneRepMax = o; }
+    public void setSets(Integer s)              { this.sets = s; }
+    public void setRestSeconds(Integer r)       { this.restSeconds = r; }
 }

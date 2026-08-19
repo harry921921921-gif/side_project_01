@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +53,12 @@ public class PlanController {
         model.addAttribute("planWeek", week);
         Map<String, Object> prs = new HashMap<>();
         for (LiftPr pr : liftPrService.findByUser(user)) {
-            prs.put(pr.getExerciseName(), Map.of("w", pr.getWeightKg(), "r", pr.getReps()));
+            Map<String, Object> entry = new HashMap<>();
+            entry.put("w", pr.getWeightKg());
+            entry.put("r", pr.getReps());
+            entry.put("sets", pr.getSets());
+            entry.put("rest", pr.getRestSeconds());
+            prs.put(pr.getExerciseName(), entry);
         }
         model.addAttribute("planPrs", prs);
         // 新手模式主項重量進階用：每個主項最近一次「真的完成」的實際重量，前端拿來 +2.5/+5kg 疊加，
@@ -111,12 +117,25 @@ public class PlanController {
         return "redirect:/plan?saved";
     }
 
-    // 課表卡片編輯完（換動作/加/刪動作）按「完成編輯」時存檔——用天型態名稱記住，
-    // 下次同型態的卡片會直接套用這次調整，不用每次重編一次
+    // 課表卡片編輯完（換動作/加/刪動作，以及每個動作的重量/組數/次數/休息）按「完成編輯」時存檔。
+    // 動作組成（main/acc 名稱清單）用天型態名稱記住，下次同型態的卡片會直接套用；重量/組數/次數/休息
+    // 則是用動作名稱存進 LiftPr，這樣同一個動作不管出現在哪個天型態、哪個位置都會套用同一組覆寫。
+    // 表單送出的是「一個欄位一個平行 List」，跟 WorkoutController.zipExercises() 同一套手法，
+    // 這裡先 zip 成本地的 CardExerciseSlot 再分別處理兩件事，不讓 controller 直接對著一堆平行 List 操作
     @PostMapping("/plan/card/save")
     public String saveCard(@RequestParam String dayName,
                            @RequestParam(required = false) List<String> main,
-                           @RequestParam(required = false) List<String> acc) {
+                           @RequestParam(required = false) List<String> acc,
+                           @RequestParam(required = false) List<Double> mainWeights,
+                           @RequestParam(required = false) List<Integer> mainSets,
+                           @RequestParam(required = false) List<Integer> mainReps,
+                           @RequestParam(required = false) List<Integer> mainRests,
+                           @RequestParam(required = false) List<Double> accWeights,
+                           @RequestParam(required = false) List<Integer> accSets,
+                           @RequestParam(required = false) List<Integer> accReps,
+                           @RequestParam(required = false) List<Integer> accRests,
+                           @RequestParam(required = false) List<String> mainDirty,
+                           @RequestParam(required = false) List<String> accDirty) {
         List<String> mainNames = main == null ? List.of() : main;
         List<String> accNames = acc == null ? List.of() : acc;
         if (mainNames.isEmpty() && accNames.isEmpty()) {
@@ -124,7 +143,37 @@ public class PlanController {
         }
         User user = currentUserService.getCurrentUser();
         trainingPlanService.saveCardOverride(user, dayName, mainNames, accNames);
+
+        List<CardExerciseSlot> slots = new ArrayList<>();
+        slots.addAll(zipSlots(mainNames, mainWeights, mainSets, mainReps, mainRests, mainDirty));
+        slots.addAll(zipSlots(accNames, accWeights, accSets, accReps, accRests, accDirty));
+        // 只有使用者在彈窗裡真的改過那一列的數字（前端算出的 dirty 旗標）才存成手動覆寫——
+        // 不然單純打開彈窗看一眼就按「完成編輯」，會把當下公式現算出來的數字（已經疊加過一次
+        // 漸進幅度）誤存成新的手動覆寫，下次又再疊加一次，重量會無中生有一直往上跳
+        for (CardExerciseSlot slot : slots) {
+            if ("1".equals(slot.dirty()) && slot.weightKg() != null && slot.weightKg() > 0
+                    && slot.sets() != null && slot.reps() != null && slot.restSeconds() != null) {
+                liftPrService.saveManual(user, slot.name(), slot.weightKg(), slot.sets(), slot.reps(), slot.restSeconds());
+            }
+        }
         return "redirect:/plan?saved";
+    }
+
+    private record CardExerciseSlot(String name, Double weightKg, Integer sets, Integer reps, Integer restSeconds, String dirty) {}
+
+    private List<CardExerciseSlot> zipSlots(List<String> names, List<Double> weights, List<Integer> sets,
+                                            List<Integer> reps, List<Integer> rests, List<String> dirty) {
+        if (names == null) return List.of();
+        List<CardExerciseSlot> result = new ArrayList<>();
+        for (int i = 0; i < names.size(); i++) {
+            result.add(new CardExerciseSlot(names.get(i), safeGet(weights, i), safeGet(sets, i),
+                    safeGet(reps, i), safeGet(rests, i), safeGet(dirty, i)));
+        }
+        return result;
+    }
+
+    private <T> T safeGet(List<T> list, int i) {
+        return (list != null && i < list.size()) ? list.get(i) : null;
     }
 
     // 把某天型態的卡片重設回伺服器自動排的組成，取消先前存過的編輯

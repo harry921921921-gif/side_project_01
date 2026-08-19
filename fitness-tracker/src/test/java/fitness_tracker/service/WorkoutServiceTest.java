@@ -1,13 +1,17 @@
 package fitness_tracker.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,16 +20,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import fitness_tracker.dto.WorkoutRequest;
 import fitness_tracker.entity.BodyPart;
 import fitness_tracker.entity.Exercise;
+import fitness_tracker.entity.LiftPr;
 import fitness_tracker.entity.User;
 import fitness_tracker.entity.WorkoutSession;
 import fitness_tracker.entity.WorkoutSet;
 import fitness_tracker.enums.CompletionStatus;
 import fitness_tracker.repository.BodyPartRepository;
 import fitness_tracker.repository.WorkoutSessionRepository;
+import fitness_tracker.repository.WorkoutSetRepository;
 import java.util.Set;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,6 +40,9 @@ class WorkoutServiceTest {
 
     @Mock
     private WorkoutSessionRepository repository;
+
+    @Mock
+    private WorkoutSetRepository workoutSetRepository;
 
     @Mock
     private ExerciseService exerciseService;
@@ -258,6 +268,62 @@ class WorkoutServiceTest {
         Set<String> completed = service.completedBodyPartsThisWeek(user);
 
         assertEquals(Set.of("推日"), completed);
+    }
+
+    @Test
+    void mainLiftProgressUsesManualOverrideWhenNewerThanLastCompletedSet() {
+        User user = new User();
+        WorkoutSession session = new WorkoutSession();
+        session.setWorkoutDate(LocalDate.now().minusDays(10));
+        WorkoutSet completed = new WorkoutSet();
+        completed.setExerciseName("臥推");
+        completed.setWeightKg(70.0);
+        completed.setCompletionStatus(CompletionStatus.COMPLETE);
+        completed.setSession(session);
+        when(workoutSetRepository.findBySession_UserAndExerciseNameInAndCompletionStatusOrderBySession_WorkoutDateDescIdDesc(
+                eq(user), any(), eq(CompletionStatus.COMPLETE))).thenReturn(List.of(completed));
+
+        LiftPr override = new LiftPr();
+        override.setExerciseName("臥推");
+        override.setWeightKg(80.0);
+        ReflectionTestUtils.setField(override, "updatedAt", LocalDateTime.now());
+        when(liftPrService.findOverride(user, "臥推")).thenReturn(Optional.of(override));
+        when(liftPrService.findOverride(eq(user), org.mockito.ArgumentMatchers.argThat(n -> !"臥推".equals(n))))
+                .thenReturn(Optional.empty());
+
+        WorkoutService.MainLiftProgress progress = service.mainLiftProgress(user).get("臥推");
+
+        assertEquals(80.0, progress.lastCompletedWeightKg());
+        assertFalse(progress.stalled());
+    }
+
+    @Test
+    void mainLiftProgressPrefersRealHistoryWhenNewerThanManualOverride() {
+        User user = new User();
+        WorkoutSession session = new WorkoutSession();
+        session.setWorkoutDate(LocalDate.now());
+        WorkoutSet completed = new WorkoutSet();
+        completed.setExerciseName("臥推");
+        completed.setWeightKg(70.0);
+        completed.setCompletionStatus(CompletionStatus.COMPLETE);
+        completed.setSession(session);
+        when(workoutSetRepository.findBySession_UserAndExerciseNameInAndCompletionStatusOrderBySession_WorkoutDateDescIdDesc(
+                eq(user), any(), eq(CompletionStatus.COMPLETE))).thenReturn(List.of(completed));
+        when(workoutSetRepository.findTop10BySession_UserAndExerciseNameOrderBySession_WorkoutDateDescIdDesc(user, "臥推"))
+                .thenReturn(List.of(completed));
+
+        LiftPr override = new LiftPr();
+        override.setExerciseName("臥推");
+        override.setWeightKg(80.0);
+        ReflectionTestUtils.setField(override, "updatedAt", LocalDateTime.now().minusDays(10));
+        when(liftPrService.findOverride(user, "臥推")).thenReturn(Optional.of(override));
+        when(liftPrService.findOverride(eq(user), org.mockito.ArgumentMatchers.argThat(n -> !"臥推".equals(n))))
+                .thenReturn(Optional.empty());
+
+        WorkoutService.MainLiftProgress progress = service.mainLiftProgress(user).get("臥推");
+
+        assertEquals(70.0, progress.lastCompletedWeightKg());
+        assertFalse(progress.stalled());
     }
 
     private Exercise newExercise(String name, String category) {

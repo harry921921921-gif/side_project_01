@@ -68,4 +68,39 @@ class LiftPrServiceTest {
         assertEquals(140.0, existing.getWeightKg());
         assertEquals(3, existing.getReps());
     }
+
+    // saveManual 跟 save 不同的地方：主要動作名稱也可以存（課表編輯彈窗要接管漸進起點），
+    // 而且要多存組數/休息秒數——save() 沒有這兩個欄位
+    @Test
+    void saveManualAllowsMainLiftNamesAndPersistsSetsAndRestSeconds() {
+        when(repo.findByUserAndExerciseName(user, "臥推")).thenReturn(Optional.empty());
+        ArgumentCaptor<LiftPr> captor = ArgumentCaptor.forClass(LiftPr.class);
+
+        service.saveManual(user, "臥推", 80.0, 5, 5, 180);
+
+        verify(repo).save(captor.capture());
+        LiftPr saved = captor.getValue();
+        assertEquals("臥推", saved.getExerciseName());
+        assertEquals(80.0, saved.getWeightKg());
+        assertEquals(5, saved.getSets());
+        assertEquals(5, saved.getReps());
+        assertEquals(180, saved.getRestSeconds());
+        assertEquals(93.3, saved.getOneRepMax()); // 80 * (1 + 5/30)
+    }
+
+    @Test
+    void saveManualUpdatesExistingOverrideInsteadOfCreatingDuplicate() {
+        LiftPr existing = new LiftPr();
+        existing.setExerciseName("肩推");
+        when(repo.findByUserAndExerciseName(user, "肩推")).thenReturn(Optional.of(existing));
+        when(repo.save(any(LiftPr.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.saveManual(user, "肩推", 45.0, 4, 8, 120);
+
+        verify(repo).save(existing);
+        assertEquals(45.0, existing.getWeightKg());
+        assertEquals(4, existing.getSets());
+        assertEquals(8, existing.getReps());
+        assertEquals(120, existing.getRestSeconds());
+    }
 }
