@@ -3,3 +3,6 @@ application-local.properties
 hs_err_pid*.log
 replay_pid*.log
 *.log
+
+# Claude / Cowork 工具資料夾（設定 + 暫存 worktree，非專案程式碼）
+.claude/
