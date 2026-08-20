@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FitTracker · 完整 Function 全覽圖</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', '微軟正黑體', 'Noto Sans TC', sans-serif; background: #edf2f7; color: #1a202c; font-size: 13px; line-height: 1.5; }
+
+  .header {
+    background: linear-gradient(135deg, #0f2647 0%, #1d3f72 55%, #0f2647 100%);
+    color: #fff; padding: 22px 28px 18px; text-align: center;
+  }
+  .header h1 { font-size: 1.55rem; font-weight: 900; letter-spacing: .01em; }
+  .header p { font-size: .8rem; color: #9fc2ef; margin-top: 6px; }
+  .stat-pills { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  .stat-pill { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); border-radius: 20px; padding: 6px 16px; font-size: .78rem; font-weight: 700; }
+  .stat-pill b { color: #6ee7b7; font-size: .92rem; margin-right: 4px; }
+
+  .layer-strip { background: #16305a; padding: 14px 24px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .layer-chip { background: #fff; border-radius: 10px; padding: 8px 16px; text-align: center; min-width: 96px; }
+  .layer-chip .t { font-weight: 800; font-size: .82rem; color: #0f2647; }
+  .layer-chip .s { font-size: .66rem; color: #64748b; margin-top: 1px; }
+  .layer-note { text-align: center; padding: 9px 20px; background: #0c1f3d; color: #a9c6ee; font-size: .74rem; }
+  .layer-note b { color: #6ee7b7; }
+  .layer-note span.sep { margin: 0 10px; color: #4b6da3; }
+
+  .main-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding: 18px 22px; max-width: 1180px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; padding: 16px 18px; box-shadow: 0 2px 8px rgba(15,23,42,.08); }
+  .card-title { font-size: .92rem; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 2px solid #eef2f7; }
+  .num { color: #fff; border-radius: 50%; width: 23px; height: 23px; display: flex; align-items: center; justify-content: center; font-size: .74rem; font-weight: 800; flex-shrink: 0; }
+  .n1{background:#2b6cb0}.n2{background:#2f855a}.n3{background:#6b46c1}.n4{background:#c05621}.n5{background:#0891b2}.n6{background:#be185d}.n7{background:#4338ca}
+
+  .kv-list { list-style: none; }
+  .kv-item { padding: 6px 0; font-size: .8rem; border-bottom: 1px solid #f2f5f9; }
+  .kv-item:last-child { border-bottom: none; }
+  .kv-item .cls { color: #2b6cb0; font-weight: 700; }
+  .kv-item .desc { color: #4a5568; }
+
+  table.rt { width: 100%; border-collapse: collapse; font-size: .76rem; }
+  table.rt th { text-align: left; color: #94a3b8; font-weight: 700; font-size: .68rem; text-transform: uppercase; padding: 3px 6px; border-bottom: 1px solid #eef2f7; }
+  table.rt td { padding: 4px 6px; border-bottom: 1px solid #f6f8fb; vertical-align: top; }
+  table.rt tr:last-child td { border-bottom: none; }
+  .m { display: inline-block; border-radius: 4px; padding: 1px 7px; font-size: .66rem; font-weight: 800; color: #fff; }
+  .m-get{background:#2b6cb0}.m-post{background:#2f855a}.m-put{background:#6b46c1}.m-del{background:#c53030}
+  .cls-name { color: #2b6cb0; font-weight: 700; }
+
+  .tag { display: inline-block; border-radius: 4px; padding: 1px 6px; font-size: .64rem; font-weight: 700; margin-left: 4px; }
+  .tag-new { background: #c6f6d5; color: #22543d; }
+  .tag-fix { background: #fefcbf; color: #744210; }
+  .tag-removed { background: #fed7d7; color: #822727; text-decoration: line-through; }
+
+  .db-table { border: 2px solid #e2e8f0; border-radius: 8px; overflow: hidden; font-size: .72rem; margin-bottom: 8px; }
+  .db-head { color: #fff; padding: 5px 10px; font-weight: 800; font-size: .74rem; }
+  .db-h1{background:#2b6cb0}.db-h2{background:#2f855a}.db-h3{background:#744210}.db-h4{background:#6b46c1}.db-h5{background:#c05621}
+  .db-field { padding: 3px 10px; border-bottom: 1px solid #f4f6fa; color: #4a5568; }
+  .db-field:last-child { border-bottom: none; }
+  .db-field b { color: #1a202c; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .stack-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .stack-chip { background: #edf2f7; border-radius: 6px; padding: 4px 10px; font-size: .72rem; font-weight: 600; color: #2d3748; }
+  .stack-note { font-size: .74rem; color: #64748b; line-height: 1.6; }
+  .stack-note b { color: #2b6cb0; }
+
+  .flow-strip { background: #0f2647; padding: 16px 24px 20px; }
+  .flow-strip h3 { text-align: center; color: #fff; font-size: .9rem; font-weight: 800; margin-bottom: 12px; letter-spacing: .04em; }
+  .flow-row { display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap; max-width: 1000px; margin: 0 auto; }
+  .flow-box { background: #fff; border-radius: 10px; padding: 10px 16px; text-align: center; min-width: 108px; }
+  .flow-box .t { font-weight: 800; font-size: .8rem; color: #0f2647; }
+  .flow-box .s { font-size: .66rem; color: #64748b; margin-top: 2px; }
+  .flow-arrow { color: #6ee7b7; font-size: 1.1rem; }
+
+  footer { text-align: center; padding: 14px; font-size: .72rem; color: #94a3b8; background: #edf2f7; }
+
+  @media(max-width: 860px){
+    .main-grid{ grid-template-columns: 1fr; }
+    .grid2{ grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>FitTracker <span style="color:#6ee7b7">|</span> 完整 Function 全覽圖</h1>
+  <p>Spring Boot 3.5 · Java 17 · MySQL 8 · Thymeleaf · Spring Security · Spring Mail</p>
+  <div class="stat-pills">
+    <span class="stat-pill"><b>64</b>src/main Java 檔</span>
+    <span class="stat-pill"><b>11</b>Controller</span>
+    <span class="stat-pill"><b>14</b>Service</span>
+    <span class="stat-pill"><b>9</b>Entity</span>
+    <span class="stat-pill"><b>11</b>Thymeleaf</span>
+    <span class="stat-pill"><b>15</b>測試</span>
+  </div>
+</div>
+
+<div class="layer-strip">
+  <div class="layer-chip"><div class="t">瀏覽器</div><div class="s">使用者</div></div>
+  <div class="layer-chip"><div class="t">Thymeleaf / JS</div><div class="s">畫面 · fetch</div></div>
+  <div class="layer-chip"><div class="t">Spring Security</div><div class="s">登入把關</div></div>
+  <div class="layer-chip"><div class="t">Controller</div><div class="s">收請求</div></div>
+  <div class="layer-chip"><div class="t">Service</div><div class="s">業務邏輯</div></div>
+  <div class="layer-chip"><div class="t">Repository / JPA</div><div class="s">資料存取</div></div>
+  <div class="layer-chip"><div class="t">MySQL</div><div class="s">資料庫</div></div>
+</div>
+<div class="layer-note">DTO 負責各層之間的資料轉換　<span class="sep">·</span>　ClientIpFilter 在 Security 過濾鏈裡把來源 IP 塞進 ThreadLocal，供帳號鎖定判斷用</div>
+
+<div class="main-grid">
+
+  <div class="card">
+    <div class="card-title"><span class="num n1">1</span>入口與安全</div>
+    <ul class="kv-list">
+      <li class="kv-item"><span class="cls">FitnessTrackerApplication</span> — <span class="desc">@SpringBootApplication，程式進入點</span></li>
+      <li class="kv-item"><span class="cls">SecurityConfig</span> — <span class="desc">BCrypt 密碼雜湊、表單登入 /login /register /verify /forgot /reset、記住我改用 PersistentTokenRepository（可撤銷）<span class="tag tag-new">NEW</span></span></li>
+      <li class="kv-item"><span class="cls">ClientIpFilter / RequestIpHolder</span> — <span class="desc">把來源 IP 放進 ThreadLocal，供 CustomUserDetailsService 判斷帳號鎖定<span class="tag tag-new">NEW</span></span></li>
+      <li class="kv-item"><span class="cls">CurrentUserModelAdvice</span> — <span class="desc">@ControllerAdvice，登入使用者/目前路徑注入畫面（navbar 顯示用）</span></li>
+      <li class="kv-item"><span class="cls">CurrentUserService</span> — <span class="desc">單一來源：從 SecurityContext 拿目前使用者</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num n2">2</span>Controllers · 網頁（HTML）</div>
+    <table class="rt">
+      <tr><th>類別</th><th>路由</th><th>功能</th></tr>
+      <tr><td class="cls-name">HomeController</td><td><span class="m m-get">GET</span> /</td><td>首頁 Dashboard：統計、近期紀錄</td></tr>
+      <tr><td class="cls-name">WorkoutController</td><td>/workout</td><td>訓練紀錄新增/更新/刪除</td></tr>
+      <tr><td class="cls-name">BodyWeightController</td><td>/body-weight</td><td>體重紀錄新增/更新/刪除</td></tr>
+      <tr><td class="cls-name">ManageController</td><td>/manage</td><td>部位・動作 CRUD（僅 ADMIN）</td></tr>
+      <tr><td class="cls-name">PlanController</td><td>/plan</td><td>課表計畫、儲存偏好、卡片編輯</td></tr>
+      <tr><td class="cls-name">AuthController</td><td>/login…</td><td>登入/註冊/驗證/忘記密碼/重設密碼</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num n3">3</span>Controllers · REST API（回 JSON）</div>
+    <table class="rt">
+      <tr><th>類別・base</th><th>路由</th><th>功能</th></tr>
+      <tr><td class="cls-name">WorkoutApiController<br><span style="color:#94a3b8">/api/workouts</span></td><td><span class="m m-get">GET</span> / <span class="m m-get">GET</span> /{id}<br><span class="m m-post">POST</span> / <span class="m m-del">DEL</span> /{id}</td><td>訓練紀錄分頁、單筆、新增、刪除</td></tr>
+      <tr><td class="cls-name">BodyWeightApiController<br><span style="color:#94a3b8">/api/body-weights</span></td><td><span class="m m-get">GET</span> / /latest<br><span class="m m-post">POST</span> <span class="m m-put">PUT</span> <span class="m m-del">DEL</span></td><td>列表、最新、新增、更新、刪除</td></tr>
+      <tr><td class="cls-name">ExerciseApiController<br><span style="color:#94a3b8">/api/exercises</span></td><td><span class="m m-get">GET</span> / <span class="m m-post">POST</span> /（ADMIN）</td><td>動作查詢、新增（限管理員）</td></tr>
+      <tr><td class="cls-name">PlanApiController<br><span style="color:#94a3b8">/plan/api</span></td><td><span class="m m-get">GET</span> /queue /next</td><td>課表組成（哪些動作排哪一天）</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num n4">4</span>Service · 訓練與統計</div>
+    <ul class="kv-list">
+      <li class="kv-item"><span class="cls">WorkoutService</span> — <span class="desc">save/update/delete 訓練紀錄；單次最多 50 個動作（REST + MVC 表單共用防線）<span class="tag tag-new">NEW</span></span></li>
+      <li class="kv-item"><span class="cls">·mainLiftProgress()</span> — <span class="desc">主項漸進式加重：手動覆寫接管進度起點，比對「覆寫時間」vs「最近一次真實完成」<span class="tag tag-new">NEW</span></span></li>
+      <li class="kv-item"><span class="cls">·computeDashboardStats()</span> — <span class="desc">本週次數、複合動作訓練量、平均 RPE、最近完成率</span></li>
+      <li class="kv-item"><span class="cls">·recordAccessoryPr()</span> — <span class="desc">配件動作重量記憶（存進 LiftPr）</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num n5">5</span>Service · 課表排課引擎（核心賣點）</div>
+    <ul class="kv-list">
+      <li class="kv-item"><span class="cls">SplitCatalog</span> — <span class="desc">分化表：依一週天數（1~7）決定每天練什麼部位/主項</span></li>
+      <li class="kv-item"><span class="cls">WorkoutPlanService</span> — <span class="desc">composeDay/currentQueueComposition — 依週次＋A/B輪替配件、時間預算排課</span></li>
+      <li class="kv-item"><span class="cls">TrainingPlanService</span> — <span class="desc">每人課表偏好、今天/明天排什麼、卡片覆寫（CardOverride）</span></li>
+      <li class="kv-item"><span class="cls">StrengthPrescription</span> — <span class="desc">Epley 反推 1RM/%1RM，目標次數區間×RIR 反算次數</span></li>
+      <li class="kv-item"><span class="cls">LiftPrService</span> — <span class="desc">saveManual() 手動覆寫重量/組數/次數/休息（含主要動作，非僅配件）<span class="tag tag-new">NEW</span></span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num n6">6</span>Service · 帳號與安全</div>
+    <ul class="kv-list">
+      <li class="kv-item"><span class="cls">CustomUserDetailsService</span> — <span class="desc">Spring Security 讀使用者；accountLocked 交給 LoginAttemptService 判斷</span></li>
+      <li class="kv-item"><span class="cls">LoginAttemptService</span> — <span class="desc">連續失敗 5 次鎖 15 分鐘，鎖定 key 改成「信箱＋IP」，避免被拿來鎖別人帳號<span class="tag tag-fix">FIX</span></span></li>
+      <li class="kv-item"><span class="cls">EmailService</span> — <span class="desc">寄驗證信/重設信；正式環境不再把連結印進 log（SMTP 失敗或未設定都只記錯誤）<span class="tag tag-fix">FIX</span></span></li>
+      <li class="kv-item"><span class="cls">EmailTokenService</span> — <span class="desc">一次性 token 產生/驗證/標記已用（UUID，單次有效）</span></li>
+      <li class="kv-item" style="opacity:.55"><span class="cls">AiCoachService / SnapshotService / SuggestionService</span> — <span class="desc">AI 教練整條鏈已移除（從未接上任何畫面/API 的死碼）<span class="tag tag-removed">刪除</span></span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num n7">7</span>Service · 動作庫與體重</div>
+    <ul class="kv-list">
+      <li class="kv-item"><span class="cls">ExerciseService</span> — <span class="desc">動作 CRUD、依部位/搜尋、排序（給 ADMIN 用）</span></li>
+      <li class="kv-item"><span class="cls">BodyPartService</span> — <span class="desc">訓練部位 CRUD、排序</span></li>
+      <li class="kv-item"><span class="cls">BodyWeightService</span> — <span class="desc">體重紀錄 CRUD、依使用者查詢、分頁</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num n1">8</span>Entity（9）· 對應資料表</div>
+    <div class="grid2">
+      <div>
+        <div class="db-table"><div class="db-head db-h1">User</div><div class="db-field">使用者帳號（email、BCrypt 密碼、Role）</div></div>
+        <div class="db-table"><div class="db-head db-h2">WorkoutSession / WorkoutSet</div><div class="db-field">訓練場次 / 每個動作的重量、組數、次數、RPE、完成狀態</div></div>
+        <div class="db-table"><div class="db-head db-h3">BodyWeight</div><div class="db-field">體重、體脂率、骨骼肌、時間點</div></div>
+      </div>
+      <div>
+        <div class="db-table"><div class="db-head db-h4">Exercise / BodyPart</div><div class="db-field">動作庫、部位（全站共用，僅 ADMIN 可改）</div></div>
+        <div class="db-table"><div class="db-head db-h5">TrainingPlan / LiftPr</div><div class="db-field">個人課表偏好＋卡片覆寫 / 個人 PR（含 sets・restSeconds<span class="tag tag-new">NEW</span>）</div></div>
+        <div class="db-table"><div class="db-head db-h1">EmailToken</div><div class="db-field">驗證信・重設密碼用的一次性 token</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num n2">9</span>DTO（6）· Enum（3）· Repository（9）</div>
+    <div class="stack-note">
+      <b>DTO：</b>WorkoutRequest/Response、BodyWeightRequest/Response、ExerciseRequest/Response（表單 ↔ Bean Validation ↔ 結構化 ExerciseDto，取代平行 List 參數）<br>
+      <b>Enum：</b>CompletionStatus（COMPLETE/FAILED/DROPPED/PAIN）、PlanMode（NOVICE/VETERAN）、Role（USER/ADMIN）<br>
+      <b>Repository：</b>每個 Entity 一個，全部繼承 Spring Data JPA；User/WorkoutSession/BodyWeight/TrainingPlan/LiftPr 系列查詢都帶 User 範圍（findByIdAndUser），沒有裸的 findById 漏洞
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num n3">10</span>前端 Templates（11）</div>
+    <ul class="kv-list">
+      <li class="kv-item"><span class="cls">index.html</span> — <span class="desc">首頁 Dashboard</span></li>
+      <li class="kv-item"><span class="cls">plan/index.html</span> — <span class="desc">訓練計劃：大週期進度、課表卡片、搜尋式編輯彈窗（重量/組數/次數/休息可自訂並記住）<span class="tag tag-new">NEW</span></span></li>
+      <li class="kv-item"><span class="cls">workout/index.html</span> — <span class="desc">訓練紀錄：新增/歷史/月曆，實際次數・重量收合為選填<span class="tag tag-new">NEW</span></span></li>
+      <li class="kv-item"><span class="cls">body-weight/index.html</span> — <span class="desc">體重紀錄、Chart.js 趨勢圖</span></li>
+      <li class="kv-item"><span class="cls">manage/index.html</span> — <span class="desc">部位・動作管理（ADMIN）</span></li>
+      <li class="kv-item"><span class="cls">auth/login,register,forgot,reset</span> — <span class="desc">登入/註冊/忘記/重設密碼</span></li>
+      <li class="kv-item"><span class="cls">fragments/navbar · error</span> — <span class="desc">共用導覽列、錯誤頁</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num n4">11</span>資料初始化（init · 6）</div>
+    <ul class="kv-list">
+      <li class="kv-item"><span class="cls">BodyPartDataInitializer / ExerciseDataInitializer</span> — <span class="desc">啟動時補進部位/動作初始資料</span></li>
+      <li class="kv-item"><span class="cls">ExerciseMovements / ExerciseMovementBackfillRunner</span> — <span class="desc">movement 對照表，回填既有資料</span></li>
+      <li class="kv-item"><span class="cls">ExercisePresetRenameRunner</span> — <span class="desc">預設動作改名遷移</span></li>
+      <li class="kv-item"><span class="cls">LegacyDataOwnerMigrationRunner</span> — <span class="desc">舊資料補上第一位使用者（多人使用前的相容），@ConditionalOnProperty 預設關閉</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num n5">12</span>DB & 設定</div>
+    <div class="stack-note">
+      MySQL 8 · jdbc:mysql://localhost:3306/fitness_tracker<br>
+      帳密走環境變數 <b>${DB_USERNAME}</b>/<b>${DB_PASSWORD}</b>、<b>REMEMBER_ME_KEY</b> 無預設值（沒設定就拒絕啟動）<br>
+      ddl-auto=update（JPA 自動建/改）· open-in-view=false<br>
+      schema.sql：persistent_logins（記住我 token）· spring.sql.init.mode=always<span class="tag tag-new">NEW</span><br>
+      server.port=8080 · 時區 Asia/Taipei · SLF4J logging（正式環境不印敏感連結）
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num n6">13</span>技術棧與依賴</div>
+    <div class="stack-row">
+      <span class="stack-chip">spring-boot-starter-web</span>
+      <span class="stack-chip">thymeleaf</span>
+      <span class="stack-chip">data-jpa</span>
+      <span class="stack-chip">validation</span>
+      <span class="stack-chip">security</span>
+      <span class="stack-chip">mail</span>
+      <span class="stack-chip">mysql-connector-j</span>
+      <span class="stack-chip">devtools</span>
+    </div>
+    <div class="stack-note">
+      三層架構（Controller→Service→Repository）、建構子注入、輸入外派給 DTO、全域例外處理、分頁+EntityGraph 減查詢<br>
+      <b>移除：</b>spring-ai-starter-model-anthropic（AI 教練整條鏈死碼一併清掉，不留半吊子依賴）<span class="tag tag-removed">刪除</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="num n7">14</span>這次改動重點</div>
+    <ul class="kv-list">
+      <li class="kv-item">📋 課表卡片編輯改成獨立彈窗：搜尋式換動作，重量/組數/次數/休息可自訂並記住<span class="tag tag-new">NEW</span></li>
+      <li class="kv-item">⏱ 主項手動覆寫接管漸進式加重起點；60 分鐘時間預算修正回一般顯示一律套用<span class="tag tag-fix">FIX</span></li>
+      <li class="kv-item">🔐 記住我改用可撤銷的 PersistentTokenRepository；帳號鎖定改「信箱＋IP」防止被拿來鎖人<span class="tag tag-fix">FIX</span></li>
+      <li class="kv-item">📧 正式環境寄信失敗／未設定 SMTP 不再把驗證/重設連結印進 log<span class="tag tag-fix">FIX</span></li>
+      <li class="kv-item">🧹 移除從未接上線的 AI 教練整條死碼鏈（Service ×3、Entity、Repository、依賴）<span class="tag tag-removed">刪除</span></li>
+      <li class="kv-item">✂️ 訓練紀錄拿掉沒人用的「動作備註」欄位；實際次數/重量預設收合</li>
+    </ul>
+  </div>
+
+</div>
+
+<div class="flow-strip">
+  <h3>核心系統流程</h3>
+  <div class="flow-row">
+    <div class="flow-box"><div class="t">登入</div><div class="s">Security + BCrypt</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box"><div class="t">存 PR / 課表</div><div class="s">TrainingPlan + LiftPr</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box"><div class="t">排課</div><div class="s">分化 + Exercise 候選池</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box"><div class="t">執行訓練</div><div class="s">runner + 記錄</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box"><div class="t">統計＋進度</div><div class="s">Dashboard</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box"><div class="t">週期回饋</div><div class="s">漸進式負荷 / 下週建議</div></div>
+  </div>
+</div>
+
+<footer>FitTracker · 完整 Function 全覽圖 · 三層架構 · 多使用者 · 規則引擎排課</footer>
+
+</body>
+</html>
