@@ -95,8 +95,7 @@ public class WorkoutApiController {
                 set.getRpe(),
                 set.getCompletionStatus() != null ? set.getCompletionStatus().name() : null,
                 set.getActualReps(),
-                set.getActualWeight(),
-                set.getNotes()
+                set.getActualWeight()
         );
     }
 }

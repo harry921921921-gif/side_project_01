@@ -3,6 +3,7 @@ package fitness_tracker.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -12,6 +13,7 @@ import static org.mockito.Mockito.when;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -68,9 +70,9 @@ class WorkoutServiceTest {
         service.save(
                 session,
                 List.of(
-                        new WorkoutRequest.ExerciseDto("深蹲", 100.0, 3, 5, null, 8.5, CompletionStatus.COMPLETE, 5, 100.0, "主計畫"),
-                        new WorkoutRequest.ExerciseDto("   ", 90.0, 2, 8, null, 7.0, CompletionStatus.FAILED, 8, 90.0, ""),
-                        new WorkoutRequest.ExerciseDto("臥推", 80.0, 3, 10, null, 9.0, CompletionStatus.COMPLETE, 10, 80.0, "補充")
+                        new WorkoutRequest.ExerciseDto("深蹲", 100.0, 3, 5, null, 8.5, CompletionStatus.COMPLETE, 5, 100.0),
+                        new WorkoutRequest.ExerciseDto("   ", 90.0, 2, 8, null, 7.0, CompletionStatus.FAILED, 8, 90.0),
+                        new WorkoutRequest.ExerciseDto("臥推", 80.0, 3, 10, null, 9.0, CompletionStatus.COMPLETE, 10, 80.0)
                 )
         );
 
@@ -79,9 +81,28 @@ class WorkoutServiceTest {
         assertEquals(100.0, session.getSets().get(0).getWeightKg());
         assertEquals(3, session.getSets().get(0).getSets());
         assertEquals(CompletionStatus.COMPLETE, session.getSets().get(0).getCompletionStatus());
-        assertEquals("主計畫", session.getSets().get(0).getNotes());
         assertEquals("臥推", session.getSets().get(1).getExerciseName());
         verify(repository).save(session);
+    }
+
+    // 兩條寫入路徑（REST 的 WorkoutRequest.@Size 只擋得到 REST；MVC 表單控制器自己 zip 平行參數，
+    // 不會經過 Bean Validation）都要靠 WorkoutService 這道共用防線擋住異常大量的動作，見
+    // WorkoutService.validateExerciseCount
+    @Test
+    void saveRejectsMoreThanFiftyExercises() {
+        BodyPart bodyPart = new BodyPart();
+        bodyPart.setName("胸");
+        when(bodyPartRepository.findByName("胸")).thenReturn(Optional.of(bodyPart));
+
+        WorkoutSession session = new WorkoutSession();
+        session.setBodyPart("胸");
+
+        List<WorkoutRequest.ExerciseDto> tooMany = new ArrayList<>();
+        for (int i = 0; i < 51; i++) {
+            tooMany.add(new WorkoutRequest.ExerciseDto("動作" + i, 10.0, 1, 1, null, null, null, null, null));
+        }
+
+        assertThrows(IllegalArgumentException.class, () -> service.save(session, tooMany));
     }
 
     @Test
@@ -107,7 +128,7 @@ class WorkoutServiceTest {
                 LocalDate.of(2026, 7, 2),
                 "胸",
                 "更新",
-                List.of(new WorkoutRequest.ExerciseDto("新動作", 60.0, 4, 8, null, 7.5, CompletionStatus.COMPLETE, 8, 60.0, "新筆記")),
+                List.of(new WorkoutRequest.ExerciseDto("新動作", 60.0, 4, 8, null, 7.5, CompletionStatus.COMPLETE, 8, 60.0)),
                 user
         );
 
@@ -132,13 +153,15 @@ class WorkoutServiceTest {
         service.save(
                 session,
                 List.of(
-                        new WorkoutRequest.ExerciseDto("臥推", 80.0, 4, 5, null, null, null, null, null, null),
-                        new WorkoutRequest.ExerciseDto("三頭下壓", 15.0, 3, 12, null, null, null, null, null, null)
+                        new WorkoutRequest.ExerciseDto("臥推", 80.0, 4, 5, null, null, null, null, null),
+                        new WorkoutRequest.ExerciseDto("三頭下壓", 15.0, 3, 12, null, null, null, null, null)
                 )
         );
 
-        verify(liftPrService, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq("臥推"), org.mockito.ArgumentMatchers.anyDouble(), org.mockito.ArgumentMatchers.anyInt());
-        verify(liftPrService).save(user, "三頭下壓", 15.0, 12);
+        verify(liftPrService, org.mockito.Mockito.never()).saveManual(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq("臥推"),
+                org.mockito.ArgumentMatchers.anyDouble(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
+        // 組數(3)/次數(12) 來自 ExerciseDto 本身；沒填休息秒數則落回預設 90 秒
+        verify(liftPrService).saveManual(user, "三頭下壓", 15.0, 3, 12, 90);
     }
 
     @Test

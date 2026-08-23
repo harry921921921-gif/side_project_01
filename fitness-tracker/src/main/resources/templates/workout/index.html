@@ -95,23 +95,28 @@
                             </div>
                         </div>
                         <div class="row g-2 align-items-center">
-                            <div class="col-md-2">
+                            <div class="col-md-3">
                                 <input type="number" name="rpes" class="form-control form-control-sm" aria-label="RPE 疲勞度" placeholder="RPE" step="0.5" min="1" max="10">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <select name="completionStatuses" class="form-select form-select-sm" aria-label="完成狀態">
                                     <option value="">完成狀態（選填）</option>
                                     <option th:each="status : ${completionStatuses}" th:value="${status.name()}" th:text="${status.name()}"></option>
                                 </select>
                             </div>
-                            <div class="col-md-2">
-                                <input type="number" name="actualReps" class="form-control form-control-sm" aria-label="實際次數" placeholder="實際次數" min="0">
-                            </div>
-                            <div class="col-md-2">
-                                <input type="number" name="actualWeights" class="form-control form-control-sm" aria-label="實際重量" placeholder="實際重量" step="0.5" min="0">
-                            </div>
-                            <div class="col-md-3">
-                                <input type="text" name="setNotes" class="form-control form-control-sm" aria-label="動作備註" placeholder="動作備註（選填）">
+                            <div class="col-md-5">
+                                <!-- 實際次數/重量預設收合：跟計畫不同才需要填，平常不用一開始就佔兩個欄位 -->
+                                <details>
+                                    <summary class="small text-muted" style="cursor:pointer">跟計畫不同？填實際數值</summary>
+                                    <div class="row g-2 mt-1">
+                                        <div class="col-6">
+                                            <input type="number" name="actualReps" class="form-control form-control-sm" aria-label="實際次數" placeholder="實際次數" min="0">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="number" name="actualWeights" class="form-control form-control-sm" aria-label="實際重量" placeholder="實際重量" step="0.5" min="0">
+                                        </div>
+                                    </div>
+                                </details>
                             </div>
                         </div>
                     </div>
@@ -282,27 +287,31 @@
                                         </div>
                                     </div>
                                     <div class="row g-2 align-items-center">
-                                        <div class="col-md-2">
+                                        <div class="col-md-3">
                                             <input type="number" name="rpes" class="form-control form-control-sm"
                                                    th:value="${set.rpe}" placeholder="RPE" step="0.5" min="1" max="10">
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-4">
                                             <select name="completionStatuses" class="form-select form-select-sm">
                                                 <option value="" th:selected="${set.completionStatus == null}">完成狀態（選填）</option>
                                                 <option th:each="status : ${completionStatuses}" th:value="${status.name()}" th:text="${status.name()}" th:selected="${set.completionStatus != null and set.completionStatus.name() == status.name()}"></option>
                                             </select>
                                         </div>
-                                        <div class="col-md-2">
-                                            <input type="number" name="actualReps" class="form-control form-control-sm"
-                                                   th:value="${set.actualReps}" placeholder="實際次數" min="0">
-                                        </div>
-                                        <div class="col-md-2">
-                                            <input type="number" name="actualWeights" class="form-control form-control-sm"
-                                                   th:value="${set.actualWeight}" placeholder="實際重量" step="0.5" min="0">
-                                        </div>
-                                        <div class="col-md-3">
-                                            <input type="text" name="setNotes" class="form-control form-control-sm"
-                                                   th:value="${set.notes}" placeholder="動作備註（選填）">
+                                        <div class="col-md-5">
+                                            <!-- 已經有實際數值的話預設展開，不要把既有資料藏起來 -->
+                                            <details th:attr="open=${set.actualReps != null or set.actualWeight != null} ? 'open' : null">
+                                                <summary class="small text-muted" style="cursor:pointer">跟計畫不同？填實際數值</summary>
+                                                <div class="row g-2 mt-1">
+                                                    <div class="col-6">
+                                                        <input type="number" name="actualReps" class="form-control form-control-sm" aria-label="實際次數"
+                                                               th:value="${set.actualReps}" placeholder="實際次數" min="0">
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <input type="number" name="actualWeights" class="form-control form-control-sm" aria-label="實際重量"
+                                                               th:value="${set.actualWeight}" placeholder="實際重量" step="0.5" min="0">
+                                                    </div>
+                                                </div>
+                                            </details>
                                         </div>
                                     </div>
                                 </div>
@@ -507,10 +516,10 @@
                 </div>
             </div>
             <div class="row g-2 align-items-center">
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <input type="number" name="rpes" class="form-control form-control-sm" aria-label="RPE 疲勞度" placeholder="RPE" step="0.5" min="1" max="10">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <select name="completionStatuses" class="form-select form-select-sm" aria-label="完成狀態">
                         <option value="">完成狀態（選填）</option>
                         <option value="COMPLETE">✅ 完成</option>
@@ -519,14 +528,18 @@
                         <option value="PAIN">⚠️ 疼痛</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <input type="number" name="actualReps" class="form-control form-control-sm" aria-label="實際次數" placeholder="實際次數" min="0">
-                </div>
-                <div class="col-md-2">
-                    <input type="number" name="actualWeights" class="form-control form-control-sm" aria-label="實際重量" placeholder="實際重量" step="0.5" min="0">
-                </div>
-                <div class="col-md-3">
-                    <input type="text" name="setNotes" class="form-control form-control-sm" aria-label="動作備註" placeholder="動作備註（選填）">
+                <div class="col-md-5">
+                    <details>
+                        <summary class="small text-muted" style="cursor:pointer">跟計畫不同？填實際數值</summary>
+                        <div class="row g-2 mt-1">
+                            <div class="col-6">
+                                <input type="number" name="actualReps" class="form-control form-control-sm" aria-label="實際次數" placeholder="實際次數" min="0">
+                            </div>
+                            <div class="col-6">
+                                <input type="number" name="actualWeights" class="form-control form-control-sm" aria-label="實際重量" placeholder="實際重量" step="0.5" min="0">
+                            </div>
+                        </div>
+                    </details>
                 </div>
             </div>`;
         container.appendChild(div);

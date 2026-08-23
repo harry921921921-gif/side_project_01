@@ -196,7 +196,6 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
   <section class="hero">
     <h1>打造你的訓練計劃</h1>
     <p>依程度、目標與週期階段，即時算出每個動作的建議重量</p>
-    <button type="button" class="pl-btn pl-btn-primary" style="margin-top:14px" onclick="openImportModal()">✅ 我今天練完了，匯入紀錄</button>
   </section>
 
   <!-- 設定 -->
@@ -340,8 +339,10 @@ const PHASE={
 const MACRO=[{key:'adapt',start:1,end:6},{key:'hyper',start:7,end:14},{key:'strength',start:15,end:20}];
 const TOTAL=20;
 const MAIN={'深蹲':{type:'lower',bar:20},'臥推':{type:'upper',bar:20},'硬舉':{type:'lower',bar:40},'肩推':{type:'upper',bar:20}};
-/* 時間預算：一天約 60 分鐘 = 熱身 10 分 + Σ每組(動作約 50 秒 + 組間休息) */
-const WARMUP_MIN=10, SET_WORK=50, TIME_CAP=62;
+/* 時間預算：一天約 60 分鐘 = 熱身 10 分 + Σ每個動作(換站/調重量的固定時間 + 組數×(動作約 50 秒 + 組間休息))。
+   TRANSITION_MIN 是換到下一個動作的固定成本（走去下一個器材、調椅子/槓片、等器材）——原本沒算這段，
+   動作數一多（新手模式常見排到 7-8 個配件）時間就會系統性低估，數學上湊得出 60 分鐘、實際上不可能 */
+const WARMUP_MIN=10, SET_WORK=50, TIME_CAP=62, TRANSITION_MIN=1.5;
 const r25=w=>Math.round(w/2.5)*2.5, fmt=w=>Number.isInteger(w)?w:w.toFixed(1);
 const fmtRest=s=>s>=60?(Math.floor(s/60)+'分'+(s%60?s%60+'秒':'')):s+'秒';
 /* %1RM ↔ 次數 ↔ RIR：Epley 反推力竭次數，再扣掉保留次數 */
@@ -744,7 +745,7 @@ function confirmImport(){
 function planDay(day,mode,pk,orm,skipCap){
   const ph=PHASE[pk], accSetsDefault=pk==='deload'?2:3;
   const items=[];
-  const mins=()=>{let m=WARMUP_MIN;for(const it of items)m+=it.sets*(SET_WORK+it.rest)/60;return m;};
+  const mins=()=>{let m=WARMUP_MIN;for(const it of items)m+=TRANSITION_MIN+it.sets*(SET_WORK+it.rest)/60;return m;};
   (day.main||[]).forEach(name=>{
     const mw=mainWeight(mode,pk,name,orm[name]);
     const eff=effFor(name,ph.sets,repsRange(ph),ph.rest);
@@ -752,7 +753,7 @@ function planDay(day,mode,pk,orm,skipCap){
   });
   for(const name of (day.acc||[])){
     const eff=effFor(name,accSetsDefault,pk==='strength'?'6–8':'10–15',ph.rest);
-    if(!skipCap&&mins()+eff.sets*(SET_WORK+eff.rest)/60>TIME_CAP) break;      // 會超過 1 小時就停
+    if(!skipCap&&mins()+TRANSITION_MIN+eff.sets*(SET_WORK+eff.rest)/60>TIME_CAP) break;      // 會超過 1 小時就停
     items.push({name,isMain:false,w:accWeightFor(name,mode,pk),sets:eff.sets,reps:eff.reps,rest:eff.rest,sub:'配件 · 感受控制'});
   }
   return {items,minutes:Math.round(mins())};

@@ -116,8 +116,7 @@ public class WorkoutController {
             @RequestParam(required = false) List<Double> rpes,
             @RequestParam(required = false) List<String> completionStatuses,
             @RequestParam(required = false) List<Integer> actualReps,
-            @RequestParam(required = false) List<Double> actualWeights,
-            @RequestParam(required = false) List<String> setNotes) {
+            @RequestParam(required = false) List<Double> actualWeights) {
 
         WorkoutSession session = new WorkoutSession();
         session.setWorkoutDate(workoutDate);
@@ -126,7 +125,7 @@ public class WorkoutController {
 
         service.save(session,
                 zipExercises(exerciseNames, weightKgs, sets, reps, restSeconds,
-                        rpes, completionStatuses, actualReps, actualWeights, setNotes),
+                        rpes, completionStatuses, actualReps, actualWeights),
                 currentUserService.getCurrentUser());
         return "redirect:/workout";
     }
@@ -145,12 +144,11 @@ public class WorkoutController {
             @RequestParam(required = false) List<Double> rpes,
             @RequestParam(required = false) List<String> completionStatuses,
             @RequestParam(required = false) List<Integer> actualReps,
-            @RequestParam(required = false) List<Double> actualWeights,
-            @RequestParam(required = false) List<String> setNotes) {
+            @RequestParam(required = false) List<Double> actualWeights) {
 
         service.update(id, workoutDate, bodyPart, note,
                 zipExercises(exerciseNames, weightKgs, sets, reps, restSeconds,
-                        rpes, completionStatuses, actualReps, actualWeights, setNotes),
+                        rpes, completionStatuses, actualReps, actualWeights),
                 currentUserService.getCurrentUser());
         return "redirect:/workout";
     }
@@ -166,7 +164,7 @@ public class WorkoutController {
     private List<WorkoutRequest.ExerciseDto> zipExercises(
             List<String> exerciseNames, List<Double> weightKgs, List<Integer> sets, List<Integer> reps,
             List<Integer> restSeconds, List<Double> rpes, List<String> completionStatuses,
-            List<Integer> actualReps, List<Double> actualWeights, List<String> setNotes) {
+            List<Integer> actualReps, List<Double> actualWeights) {
         if (exerciseNames == null) {
             return List.of();
         }
@@ -181,8 +179,7 @@ public class WorkoutController {
                     safeGet(rpes, i),
                     CompletionStatus.fromString(safeGet(completionStatuses, i)),
                     safeGet(actualReps, i),
-                    safeGet(actualWeights, i),
-                    safeGet(setNotes, i)
+                    safeGet(actualWeights, i)
             ));
         }
         return result;

@@ -210,6 +210,7 @@ public class WorkoutService {
     @Transactional
     public void save(WorkoutSession session, List<WorkoutRequest.ExerciseDto> exercises) {
         validateBodyPart(session.getBodyPart());
+        validateExerciseCount(exercises);
 
         for (WorkoutRequest.ExerciseDto ex : exercises) {
             String name = ex.exerciseName();
@@ -246,6 +247,7 @@ public class WorkoutService {
     private void applyUpdate(WorkoutSession existing, LocalDate workoutDate, String bodyPart, String note,
                              List<WorkoutRequest.ExerciseDto> exercises) {
         validateBodyPart(bodyPart);
+        validateExerciseCount(exercises);
         existing.setWorkoutDate(workoutDate);
         existing.setBodyPart(bodyPart);
         existing.setNote(note);
@@ -276,17 +278,21 @@ public class WorkoutService {
         ws.setCompletionStatus(ex.completionStatus());
         ws.setActualReps(ex.actualReps());
         ws.setActualWeight(ex.actualWeight());
-        ws.setNotes(ex.notes());
         return ws;
     }
 
-    // 小動作沒有 1RM 公式可以算重量，訓練紀錄裡填過一次重量就記住，下次課表頁同一個動作會自動帶入
+    // 小動作沒有 1RM 公式可以算重量，訓練紀錄裡填過一次重量就記住，下次課表頁同一個動作會自動帶入。
+    // 組數/休息秒數要跟重量一起記，不能只記重量：這是使用者這個週期實際做的內容，跟在 /plan 編輯
+    // 彈窗手動存的覆寫（LiftPrService.saveManual）本來就該是同一個記憶，不該是兩條各記一半的資料
     private void recordAccessoryPr(User user, WorkoutSet set) {
         if (user == null || MAIN_LIFT_NAMES.contains(set.getExerciseName())) return;
         Double weight = set.getActualWeight() != null ? set.getActualWeight() : set.getWeightKg();
         if (weight == null || weight <= 0) return;
         Integer reps = set.getActualReps() != null ? set.getActualReps() : set.getReps();
-        liftPrService.save(user, set.getExerciseName(), weight, reps != null ? reps : 8);
+        Integer sets = set.getSets();
+        Integer restSeconds = set.getRestSeconds();
+        liftPrService.saveManual(user, set.getExerciseName(), weight,
+                sets != null ? sets : 3, reps != null ? reps : 8, restSeconds != null ? restSeconds : 90);
     }
 
     public void delete(Long id, User user) {
@@ -304,6 +310,18 @@ public class WorkoutService {
         boolean exists = bodyPartRepository.findByName(bodyPart.trim()).isPresent();
         if (!exists) {
             throw new IllegalArgumentException("bodyPart 必須存在於 BodyPart 清單中");
+        }
+    }
+
+    // 正常訓練一天不可能記錄到這種數量的動作——擋住異常大量的請求（不管是打錯還是刻意塞爆），
+    // 不讓它一路跑到每個動作都各查一次資料庫、寫一次 DB 的地步。REST API 那邊 WorkoutRequest 已經
+    // 用 @Size 擋過一次，但 MVC 表單控制器是自己 zip 平行參數，不會經過 Bean Validation，
+    // 這裡是兩條路徑共用的最後一道防線
+    private static final int MAX_EXERCISES_PER_SESSION = 50;
+
+    private void validateExerciseCount(List<WorkoutRequest.ExerciseDto> exercises) {
+        if (exercises != null && exercises.size() > MAX_EXERCISES_PER_SESSION) {
+            throw new IllegalArgumentException("單次訓練最多只能記錄 " + MAX_EXERCISES_PER_SESSION + " 個動作");
         }
     }
 

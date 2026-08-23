@@ -5,17 +5,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-// 寄信：有設 SMTP 就寄真信；沒設或失敗就把連結印到 console（開發模式），永不擋流程。
+// 寄信：有設 SMTP 就寄真信；本機/測試沒設 SMTP 時把連結印到 console（開發捷徑），永不擋流程。
+// 正式環境下絕對不能把驗證信/重設密碼信的連結印進 log——那組連結等於一把能直接重設任何人密碼
+// 的萬能鑰匙，log 檔通常比資料庫更多人碰得到（部署工具、代管商、備份系統）。
 @Service
 public class EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
     private final ObjectProvider<JavaMailSender> mailProvider;
+    private final Environment environment;
 
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
@@ -23,7 +27,10 @@ public class EmailService {
     @Value("${spring.mail.username:}")
     private String from;
 
-    public EmailService(ObjectProvider<JavaMailSender> mailProvider) { this.mailProvider = mailProvider; }
+    public EmailService(ObjectProvider<JavaMailSender> mailProvider, Environment environment) {
+        this.mailProvider = mailProvider;
+        this.environment = environment;
+    }
 
     public void sendVerification(User u, String token) {
         String link = baseUrl + "/verify?token=" + token;
@@ -48,10 +55,20 @@ public class EmailService {
                 log.info("已寄信給 {}：{}", to, subject);
                 return;
             } catch (Exception e) {
-                log.warn("寄信失敗，改印連結到 console：{}", e.getMessage());
+                // 正式環境的 SMTP 設定好了卻寄信失敗，通常是信箱服務出問題——只記錯誤本身讓
+                // 維運知道信寄不出去，連結不能一起印出去。使用者這邊流程不會被擋，token 已經
+                // 存進資料庫，之後可以重新觸發一次驗證信/忘記密碼
+                log.error("SMTP 已設定但寄信失敗，收件人={}，主旨={}：{}", to, subject, e.getMessage());
+                return;
             }
         }
-        // 開發模式：沒設 SMTP 或寄信失敗 -> 連結印在 console，可直接複製點開
+        // 沒有設定 SMTP：正式環境理論上不該發生（代表信箱設定漏掉了），這種情況一樣不能把
+        // 連結印進 log。只有本機/測試環境沒設 SMTP 才是預期情境，這時候印連結到 console
+        // 是刻意的開發捷徑，方便直接複製貼上測試
+        if (environment.matchesProfiles("prod")) {
+            log.error("正式環境沒有設定 SMTP，無法寄信給 {}：{}", to, subject);
+            return;
+        }
         log.info("\n===== [開發模式·請手動點連結] =====\n收件：{}\n主旨：{}\n{}\n==================================", to, subject, body);
     }
 }
