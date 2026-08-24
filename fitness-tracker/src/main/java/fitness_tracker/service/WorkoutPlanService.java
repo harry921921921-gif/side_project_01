@@ -53,11 +53,14 @@ public class WorkoutPlanService {
     private final ExerciseRepository exerciseRepository;
     private final LiftPrService liftPrService;
     private final WorkoutService workoutService;
+    private final ExerciseService exerciseService;
 
-    public WorkoutPlanService(ExerciseRepository exerciseRepository, LiftPrService liftPrService, WorkoutService workoutService) {
+    public WorkoutPlanService(ExerciseRepository exerciseRepository, LiftPrService liftPrService,
+                              WorkoutService workoutService, ExerciseService exerciseService) {
         this.exerciseRepository = exerciseRepository;
         this.liftPrService = liftPrService;
         this.workoutService = workoutService;
+        this.exerciseService = exerciseService;
     }
 
     public record PlannedExercise(String name, boolean isMain, double weightKg, int sets,
@@ -203,8 +206,8 @@ public class WorkoutPlanService {
     // 沒有 week 的版本：固定順序、不旋轉——給 planDay／舊呼叫端用，重量流程完全不動
     private List<Exercise> accessoryPoolFor(User user, DaySplitDef dayDef, List<String> mainNames) {
         Set<String> usedThisWeek = workoutService.exerciseNamesThisWeek(user);
-        List<Exercise> compounds = candidatesFor(dayDef, "COMPOUND");
-        List<Exercise> isolations = candidatesFor(dayDef, "ISOLATION");
+        List<Exercise> compounds = candidatesFor(user, dayDef, "COMPOUND");
+        List<Exercise> isolations = candidatesFor(user, dayDef, "ISOLATION");
         List<Exercise> accessoryPool = new ArrayList<>();
         compounds.stream().filter(e -> !mainNames.contains(e.getName())).forEach(accessoryPool::add);
         isolations.stream().filter(e -> !mainNames.contains(e.getName())).forEach(accessoryPool::add);
@@ -219,9 +222,9 @@ public class WorkoutPlanService {
     // 就算天名（無A/B）跟週次都相同也還是會轉出不同結果；主項（mainNames）完全不受影響
     private List<Exercise> accessoryPoolFor(User user, DaySplitDef dayDef, List<String> mainNames, int week, int extraOffset) {
         Set<String> usedThisWeek = workoutService.exerciseNamesThisWeek(user);
-        List<Exercise> compounds = candidatesFor(dayDef, "COMPOUND").stream()
+        List<Exercise> compounds = candidatesFor(user, dayDef, "COMPOUND").stream()
                 .filter(e -> !mainNames.contains(e.getName())).toList();
-        List<Exercise> isolations = candidatesFor(dayDef, "ISOLATION").stream()
+        List<Exercise> isolations = candidatesFor(user, dayDef, "ISOLATION").stream()
                 .filter(e -> !mainNames.contains(e.getName())).toList();
 
         int weekOffset = Math.max(week, 1) - 1 + extraOffset;
@@ -245,7 +248,9 @@ public class WorkoutPlanService {
         return rotated;
     }
 
-    private List<Exercise> candidatesFor(DaySplitDef dayDef, String category) {
+    // 自動排課的候選池只能是全站共用的動作，或這個使用者自己的個人自訂動作——不能把別人打字新增
+    // 的私人動作排進這個人的課表（見 ExerciseService.findVisibleTo 的說明）
+    private List<Exercise> candidatesFor(User user, DaySplitDef dayDef, String category) {
         List<Exercise> result = new ArrayList<>();
         if (!dayDef.movements().isEmpty()) {
             for (String movement : dayDef.movements()) {
@@ -256,7 +261,7 @@ public class WorkoutPlanService {
                 result.addAll(exerciseRepository.findByBodyPartAndCategoryOrderByOrderIndexAscNameAsc(bodyPart, category));
             }
         }
-        return result;
+        return result.stream().filter(e -> exerciseService.visibleTo(e, user)).toList();
     }
 
     private double mainWeight(PlanMode mode, String liftName, Map<String, LiftPr> prByName, double workPct) {

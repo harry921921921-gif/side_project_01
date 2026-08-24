@@ -4,11 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Set;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -37,10 +40,20 @@ class WorkoutPlanServiceTest {
     @Mock
     private WorkoutService workoutService;
 
+    @Mock
+    private ExerciseService exerciseService;
+
     @InjectMocks
     private WorkoutPlanService service;
 
     private final User user = new User();
+
+    // 這個測試檔全部在測排課邏輯本身（分化/旋轉/去重/重量），不是在測「個人自訂動作誰看得到」
+    // （那個由 ExerciseServiceTest 覆蓋），這裡一律當作看得到，才不會每個既有案例都要重新配置
+    @BeforeEach
+    void stubAllExercisesVisible() {
+        lenient().when(exerciseService.visibleTo(any(), any())).thenReturn(true);
+    }
 
     private static Exercise ex(String name, String bodyPart, String category, String movement) {
         Exercise e = new Exercise(name, bodyPart, category);

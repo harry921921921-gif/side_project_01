@@ -27,6 +27,13 @@ public class Exercise {
     @Column
     private String movement;    // PUSH / PULL / LEGS / CORE（決定排哪一天）
 
+    // 這筆動作是誰建的：null = 系統預設或管理員在 /manage 建的全站共用動作，人人都看得到；
+    // 有值 = 使用者自己在訓練紀錄/課表編輯彈窗打字新增的個人自訂動作，只有本人看得到、選得到，
+    // 不會混進全站共用清單，也不會被排進別人的課表
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private User createdBy;
+
     public Exercise() {}
 
     public Exercise(String name, String bodyPart, String category) {
@@ -44,6 +51,7 @@ public class Exercise {
     public boolean isPreset()         { return preset; }
     public Integer getOrderIndex()    { return orderIndex; }
     public String  getMovement()      { return movement; }
+    public User    getCreatedBy()     { return createdBy; }
 
     // ── Setters ──────────────────────────────────────────
     public void setId(Long id)                      { this.id = id; }
@@ -53,4 +61,5 @@ public class Exercise {
     public void setPreset(boolean preset)           { this.preset = preset; }
     public void setOrderIndex(Integer orderIndex)   { this.orderIndex = orderIndex; }
     public void setMovement(String movement)        { this.movement = movement; }
+    public void setCreatedBy(User createdBy)        { this.createdBy = createdBy; }
 }

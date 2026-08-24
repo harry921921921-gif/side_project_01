@@ -28,6 +28,7 @@ import fitness_tracker.entity.WorkoutSet;
 import fitness_tracker.enums.CompletionStatus;
 import fitness_tracker.exception.ResourceNotFoundException;
 import fitness_tracker.repository.BodyPartRepository;
+import fitness_tracker.repository.TrainingPlanRepository;
 import fitness_tracker.repository.WorkoutSessionRepository;
 import fitness_tracker.repository.WorkoutSetRepository;
 
@@ -44,17 +45,20 @@ public class WorkoutService {
     private final ExerciseService exerciseService;
     private final BodyPartRepository bodyPartRepository;
     private final LiftPrService liftPrService;
+    private final TrainingPlanRepository trainingPlanRepository;
 
     public WorkoutService(WorkoutSessionRepository repository,
                           WorkoutSetRepository workoutSetRepository,
                           ExerciseService exerciseService,
                           BodyPartRepository bodyPartRepository,
-                          LiftPrService liftPrService) {
+                          LiftPrService liftPrService,
+                          TrainingPlanRepository trainingPlanRepository) {
         this.repository = repository;
         this.workoutSetRepository = workoutSetRepository;
         this.exerciseService = exerciseService;
         this.bodyPartRepository = bodyPartRepository;
         this.liftPrService = liftPrService;
+        this.trainingPlanRepository = trainingPlanRepository;
     }
 
     // ── 舊版（未過濾使用者）：保留給既有呼叫端/測試相容，正式流程請一律用帶 User 的版本 ──
@@ -283,7 +287,8 @@ public class WorkoutService {
 
     // 小動作沒有 1RM 公式可以算重量，訓練紀錄裡填過一次重量就記住，下次課表頁同一個動作會自動帶入。
     // 組數/休息秒數要跟重量一起記，不能只記重量：這是使用者這個週期實際做的內容，跟在 /plan 編輯
-    // 彈窗手動存的覆寫（LiftPrService.saveManual）本來就該是同一個記憶，不該是兩條各記一半的資料
+    // 彈窗手動存的覆寫（LiftPrService.saveManual）本來就該是同一個記憶，不該是兩條各記一半的資料。
+    // 記到哪個階段要看這筆訓練紀錄的日期（不是「現在」），這樣補記前幾天的訓練也不會算錯階段
     private void recordAccessoryPr(User user, WorkoutSet set) {
         if (user == null || MAIN_LIFT_NAMES.contains(set.getExerciseName())) return;
         Double weight = set.getActualWeight() != null ? set.getActualWeight() : set.getWeightKg();
@@ -291,8 +296,17 @@ public class WorkoutService {
         Integer reps = set.getActualReps() != null ? set.getActualReps() : set.getReps();
         Integer sets = set.getSets();
         Integer restSeconds = set.getRestSeconds();
-        liftPrService.saveManual(user, set.getExerciseName(), weight,
+        String phase = phaseKeyForDate(user, set.getSession().getWorkoutDate());
+        liftPrService.saveManual(user, set.getExerciseName(), phase, weight,
                 sets != null ? sets : 3, reps != null ? reps : 8, restSeconds != null ? restSeconds : 90);
+    }
+
+    // 還沒去過 /plan 建立課表的使用者（TrainingPlan 還不存在）就當作在第 1 週／肌耐力期——
+    // 跟全新課表預設的起算日語意一致，不用為了這裡另外建一筆 TrainingPlan
+    private String phaseKeyForDate(User user, LocalDate date) {
+        return trainingPlanRepository.findByUser(user)
+                .map(p -> PhaseCalendar.phaseForWeek(PhaseCalendar.currentWeek(p, date)).key)
+                .orElse(PhaseCalendar.PhaseType.ADAPT.key);
     }
 
     public void delete(Long id, User user) {

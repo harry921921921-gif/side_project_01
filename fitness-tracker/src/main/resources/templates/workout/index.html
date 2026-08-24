@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FitTracker - 訓練紀錄</title>
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
@@ -29,6 +31,33 @@
         .set-card .ex-weight { font-weight:800; font-size:.95rem; white-space:nowrap; }
         .set-card .chips { display:flex; flex-wrap:wrap; gap:6px; }
         .set-card .chip-mini { font-size:.74rem; font-weight:600; color:#495057; background:#f1f3f5; padding:3px 9px; border-radius:8px; }
+
+        /* 新增訓練表單：每個動作一張淺色卡片，取代原本擠成一排的欄位，
+           每個數字欄位上方加小標籤，手機/桌面都看得出來是在填什麼，不用再對照最上面那排標題 */
+        .wo-add-card .card-header { border-bottom:1px solid #eef1f5; padding:14px 20px; }
+        .wo-add-card .card-body { padding:20px; }
+        .wo-add-card .form-label { font-size:.82rem; color:#495057; }
+        .ex-row-card { background:#f8fafc; border:1px solid #e7ebf1; border-left:3px solid #0d6efd55;
+                        border-radius:10px; padding:14px 16px; margin-bottom:12px; transition:border-color .15s,box-shadow .15s; }
+        .ex-row-card:hover { border-color:#d7dee8; border-left-color:#0d6efd; box-shadow:0 2px 10px rgba(15,23,42,.05); }
+        .ex-row-head { display:flex; align-items:center; gap:10px; }
+        .ex-row-head .ex-row-main { flex:1 1 auto; }
+        .ex-remove-btn { flex:0 0 auto; border:none; background:transparent; color:#c53030; font-size:1.05rem;
+                          line-height:1; width:30px; height:30px; border-radius:7px; transition:background .15s; }
+        .ex-remove-btn:hover:not(:disabled) { background:#fee2e2; }
+        .ex-remove-btn:disabled { color:#cbd5e0; cursor:not-allowed; }
+        .ex-field-group { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+        .ex-field { flex:1 1 100px; min-width:84px; }
+        .ex-field label { display:block; font-size:.72rem; color:#8a94a6; font-weight:600; margin-bottom:3px; }
+        .ex-sub-row { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center;
+                       margin-top:12px; padding-top:12px; border-top:1px dashed #e2e8f0; }
+        .ex-sub-row .rpe-field { width:92px; }
+        .ex-sub-row .status-field { flex:1 1 170px; }
+        .ex-sub-row details { flex:1 1 220px; }
+        .ex-sub-row summary { cursor:pointer; font-size:.8rem; color:#6b7688; user-select:none; }
+        .ex-sub-row summary:hover { color:#0d6efd; }
+        .wo-add-actions { border-top:1px solid #eef1f5; padding-top:16px; margin-top:6px; }
+        .wo-add-actions .btn { border-radius:8px; font-weight:600; padding:8px 18px; }
     </style>
 </head>
 <body class="bg-light">
@@ -41,19 +70,18 @@
     <div class="alert alert-danger" th:if="${formError}" th:text="${formError}"></div>
 
     <!-- ── 新增訓練 ── -->
-    <div class="card mb-4 shadow-sm">
+    <div class="card mb-4 shadow-sm wo-add-card">
         <div class="card-header bg-white"><h5 class="mb-0">➕ 新增訓練</h5></div>
         <div class="card-body">
             <form th:action="@{/workout}" method="post">
-                <div class="row g-3 mb-3">
+                <div class="row g-3 mb-4">
                     <div class="col-md-3">
                         <label class="form-label fw-semibold" for="workoutDate">日期</label>
                         <input type="date" name="workoutDate" id="workoutDate" class="form-control" required>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-semibold" for="bodyPartSelect">訓練部位</label>
-                        <select name="bodyPart" id="bodyPartSelect" class="form-select" required
-                                onchange="filterExercisesByBodyPart(this.value)">
+                        <select name="bodyPart" id="bodyPartSelect" class="form-select" required>
                             <option value="">請選擇</option>
                             <option th:each="bp : ${bodyParts}" th:value="${bp.name}" th:text="${bp.name}"></option>
                         </select>
@@ -64,65 +92,59 @@
                     </div>
                 </div>
 
-                <div class="row g-1 mb-1 text-muted small d-none d-md-flex">
-                    <div class="col-md-4">動作名稱</div>
-                    <div class="col-md-2">重量(kg)</div>
-                    <div class="col-md-1">組數</div>
-                    <div class="col-md-1">次數</div>
-                    <div class="col-md-2">休息(秒)</div>
-                </div>
                 <div id="exerciseContainer">
-                    <div class="exercise-row-wrapper border rounded p-2 mb-2">
-                        <div class="row g-2 align-items-center mb-1">
-                            <div class="col-md-4">
+                    <div class="exercise-row-wrapper ex-row-card">
+                        <div class="ex-row-head">
+                            <div class="ex-row-main">
                                 <input type="text" name="exerciseNames" class="form-control exercise-name-input" aria-label="動作名稱"
-                                       list="exerciseSuggestions" placeholder="輸入或選擇動作..." required>
+                                       placeholder="輸入或選擇動作..." required>
                             </div>
-                            <div class="col-md-2">
-                                <input type="number" name="weightKgs" class="form-control" aria-label="重量(kg)" placeholder="80" step="0.5" min="0">
+                            <button type="button" class="ex-remove-btn" aria-label="移除這個動作" onclick="removeRow(this)" disabled>✕</button>
+                        </div>
+                        <div class="ex-field-group">
+                            <div class="ex-field">
+                                <label for="wField-w-0">重量(kg)</label>
+                                <input type="number" id="wField-w-0" name="weightKgs" class="form-control" aria-label="重量(kg)" placeholder="80" step="0.5" min="0">
                             </div>
-                            <div class="col-md-1">
-                                <input type="number" name="sets" class="form-control" aria-label="組數" placeholder="4" min="1">
+                            <div class="ex-field">
+                                <label for="wField-s-0">組數</label>
+                                <input type="number" id="wField-s-0" name="sets" class="form-control" aria-label="組數" placeholder="4" min="1">
                             </div>
-                            <div class="col-md-1">
-                                <input type="number" name="reps" class="form-control" aria-label="次數" placeholder="8" min="1">
+                            <div class="ex-field">
+                                <label for="wField-r-0">次數</label>
+                                <input type="number" id="wField-r-0" name="reps" class="form-control" aria-label="次數" placeholder="8" min="1">
                             </div>
-                            <div class="col-md-2">
-                                <input type="number" name="restSeconds" class="form-control" aria-label="休息(秒)" placeholder="90" min="0" step="10">
-                            </div>
-                            <div class="col-md-2">
-                                <button type="button" class="btn btn-outline-danger btn-sm" aria-label="移除這個動作" onclick="removeRow(this)" disabled>✕</button>
+                            <div class="ex-field">
+                                <label for="wField-rt-0">休息(秒)</label>
+                                <input type="number" id="wField-rt-0" name="restSeconds" class="form-control" aria-label="休息(秒)" placeholder="90" min="0" step="10">
                             </div>
                         </div>
-                        <div class="row g-2 align-items-center">
-                            <div class="col-md-3">
+                        <div class="ex-sub-row">
+                            <div class="rpe-field">
                                 <input type="number" name="rpes" class="form-control form-control-sm" aria-label="RPE 疲勞度" placeholder="RPE" step="0.5" min="1" max="10">
                             </div>
-                            <div class="col-md-4">
+                            <div class="status-field">
                                 <select name="completionStatuses" class="form-select form-select-sm" aria-label="完成狀態">
                                     <option value="">完成狀態（選填）</option>
                                     <option th:each="status : ${completionStatuses}" th:value="${status.name()}" th:text="${status.name()}"></option>
                                 </select>
                             </div>
-                            <div class="col-md-5">
-                                <!-- 實際次數/重量預設收合：跟計畫不同才需要填，平常不用一開始就佔兩個欄位 -->
-                                <details>
-                                    <summary class="small text-muted" style="cursor:pointer">跟計畫不同？填實際數值</summary>
-                                    <div class="row g-2 mt-1">
-                                        <div class="col-6">
-                                            <input type="number" name="actualReps" class="form-control form-control-sm" aria-label="實際次數" placeholder="實際次數" min="0">
-                                        </div>
-                                        <div class="col-6">
-                                            <input type="number" name="actualWeights" class="form-control form-control-sm" aria-label="實際重量" placeholder="實際重量" step="0.5" min="0">
-                                        </div>
+                            <!-- 實際次數/重量預設收合：跟計畫不同才需要填，平常不用一開始就佔兩個欄位 -->
+                            <details>
+                                <summary>▸ 跟計畫不同？填實際數值</summary>
+                                <div class="row g-2 mt-2">
+                                    <div class="col-6">
+                                        <input type="number" name="actualReps" class="form-control form-control-sm" aria-label="實際次數" placeholder="實際次數" min="0">
                                     </div>
-                                </details>
-                            </div>
+                                    <div class="col-6">
+                                        <input type="number" name="actualWeights" class="form-control form-control-sm" aria-label="實際重量" placeholder="實際重量" step="0.5" min="0">
+                                    </div>
+                                </div>
+                            </details>
                         </div>
                     </div>
                 </div>
-                <datalist id="exerciseSuggestions"></datalist>
-                <div class="d-flex gap-2 mt-2">
+                <div class="d-flex gap-2 wo-add-actions">
                     <button type="button" class="btn btn-outline-secondary" onclick="addExerciseRow()">＋ 新增動作</button>
                     <button type="submit" class="btn btn-primary">💾 儲存訓練</button>
                 </div>
@@ -353,6 +375,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/exercise-combobox.js}"></script>
 <script th:inline="javascript">
     document.getElementById('workoutDate').valueAsDate = new Date();
 
@@ -476,50 +499,61 @@
 
     renderCalendar();
 
-    // ── 動作自動補全 ──────────────────────────────────────
-    function filterExercisesByBodyPart(bp) {
-        const dl = document.getElementById('exerciseSuggestions');
-        dl.innerHTML = '';
+    // ── 動作搜尋 + 新增 ────────────────────────────────────
+    // 目前訓練部位選了什麼，建議清單就只列那個部位的動作；沒選就列全部。
+    // 是即時讀 DOM 的函式而不是存一份快照，訓練部位換了下次打開下拉就自動反映，不用另外監聽 onchange
+    function currentExerciseOptions() {
+        const bp = document.getElementById('bodyPartSelect').value;
         const filtered = bp ? allExercises.filter(e => e.bodyPart === bp) : allExercises;
-        filtered.forEach(e => {
-            const opt = document.createElement('option');
-            opt.value = e.name;
-            dl.appendChild(opt);
+        return filtered.map(e => e.name);
+    }
+    // 打的動作不存在時「＋新增動作」建的個人自訂動作，預設歸在目前選的訓練部位下面
+    // （沒選訓練部位就先歸類到「全身」，之後可以在 /manage 改）
+    function attachExerciseNameCombobox(input) {
+        attachExerciseCombobox(input, {
+            getOptions: currentExerciseOptions,
+            onCreate: name => createPersonalExercise(name, document.getElementById('bodyPartSelect').value || '全身', 'ISOLATION')
+                .then(createdName => { allExercises.push({ name: createdName, bodyPart: document.getElementById('bodyPartSelect').value || '全身' }); return createdName; })
         });
     }
+    document.querySelectorAll('.exercise-name-input').forEach(attachExerciseNameCombobox);
 
     // ── 新增/移除動作列 ───────────────────────────────────
     function addExerciseRow() {
         const container = document.getElementById('exerciseContainer');
         const div = document.createElement('div');
-        div.className = 'exercise-row-wrapper border rounded p-2 mb-2';
+        div.className = 'exercise-row-wrapper ex-row-card';
         div.innerHTML = `
-            <div class="row g-2 align-items-center mb-1">
-                <div class="col-md-4">
+            <div class="ex-row-head">
+                <div class="ex-row-main">
                     <input type="text" name="exerciseNames" class="form-control exercise-name-input" aria-label="動作名稱"
-                           list="exerciseSuggestions" placeholder="輸入或選擇動作...">
+                           placeholder="輸入或選擇動作...">
                 </div>
-                <div class="col-md-2">
+                <button type="button" class="ex-remove-btn" aria-label="移除這個動作" onclick="removeRow(this)">✕</button>
+            </div>
+            <div class="ex-field-group">
+                <div class="ex-field">
+                    <label>重量(kg)</label>
                     <input type="number" name="weightKgs" class="form-control" aria-label="重量(kg)" placeholder="80" step="0.5" min="0">
                 </div>
-                <div class="col-md-1">
+                <div class="ex-field">
+                    <label>組數</label>
                     <input type="number" name="sets" class="form-control" aria-label="組數" placeholder="4" min="1">
                 </div>
-                <div class="col-md-1">
+                <div class="ex-field">
+                    <label>次數</label>
                     <input type="number" name="reps" class="form-control" aria-label="次數" placeholder="8" min="1">
                 </div>
-                <div class="col-md-2">
+                <div class="ex-field">
+                    <label>休息(秒)</label>
                     <input type="number" name="restSeconds" class="form-control" aria-label="休息(秒)" placeholder="90" min="0" step="10">
                 </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-outline-danger btn-sm" aria-label="移除這個動作" onclick="removeRow(this)">✕</button>
-                </div>
             </div>
-            <div class="row g-2 align-items-center">
-                <div class="col-md-3">
+            <div class="ex-sub-row">
+                <div class="rpe-field">
                     <input type="number" name="rpes" class="form-control form-control-sm" aria-label="RPE 疲勞度" placeholder="RPE" step="0.5" min="1" max="10">
                 </div>
-                <div class="col-md-4">
+                <div class="status-field">
                     <select name="completionStatuses" class="form-select form-select-sm" aria-label="完成狀態">
                         <option value="">完成狀態（選填）</option>
                         <option value="COMPLETE">✅ 完成</option>
@@ -528,22 +562,20 @@
                         <option value="PAIN">⚠️ 疼痛</option>
                     </select>
                 </div>
-                <div class="col-md-5">
-                    <details>
-                        <summary class="small text-muted" style="cursor:pointer">跟計畫不同？填實際數值</summary>
-                        <div class="row g-2 mt-1">
-                            <div class="col-6">
-                                <input type="number" name="actualReps" class="form-control form-control-sm" aria-label="實際次數" placeholder="實際次數" min="0">
-                            </div>
-                            <div class="col-6">
-                                <input type="number" name="actualWeights" class="form-control form-control-sm" aria-label="實際重量" placeholder="實際重量" step="0.5" min="0">
-                            </div>
+                <details>
+                    <summary>▸ 跟計畫不同？填實際數值</summary>
+                    <div class="row g-2 mt-2">
+                        <div class="col-6">
+                            <input type="number" name="actualReps" class="form-control form-control-sm" aria-label="實際次數" placeholder="實際次數" min="0">
                         </div>
-                    </details>
-                </div>
+                        <div class="col-6">
+                            <input type="number" name="actualWeights" class="form-control form-control-sm" aria-label="實際重量" placeholder="實際重量" step="0.5" min="0">
+                        </div>
+                    </div>
+                </details>
             </div>`;
         container.appendChild(div);
-        filterExercisesByBodyPart(document.getElementById('bodyPartSelect').value);
+        attachExerciseNameCombobox(div.querySelector('.exercise-name-input'));
     }
     function removeRow(btn) { btn.closest('.exercise-row-wrapper').remove(); }
 

@@ -7,6 +7,7 @@ import fitness_tracker.enums.PlanMode;
 import fitness_tracker.service.CurrentUserService;
 import fitness_tracker.service.ExerciseService;
 import fitness_tracker.service.LiftPrService;
+import fitness_tracker.service.PhaseCalendar;
 import fitness_tracker.service.TrainingPlanService;
 import fitness_tracker.service.WorkoutPlanService;
 import fitness_tracker.service.WorkoutService;
@@ -47,10 +48,16 @@ public class PlanController {
     public String plan(Model model) {
         User user = currentUserService.getCurrentUser();
         TrainingPlan p = trainingPlanService.getOrCreateForUser(user);
-        int week = trainingPlanService.currentWeek(p, LocalDate.now());
+        // currentWeek() 回的是「開始這個計畫後過了幾週」，會隨時間一直長大、沒有上限；
+        // 20 週一輪跑完要折回第 1 週重新開始（見 PhaseCalendar.cycleWeek），不然練超過 20 週
+        // 的使用者畫面會一直卡在「第 20 週·最大力量期」，週次數字也會凍結在 20 不會再變
+        int week = PhaseCalendar.cycleWeek(trainingPlanService.currentWeek(p, LocalDate.now()));
         model.addAttribute("planMode", p.getMode().name());
         model.addAttribute("planDays", p.getDaysPerWeek());
         model.addAttribute("planWeek", week);
+        // 給多裝置/多分頁編輯衝突偵測用：前端編輯課表卡片時把這個值原封不動存起來，
+        // 存檔時一起送回去，後端比對存檔當下是不是還是同一個版本（見 TrainingPlanService.assertNotStale）
+        model.addAttribute("planUpdatedAt", p.getUpdatedAt() == null ? "" : p.getUpdatedAt().toString());
         Map<String, Object> prs = new HashMap<>();
         for (LiftPr pr : liftPrService.findByUser(user)) {
             Map<String, Object> entry = new HashMap<>();
@@ -61,6 +68,23 @@ public class PlanController {
             prs.put(pr.getExerciseName(), entry);
         }
         model.addAttribute("planPrs", prs);
+        // 依週期階段分開存的手動覆寫（組數/次數/休息、配件重量）：在最大力量期存的 5x5 不能套用到
+        // 肌耐力期/肌肥大期，所以前端不能只拿到一份「不分階段」的覆寫，要整包 phaseKey -> 內容都給前端，
+        // 由前端自己依目前畫面上的階段（含減量週，後端不知道這個純前端狀態）去挑對應那份
+        Map<String, Object> phasePrs = new HashMap<>();
+        for (LiftPr pr : liftPrService.findByUser(user)) {
+            Map<String, Object> phases = new HashMap<>();
+            liftPrService.phaseOverridesOf(pr).forEach((phaseKey, ov) -> {
+                Map<String, Object> entry = new HashMap<>();
+                entry.put("w", ov.weightKg());
+                entry.put("sets", ov.sets());
+                entry.put("r", ov.reps());
+                entry.put("rest", ov.restSeconds());
+                phases.put(phaseKey, entry);
+            });
+            if (!phases.isEmpty()) phasePrs.put(pr.getExerciseName(), phases);
+        }
+        model.addAttribute("planPhasePrs", phasePrs);
         // 新手模式主項重量進階用：每個主項最近一次「真的完成」的實際重量，前端拿來 +2.5/+5kg 疊加，
         // 不是套用 LiftPr（那個是給老手模式 %1RM 算重量用，語意不同、不能混用）。
         // stalled=true 代表最近連續好幾次都沒真的完成，前端要改成建議降重量，不能再往上疊加
@@ -75,9 +99,15 @@ public class PlanController {
         // 使用者編輯過某天型態卡片的動作組成也要套用，不然重新整理又會被自動排的組成蓋掉
         List<WorkoutPlanService.DayComposition> planQueue =
                 workoutPlanService.currentQueueComposition(user, p.getDaysPerWeek(), week, p.getExtraQueueCount());
-        model.addAttribute("planQueue", trainingPlanService.applyOverrides(trainingPlanService.getCardOverrides(user), planQueue));
-        // 配件動作可以換成的清單，來源是 Exercise 表（排除四大主項），給卡片編輯面板的下拉選單用
-        List<String> accessoryPool = exerciseService.findAll().stream()
+        Map<String, TrainingPlanService.CardOverride> cardOverrides = trainingPlanService.getCardOverrides(user);
+        model.addAttribute("planQueue", trainingPlanService.applyOverrides(cardOverrides, planQueue));
+        // 使用者已經手動編輯過的天型態：這幾天的動作組成是使用者自己選的，不該再套用「約 60 分鐘」
+        // 的自動排課時間預算去砍動作——那個預算只是給「系統自動排」的天型態當預設用的，使用者手動
+        // 加的每一個都是特意要的，不能悄悄消失。沒編輯過的天型態則維持套用預算
+        model.addAttribute("overriddenDayNames", cardOverrides.keySet());
+        // 配件動作可以換成的清單，來源是 Exercise 表（排除四大主項；含使用者自己的個人自訂動作，
+        // 不含別人的），給卡片編輯面板的搜尋式下拉選單用
+        List<String> accessoryPool = exerciseService.findVisibleTo(user).stream()
                 .map(e -> e.getName())
                 .filter(name -> !WorkoutPlanService.MAIN_LIFT_NAMES.contains(name))
                 .sorted()
@@ -124,6 +154,8 @@ public class PlanController {
     // 這裡先 zip 成本地的 CardExerciseSlot 再分別處理兩件事，不讓 controller 直接對著一堆平行 List 操作
     @PostMapping("/plan/card/save")
     public String saveCard(@RequestParam String dayName,
+                           @RequestParam(required = false) String phase,
+                           @RequestParam(required = false) String expectedUpdatedAt,
                            @RequestParam(required = false) List<String> main,
                            @RequestParam(required = false) List<String> acc,
                            @RequestParam(required = false) List<Double> mainWeights,
@@ -142,6 +174,7 @@ public class PlanController {
             throw new IllegalArgumentException("課表卡片至少要留一個動作");
         }
         User user = currentUserService.getCurrentUser();
+        trainingPlanService.assertNotStale(user, expectedUpdatedAt);
         trainingPlanService.saveCardOverride(user, dayName, mainNames, accNames);
 
         List<CardExerciseSlot> slots = new ArrayList<>();
@@ -153,7 +186,7 @@ public class PlanController {
         for (CardExerciseSlot slot : slots) {
             if ("1".equals(slot.dirty()) && slot.weightKg() != null && slot.weightKg() > 0
                     && slot.sets() != null && slot.reps() != null && slot.restSeconds() != null) {
-                liftPrService.saveManual(user, slot.name(), slot.weightKg(), slot.sets(), slot.reps(), slot.restSeconds());
+                liftPrService.saveManual(user, slot.name(), phase, slot.weightKg(), slot.sets(), slot.reps(), slot.restSeconds());
             }
         }
         return "redirect:/plan?saved";
@@ -178,8 +211,9 @@ public class PlanController {
 
     // 把某天型態的卡片重設回伺服器自動排的組成，取消先前存過的編輯
     @PostMapping("/plan/card/reset")
-    public String resetCard(@RequestParam String dayName) {
+    public String resetCard(@RequestParam String dayName, @RequestParam(required = false) String expectedUpdatedAt) {
         User user = currentUserService.getCurrentUser();
+        trainingPlanService.assertNotStale(user, expectedUpdatedAt);
         trainingPlanService.resetCardOverride(user, dayName);
         return "redirect:/plan?saved";
     }

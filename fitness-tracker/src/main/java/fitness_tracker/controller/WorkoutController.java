@@ -42,7 +42,7 @@ public class WorkoutController {
         List<WorkoutSession> sessions = service.findAll(user);
         model.addAttribute("sessions", sessions);
         model.addAttribute("bodyParts", bodyPartService.findAll());
-        model.addAttribute("exercises", exerciseService.findAll());
+        model.addAttribute("exercises", exerciseService.findVisibleTo(user));
         model.addAttribute("completionStatuses", CompletionStatus.values());
 
         // 日曆資料：date -> [bodyPart...]（直接傳 Map，Thymeleaf 自動轉 JS 物件）
@@ -91,8 +91,8 @@ public class WorkoutController {
         }).collect(Collectors.toList());
         model.addAttribute("sessionsData", sessionsForJS);
 
-        // 給 JS 用的精簡 exercises
-        List<Map<String, Object>> exercisesForJS = exerciseService.findAll().stream().map(e -> {
+        // 給 JS 用的精簡 exercises（含使用者自己的個人自訂動作，不含別人的）
+        List<Map<String, Object>> exercisesForJS = exerciseService.findVisibleTo(user).stream().map(e -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("name", e.getName());
             m.put("bodyPart", e.getBodyPart());

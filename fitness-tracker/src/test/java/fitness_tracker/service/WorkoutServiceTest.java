@@ -33,6 +33,7 @@ import fitness_tracker.entity.WorkoutSession;
 import fitness_tracker.entity.WorkoutSet;
 import fitness_tracker.enums.CompletionStatus;
 import fitness_tracker.repository.BodyPartRepository;
+import fitness_tracker.repository.TrainingPlanRepository;
 import fitness_tracker.repository.WorkoutSessionRepository;
 import fitness_tracker.repository.WorkoutSetRepository;
 import java.util.Set;
@@ -54,6 +55,9 @@ class WorkoutServiceTest {
 
     @Mock
     private LiftPrService liftPrService;
+
+    @Mock
+    private TrainingPlanRepository trainingPlanRepository;
 
     @InjectMocks
     private WorkoutService service;
@@ -159,9 +163,10 @@ class WorkoutServiceTest {
         );
 
         verify(liftPrService, org.mockito.Mockito.never()).saveManual(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq("臥推"),
-                org.mockito.ArgumentMatchers.anyDouble(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
-        // 組數(3)/次數(12) 來自 ExerciseDto 本身；沒填休息秒數則落回預設 90 秒
-        verify(liftPrService).saveManual(user, "三頭下壓", 15.0, 3, 12, 90);
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyDouble(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
+        // 組數(3)/次數(12) 來自 ExerciseDto 本身；沒填休息秒數則落回預設 90 秒。
+        // 使用者還沒建過 TrainingPlan（沒去過 /plan），落回預設的「肌耐力期」("adapt")
+        verify(liftPrService).saveManual(user, "三頭下壓", "adapt", 15.0, 3, 12, 90);
     }
 
     @Test

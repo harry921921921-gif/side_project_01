@@ -119,11 +119,14 @@ public class TrainingPlanService {
         return (int) Math.max(w, 1);
     }
 
+    // 20 週跑完一輪就折回第 1 週重新開始，不是過了第 20 週就一直卡在最大力量期——
+    // 折算邏輯跟 PhaseCalendar.phaseForWeek() 共用同一個 cycleWeek()，不要兩邊各自重寫一份
     public PhaseType phaseForWeek(int week) {
+        int w = PhaseCalendar.cycleWeek(week);
         for (PhaseType pt : PhaseType.values()) {
-            if (week <= pt.end) return pt;
+            if (w <= pt.end) return pt;
         }
-        return PhaseType.STRENGTH; // 超過 20 週先當最大力量期
+        return PhaseType.STRENGTH; // 理論上走不到，cycleWeek() 保證回傳值一定落在 1-20
     }
 
     // 某一天練什麼：把星期對應到分化第幾天，對不到就是休息日
@@ -164,18 +167,49 @@ public class TrainingPlanService {
         return new Adherence(planned, completed);
     }
 
+    // 多裝置/多分頁同時編輯課表的最後防線：使用者打開編輯彈窗當下記住的 updatedAt，跟存檔當下
+    // 資料庫裡實際的 updatedAt 對不起來，代表這段時間別的地方已經存過一次（換天數、存 PR、
+    // 編輯過別張卡片……任何一種存檔都會讓 updatedAt 往前走），這次存檔會悄悄蓋掉那次的修改——
+    // 不讓它默默發生，直接擋下來，讓使用者重新整理頁面看最新內容後再重新編輯。
+    // 粒度是「整份課表」不是「單一張卡片」：改天數這種跟卡片編輯無關的動作也會觸發，
+    // 有時候會比「真的衝突」更保守一點擋下存檔——這是刻意的取捨，寧可偶爾要求使用者多重新整理
+    // 一次，也不要真的悄悄蓋掉別人的修改。expectedUpdatedAt 沒帶（例如很舊的分頁快取、直接
+    // 呼叫 API）就不擋，維持原本沒有這層保護前的行為，不會因為這個新檢查憑空擋掉合法的存檔
+    @Transactional(readOnly = true)
+    public void assertNotStale(User user, String expectedUpdatedAt) {
+        if (expectedUpdatedAt == null || expectedUpdatedAt.isBlank()) return;
+        TrainingPlan p = getOrCreateForUser(user);
+        String current = p.getUpdatedAt() == null ? "" : p.getUpdatedAt().toString();
+        if (!expectedUpdatedAt.equals(current)) {
+            throw new IllegalArgumentException("這份課表在你編輯的時候已經被其他裝置或分頁更新過，請重新整理頁面後再重新編輯，避免蓋掉新的內容");
+        }
+    }
+
     // ── 課表卡片的動作組成覆寫：使用者編輯過某天型態的卡片（換動作/加/刪動作）就記住，
-    //    不然重新整理又會被伺服器自動排的組成蓋掉。key 用天型態名稱，不是佇列位置 ──
+    //    不然重新整理又會被伺服器自動排的組成蓋掉。
+    //
+    //    key 存的時候要加上「幾天分化」當前綴（例如 "3:推日"），不能只用天型態名稱：不同天數的分化，
+    //    天型態名稱是完全不同的一組（3 天是「推日/拉日/腿日」、4 天是「上肢 A/下肢 A/...」，見
+    //    SplitCatalog），但也可能剛好撞名。使用者中途改變一週練幾天，原本那份自訂不該憑空消失，
+    //    也不該在改回原本天數時把好幾個月前存的舊資料悄悄套回來讓人搞不清楚這重量哪來的——
+    //    每種天數分化各自保留自己的自訂，互不影響，才是使用者實際期待的行為。
+    //    對外（controller/前端）維持原本「key 是天型態名稱」的介面不變，前綴只在存取層內部處理 ──
     @Transactional(readOnly = true)
     public Map<String, CardOverride> getCardOverrides(User user) {
-        return parseOverrides(getOrCreateForUser(user).getCardOverridesJson());
+        TrainingPlan p = getOrCreateForUser(user);
+        String prefix = keyPrefix(p);
+        Map<String, CardOverride> scoped = new LinkedHashMap<>();
+        parseOverrides(p.getCardOverridesJson()).forEach((key, ov) -> {
+            if (key.startsWith(prefix)) scoped.put(key.substring(prefix.length()), ov);
+        });
+        return scoped;
     }
 
     @Transactional
     public void saveCardOverride(User user, String dayName, List<String> main, List<String> acc) {
         TrainingPlan p = getOrCreateForUser(user);
         Map<String, CardOverride> overrides = new LinkedHashMap<>(parseOverrides(p.getCardOverridesJson()));
-        overrides.put(dayName, new CardOverride(main, acc));
+        overrides.put(keyPrefix(p) + dayName, new CardOverride(main, acc));
         p.setCardOverridesJson(writeOverrides(overrides));
         repo.save(p);
     }
@@ -184,9 +218,13 @@ public class TrainingPlanService {
     public void resetCardOverride(User user, String dayName) {
         TrainingPlan p = getOrCreateForUser(user);
         Map<String, CardOverride> overrides = new LinkedHashMap<>(parseOverrides(p.getCardOverridesJson()));
-        overrides.remove(dayName);
+        overrides.remove(keyPrefix(p) + dayName);
         p.setCardOverridesJson(writeOverrides(overrides));
         repo.save(p);
+    }
+
+    private String keyPrefix(TrainingPlan p) {
+        return p.getDaysPerWeek() + ":";
     }
 
     // 把使用者存過的覆寫套進伺服器自動算出來的課表組成；沒被使用者動過的天型態照舊回傳自動算的結果

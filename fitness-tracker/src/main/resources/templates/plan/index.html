@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>訓練計劃 · FitTracker</title>
+<meta name="_csrf" th:content="${_csrf.token}">
+<meta name="_csrf_header" th:content="${_csrf.headerName}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;700;900&amp;display=swap" rel="stylesheet">
@@ -104,7 +106,7 @@ body{font-family:'Inter','Noto Sans TC',sans-serif;background:var(--bg);color:va
 .edit-label{display:block;font-size:.72rem;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin:10px 0 8px}
 .edit-list{display:flex;flex-direction:column;gap:2px}
 .ed-row .imp-field-name{flex:1 1 100%}
-.ed-row .imp-field-name input[type=text]{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 8px;font:inherit;background:#fbfcfe}
+.ed-row .imp-field-name input[type=text],.ed-row .imp-field-name select{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 8px;font:inherit;background:#fbfcfe}
 .ed-row .card-icon-btn{flex-shrink:0;align-self:center}
 .drow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .drow:last-child{border-bottom:0}
@@ -232,7 +234,7 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
 
   <!-- 週期進度 -->
   <script th:inline="javascript">
-  window.planSaved = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, prs: /*[[${planPrs}]]*/ {}, mainProgress: /*[[${mainProgress}]]*/ {}, completed: /*[[${completedDays}]]*/ [], queue: /*[[${planQueue}]]*/ [], accPool: /*[[${accessoryPool}]]*/ [] };
+  window.planSaved = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, updatedAt: /*[[${planUpdatedAt}]]*/ '', prs: /*[[${planPrs}]]*/ {}, phasePrs: /*[[${planPhasePrs}]]*/ {}, mainProgress: /*[[${mainProgress}]]*/ {}, completed: /*[[${completedDays}]]*/ [], queue: /*[[${planQueue}]]*/ [], accPool: /*[[${accessoryPool}]]*/ [], overriddenDays: /*[[${overriddenDayNames}]]*/ [] };
   </script>
 
   <h2 class="sec-title">週期進度<span class="ln"></span></h2>
@@ -258,11 +260,14 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
   <!-- 課表卡片編輯完存檔／重設用：跟上面幾個表單一樣走隱藏表單送出，沿用既有 CSRF 機制 -->
   <form id="cardOverrideForm" th:action="@{/plan/card/save}" method="post" style="display:none">
     <input type="hidden" name="dayName" id="f-card-dayname">
+    <input type="hidden" name="phase" id="f-card-phase">
+    <input type="hidden" name="expectedUpdatedAt" id="f-card-expected-updated-at">
     <div id="f-card-main"></div>
     <div id="f-card-acc"></div>
   </form>
   <form id="cardResetForm" th:action="@{/plan/card/reset}" method="post" style="display:none">
     <input type="hidden" name="dayName" id="f-card-reset-dayname">
+    <input type="hidden" name="expectedUpdatedAt" id="f-card-reset-expected-updated-at">
   </form>
 
   <!-- 本次課表：本週還沒完成的第一個分化天，不是死板的「今天固定練第一天」 -->
@@ -327,12 +332,13 @@ footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px
 </form>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/exercise-combobox.js}"></script>
 <script>
 /* ===== ProgressionService（JS 版，之後改寫成 Java）===== */
 /* 階段用「%1RM 區間 + 組數 + 目標 RIR」定義；次數由 %+RIR 公式算出，避免強度/次數矛盾 */
 const PHASE={
-  adapt:   {label:'解剖適應',color:'#059669',bg:'#d1fae5',pctLo:0.62,pctHi:0.68, sets:3,rir:3,rest:60},
-  hyper:   {label:'肌肥大',  color:'#1d4ed8',bg:'#dbeafe',pctLo:0.70,pctHi:0.80, sets:4,rir:2,rest:90},
+  adapt:   {label:'肌耐力',  color:'#059669',bg:'#d1fae5',pctLo:0.62,pctHi:0.68, sets:4,rir:3,rest:60,reps:'12–20'},
+  hyper:   {label:'肌肥大',  color:'#1d4ed8',bg:'#dbeafe',pctLo:0.70,pctHi:0.80, sets:4,rir:2,rest:90,reps:'6–12'},
   strength:{label:'最大力量',color:'#b45309',bg:'#fef3c7',pctLo:0.85,pctHi:0.875,sets:4,rir:1,rest:180},
   deload:  {label:'減量週',  color:'#475569',bg:'#e2e8f0',pctLo:0.50,pctHi:0.55, sets:2,rir:4,rest:60,reps:'5–6'},
 };
@@ -354,13 +360,21 @@ function estimate1RM(w,r){w=parseFloat(w)||0;r=Math.min(Math.max(parseInt(r)||1,
 /* 新手模式主項重量：接續「上一次真的完成」的重量往上疊加（上肢+2.5kg／下肢+5kg），
    還沒有任何完成紀錄的動作才從空槓起步；資料來自後端 mainProgress（真實訓練紀錄），不是 LiftPr。
    stalled=連續好幾次都沒真的完成（後端判定，見 WorkoutService.isStalled）——這種情況不能再往上疊加，
-   不然線性進步拉長時間會算出不合理的天文數字，改成建議降到約 9 成重新累積 */
+   不然線性進步拉長時間會算出不合理的天文數字，改成建議降到約 9 成重新累積。
+   減量週（pk==='deload'）要先判斷：新手模式沒有 1RM 可以像老手模式那樣直接算 50-55% 1RM，
+   只能拿「上次完成的重量」打折——用跟老手模式差不多的目標強度（約當 1RM 5 成出頭），
+   沒打折之前這裡完全沒讀 pk，減量週勾了也只有組數/次數變少、重量還是照常往上疊加，
+   起不到減量該有的恢復效果 */
 function mainWeight(mode,pk,name,orm){
   const ph=PHASE[pk];
   if(mode==='novice'){
     const bar=MAIN[name]?MAIN[name].bar:20;
     const last=((window.planSaved&&window.planSaved.mainProgress)||{})[name];
     if(last&&last.w>0){
+      if(pk==='deload'){
+        const deload=Math.max(bar,r25(last.w*0.6));
+        return{w:deload,note:'減量週：降到約 6 成重量 '+fmt(deload)+'kg 恢復'};
+      }
       if(last.stalled){
         const deload=r25(last.w*0.9);
         return{w:deload,note:'連續卡關，先降到 '+fmt(deload)+'kg 重新累積信心'};
@@ -373,11 +387,13 @@ function mainWeight(mode,pk,name,orm){
   const wp=workPct(ph);return{w:r25((orm||0)*wp),note:Math.round(wp*100)+'% 1RM'};
 }
 function accWeight(mode,pk){if(mode==='novice')return {adapt:10,hyper:12,strength:15,deload:8}[pk];return {adapt:12,hyper:20,strength:25,deload:10}[pk];}
-/* 配件動作沒有 1RM 可以算，重量準確度差，改成優先讀「自己存過的重量」（練完/在課表上手動記過一次就會記住），沒存過才用階段預設值 */
+/* 配件動作沒有 1RM 可以算，重量準確度差，改成優先讀「自己存過的重量」（練完/在課表上手動記過一次就會記住），
+   沒存過才用階段預設值。這個覆寫是分階段存的（最大力量期存的重量不能套用到肌耐力期/肌肥大期），
+   所以要挑 phasePrs[name][pk] 這份「這個階段自己存過的」，不是不分階段的舊版 prs */
 function accWeightFor(name,mode,pk){
-  const prs=(window.planSaved&&window.planSaved.prs)||{};
-  const pr=prs[name];
-  return (pr&&pr.w>0)?pr.w:accWeight(mode,pk);
+  const phasePrs=(window.planSaved&&window.planSaved.phasePrs)||{};
+  const p=phasePrs[name]&&phasePrs[name][pk];
+  return (p&&p.w>0)?p.w:accWeight(mode,pk);
 }
 function nextWeight(w,type){const inc=type==='upper'?2.5:5;return{w:r25(w+inc),tag:'完成 +'+inc};}
 function weekToPhase(wk){for(const m of MACRO)if(wk<=m.end)return m.key;return 'strength';}
@@ -438,16 +454,47 @@ function moveCard(i,delta){
    今天課表」的這幾個，一打開就把 d.main/d.acc 收斂成 planDayFor(i) 實際排出來的那幾個名字，
    不然大半欄位都是空的、看起來很亂。這個收斂只發生在本地 state，沒按「完成編輯」不會存回後端 */
 function openCardEditModal(i){
-  const dp=planDayFor(i);
+  // 收斂到「現在正常畫面上實際顯示」的那幾個：沒編輯過的天型態要照預算收斂，已經編輯過的
+  // 天型態本來就不受預算限制，要收斂成已經存過的全部內容，不能誤刪使用者先前特意留著的動作
+  const dp=planDayFor(i,isOverridden(state.queue[i].name));
   const shownMain=dp.items.filter(it=>it.isMain).map(it=>it.name);
   const shownAcc=dp.items.filter(it=>!it.isMain).map(it=>it.name);
   if(shownMain.length)state.queue[i].main=shownMain;
   if(shownAcc.length)state.queue[i].acc=shownAcc;
+  sanitizeMainNames(state.queue[i]);
+  cardEditPending={};   // 開新的一次編輯，清掉上一次殘留的暫存值
   state.editingIdx=i;
   render();
   document.getElementById('cardEditModal').classList.add('on');
 }
-function closeCardEditModal(){document.getElementById('cardEditModal').classList.remove('on');state.editingIdx=null;}
+function closeCardEditModal(){document.getElementById('cardEditModal').classList.remove('on');state.editingIdx=null;cardEditPending={};}
+/* 編輯過程中「按著鍵盤打字、還沒按完成編輯」的重量/組數/次數/休息，只存在畫面上的 input 裡，
+   不在 state.queue 裡——但每次新增/刪除/換動作都會呼叫 render() 把整個編輯彈窗的 HTML 砍掉重產生，
+   這些還沒送出的數字原本會被公式重算的預設值蓋掉（使用者一項一項調整、最後新增一個動作，
+   前面全部要重打）。用動作名稱當 key 把「畫面上現在打的值」暫存起來，重新產生 HTML 前先存一次、
+   產生後優先套用暫存值，不用公式預設值蓋過去，直到彈窗關掉或換編輯別張卡片才清空 */
+let cardEditPending={};
+function captureCardEditPending(){
+  document.querySelectorAll('#cardEditBody .ed-row').forEach(row=>{
+    const nameInput=row.querySelector('.imp-field-name input');
+    const w=row.querySelector('.ed-w'),s=row.querySelector('.ed-s'),r=row.querySelector('.ed-r'),rt=row.querySelector('.ed-rt');
+    if(!nameInput||!w)return;
+    const n=nameInput.value.trim();
+    if(!n)return;
+    cardEditPending[n]={w:w.value,s:s.value,r:r.value,rt:rt.value};
+  });
+}
+// 主要動作欄位在 v1（自由輸入框）時期存過的舊資料，可能卡著不合法的名字（不是深蹲/臥推/硬舉/肩推）
+// ——現在欄位已經鎖成 <select>，這種名字找不到對應選項，瀏覽器會自動退回顯示清單第一個（深蹲），
+// 畫面看起來選了深蹲，但沒被使用者手動點過的話，實際存的還是那個舊的不合法名字，兩邊會兜不起來。
+// 一打開編輯彈窗就先把這種名字直接修正掉，讓畫面顯示的跟接下來會存的保證一致
+function sanitizeMainNames(d){
+  d.main=d.main.map((n,idx)=>{
+    if(MAIN_NAMES.includes(n))return n;
+    const used=d.main.filter((_,j)=>j!==idx);
+    return MAIN_NAMES.find(m=>!used.includes(m))||MAIN_NAMES[0];
+  });
+}
 function removeCardExercise(i,list,idx){
   const d=state.queue[i];
   if(d.main.length+d.acc.length<=1){alert('至少要留一個動作喔。');return;}
@@ -463,13 +510,13 @@ function addCardExercise(i,list){
   render();
 }
 function changeCardExercise(i,list,idx,name){state.queue[i][list][idx]=name;render();}
-/* 每個 slot（主要/配件動作）目前「有效」的重量/組數/次數/休息：優先用使用者存過的手動覆寫
-   （LiftPr，週期進度頁的 prs），沒存過（或存的是舊版只帶重量/次數的資料）才落回階段公式算出來的預設值。
-   pr.sets!=null 當作「這筆有存過完整的手動覆寫」的判斷依據——舊版 veteran 模式輸入 1RM 用的
-   PR 只會有 reps 沒有 sets，不能誤當成使用者對這個動作設定過組數/次數 */
-function effFor(name,defSets,defReps,defRest){
-  const pr=(window.planSaved&&window.planSaved.prs)||{};
-  const p=pr[name];
+/* 每個 slot（主要/配件動作）目前「有效」的組數/次數/休息：優先用使用者在「這個階段」存過的手動覆寫
+   （phasePrs[name][pk]），沒存過才落回階段公式算出來的預設值。覆寫是分階段存的——使用者在最大力量期
+   存的 5×5 只在最大力量期生效，換到肌耐力期/肌肥大期要看那個階段自己有沒有存過，沒存過就用該階段的預設值，
+   不能沿用其他階段存的數字 */
+function effFor(name,defSets,defReps,defRest,pk){
+  const phasePrs=(window.planSaved&&window.planSaved.phasePrs)||{};
+  const p=phasePrs[name]&&phasePrs[name][pk];
   if(!p)return{sets:defSets,reps:defReps,rest:defRest};
   return{
     sets:p.sets!=null?p.sets:defSets,
@@ -532,20 +579,33 @@ function cardControlsHtml(i){
    打開彈窗當下實際看到的值，符合「第一行就是本來的數字」的需求 */
 function editRowHtml(i,list,idx,n,dpItems){
   const it=(dpItems||[]).find(x=>x.name===n);
-  const w=it?fmt(it.w):'', st=it?it.sets:'', rp=it?repsToInt(it.reps):'', rt=(it&&it.rest!=null)?it.rest:'';
-  const dlId='editDl-'+i+'-'+list+'-'+idx;
-  return `<div class="ed-row imp-row" data-list="${list}" data-idx="${idx}">
+  const pending=cardEditPending[n];
+  // 這個動作這次編輯過程中已經打過值（cardEditPending）就優先用那個，不要每次重新產生 HTML
+  // 都被公式重算的預設值蓋掉；data-orig 這種情況刻意留空，讓 finishEditCard() 的髒值判斷一定
+  // 為真——不然使用者剛剛才打的值，會因為「這次顯示值＝這次比對基準值」被誤判成沒改過而漏存
+  const w=pending?pending.w:(it?fmt(it.w):'');
+  const st=pending?pending.s:(it?it.sets:'');
+  const rp=pending?pending.r:(it?repsToInt(it.reps):'');
+  const rt=pending?pending.rt:((it&&it.rest!=null)?it.rest:'');
+  const origW=pending?'':w, origSt=pending?'':st, origRp=pending?'':rp, origRt=pending?'':rt;
+  // 主要動作永遠鎖定在深蹲/臥推/硬舉/肩推這 4 個（1RM、漸進式加重整套邏輯都是綁死這幾個名字算的，
+  // 換成別的名字重量永遠會算出 0——因為主要動作的重量從來不讀 LiftPr 手動覆寫，只認這 4 個名字）。
+  // 改用真正鎖死選項的 <select>，不能再像 <input list> 那樣打字打出清單以外的名字進去；
+  // 配件動作才開放搜尋式新增
+  const nameFieldHtml = list==='main'
+    ? `<select onchange="changeCardExercise(${i},'${list}',${idx},this.value)">${MAIN_NAMES.map(m=>`<option value="${m}" ${m===n?'selected':''}>${m}</option>`).join('')}</select>`
+    : `<input type="text" class="ed-name-input" value="${n}">`;
+  return `<div class="ed-row imp-row" data-list="${list}" data-idx="${idx}" data-i="${i}">
     <div class="imp-fields imp-fields-main">
       <div class="imp-field-name">
-        <input type="text" list="${dlId}" value="${n}" onchange="changeCardExercise(${i},'${list}',${idx},this.value)">
-        <datalist id="${dlId}">${(list==='main'?MAIN_NAMES:ACC_POOL).map(m=>`<option value="${m}">`).join('')}</datalist>
+        ${nameFieldHtml}
       </div>
     </div>
     <div class="imp-fields">
-      <div class="imp-field"><label>重量</label><input type="number" class="ed-w" data-orig="${w}" value="${w}" min="0" step="2.5"><span class="unit">kg</span></div>
-      <div class="imp-field"><label>組數</label><input type="number" class="ed-s" data-orig="${st}" value="${st}" min="1" max="20"><span class="unit">組</span></div>
-      <div class="imp-field"><label>次數</label><input type="number" class="ed-r" data-orig="${rp}" value="${rp}" min="1" max="30"><span class="unit">下</span></div>
-      <div class="imp-field"><label>休息</label><input type="number" class="ed-rt" data-orig="${rt}" value="${rt}" min="0" max="1800" step="15"><span class="unit">秒</span></div>
+      <div class="imp-field"><label>重量</label><input type="number" class="ed-w" data-orig="${origW}" value="${w}" min="0" step="2.5"><span class="unit">kg</span></div>
+      <div class="imp-field"><label>組數</label><input type="number" class="ed-s" data-orig="${origSt}" value="${st}" min="1" max="20"><span class="unit">組</span></div>
+      <div class="imp-field"><label>次數</label><input type="number" class="ed-r" data-orig="${origRp}" value="${rp}" min="1" max="30"><span class="unit">下</span></div>
+      <div class="imp-field"><label>休息</label><input type="number" class="ed-rt" data-orig="${origRt}" value="${rt}" min="0" max="1800" step="15"><span class="unit">秒</span></div>
       <button type="button" class="card-icon-btn" onclick="removeCardExercise(${i},'${list}',${idx})" title="移除這個動作" aria-label="移除這個動作">✕</button>
     </div>
   </div>`;
@@ -573,6 +633,8 @@ function editPanelHtml(i,dpItems){
 function finishEditCard(i){
   const d=state.queue[i];
   document.getElementById('f-card-dayname').value=d.name;
+  document.getElementById('f-card-phase').value=effPhase();
+  document.getElementById('f-card-expected-updated-at').value=(window.planSaved&&window.planSaved.updatedAt)||'';
   const mainBox=document.getElementById('f-card-main'); mainBox.innerHTML='';
   const accBox=document.getElementById('f-card-acc'); accBox.innerHTML='';
   ['main','acc'].forEach(list=>{
@@ -597,6 +659,7 @@ function finishEditCard(i){
 }
 function resetEditCard(i){
   document.getElementById('f-card-reset-dayname').value=state.queue[i].name;
+  document.getElementById('f-card-reset-expected-updated-at').value=(window.planSaved&&window.planSaved.updatedAt)||'';
   document.getElementById('cardResetForm').submit();
 }
 
@@ -748,16 +811,19 @@ function planDay(day,mode,pk,orm,skipCap){
   const mins=()=>{let m=WARMUP_MIN;for(const it of items)m+=TRANSITION_MIN+it.sets*(SET_WORK+it.rest)/60;return m;};
   (day.main||[]).forEach(name=>{
     const mw=mainWeight(mode,pk,name,orm[name]);
-    const eff=effFor(name,ph.sets,repsRange(ph),ph.rest);
+    const eff=effFor(name,ph.sets,repsRange(ph),ph.rest,pk);
     items.push({name,isMain:true,w:mw.w,sets:eff.sets,reps:eff.reps,rest:eff.rest,sub:mw.note});
   });
   for(const name of (day.acc||[])){
-    const eff=effFor(name,accSetsDefault,pk==='strength'?'6–8':'10–15',ph.rest);
+    const eff=effFor(name,accSetsDefault,pk==='strength'?'6–8':'10–15',ph.rest,pk);
     if(!skipCap&&mins()+TRANSITION_MIN+eff.sets*(SET_WORK+eff.rest)/60>TIME_CAP) break;      // 會超過 1 小時就停
     items.push({name,isMain:false,w:accWeightFor(name,mode,pk),sets:eff.sets,reps:eff.reps,rest:eff.rest,sub:'配件 · 感受控制'});
   }
   return {items,minutes:Math.round(mins())};
 }
+// 這個天型態是不是使用者已經手動編輯、存過覆寫了——60 分鐘的時間預算只是給「系統自動排」的
+// 天型態當預設用，使用者已經編輯過的天型態，正常顯示也要完全忽略這個限制，不能悄悄砍動作
+function isOverridden(dayName){return ((window.planSaved&&window.planSaved.overriddenDays)||[]).includes(dayName);}
 /* 依目前 state（程度/週次/減量）幫某張卡片算一次課表——編輯彈窗打開/每次改動都要重算一次
    當下的「有效值」，跟卡片正常顯示共用同一套 planDay() 公式，不會有兩套邏輯兜不起來的風險 */
 function planDayFor(i,skipCap){
@@ -768,8 +834,26 @@ function planDayFor(i,skipCap){
 function renderCardEditModal(){
   const i=state.editingIdx;
   if(i==null||i<0||i>=state.queue.length){closeCardEditModal();return;}
+  captureCardEditPending();   // 洗掉舊 HTML 之前，先把現在畫面上打的值記下來
   // 正在編輯中：一律不套用時間預算，使用者新增的動作要馬上看得到，不會因為預算被吃掉
   document.getElementById('cardEditBody').innerHTML=editPanelHtml(i,planDayFor(i,true).items);
+  wireAccExerciseComboboxes();
+}
+// 配件動作的名稱輸入框：找不到就能直接「＋新增動作」（見 exercise-combobox.js）。
+// 每次 renderCardEditModal() 重新輸出 innerHTML 後都要重新掛一次，DOM 節點是重新生成的
+function wireAccExerciseComboboxes(){
+  document.querySelectorAll('#cardEditBody .ed-row[data-list="acc"] .ed-name-input').forEach(input=>{
+    const row=input.closest('.ed-row');
+    const rowI=+row.dataset.i, rowIdx=+row.dataset.idx;
+    attachExerciseCombobox(input,{
+      getOptions:()=>ACC_POOL,
+      onSelect:name=>changeCardExercise(rowI,'acc',rowIdx,name),
+      onCreate:name=>createPersonalExercise(name,'全身','ISOLATION').then(createdName=>{
+        if(!ACC_POOL.includes(createdName))ACC_POOL.push(createdName);
+        return createdName;
+      })
+    });
+  });
 }
 
 function renderTimeline(){
@@ -811,7 +895,7 @@ function render(){
   }
 
   const today=state.queue[0];
-  const todayPlanRaw=planDay(today,mode,pk,orm);
+  const todayPlanRaw=planDay(today,mode,pk,orm,isOverridden(today.name));
   window.planToday={name:today.name,items:todayPlanRaw.items};
 
   const todayRows=todayPlanRaw.items.map(it=>{
@@ -829,7 +913,7 @@ function render(){
 
   let cards=state.queue.slice(1).map((day,idx0)=>{
     const i=idx0+1;
-    const dp=planDay(day,mode,pk,orm);
+    const dp=planDay(day,mode,pk,orm,isOverridden(day.name));
     const dr=dp.items.map(it=>`<div class="drow"><span class="dn ${it.isMain?'':'acc'}">${it.name}</span><span class="dw">${fmt(it.w)}kg · ${it.sets}×${it.reps}</span></div>`).join('');
     return `<div class="day"><div class="dh" draggable="true" data-card-idx="${i}" style="cursor:grab"><span class="tag" style="background:${ph.color}"></span><span style="flex:1">${day.name}</span>${cardControlsHtml(i)}</div><div class="dsub">⏱ 組間休息 ${fmtRest(ph.rest)} · 約 ${dp.minutes} 分</div><div class="db">${dr}</div></div>`;
   });
