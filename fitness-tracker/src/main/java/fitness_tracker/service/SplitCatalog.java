@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 // 課表分化的唯一定義來源：「一週幾天」→ 每天的名稱、動作篩選條件（movement 或 bodyPart 擇一）、
-// 該天的主項清單（給 AI 教練快照文字與新手/老手重量計算用）。
+// 該天的主項清單（給新手/老手重量計算用）。
 // WorkoutPlanService 用篩選條件去 Exercise 表動態選動作；TrainingPlanService 只需要名稱/主項，
 // 兩邊共用同一份定義，不再各自維護一份會走鐘的複製品。
 public final class SplitCatalog {

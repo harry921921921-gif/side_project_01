@@ -1,0 +1,14 @@
+# 建置 Docker image 時不需要複製進去的東西
+# （這個專案用 COPY target/*.jar，其實用不太到下面這些，但先排除比較保險）
+
+target/
+.git/
+.gitignore
+.vscode/
+.idea/
+*.iml
+.mvn/
+*.log
+hs_err_pid*
+src/main/resources/application-local.properties
+.env

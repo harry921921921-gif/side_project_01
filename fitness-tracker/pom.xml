@@ -71,6 +71,20 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				</plugin>
+			<!-- application-local.properties 放的是本機開發用的真實資料庫密碼（已排除在 git 版控外），
+			     但 Maven 預設打包規則沒有這層概念，會照樣把它包進最終的 jar 裡——這支 jar 之後會被
+			     Dockerfile COPY 進 image，等於把明碼密碼也一起帶進去。這裡只排除「打包進最終 jar」，
+			     不影響 target/classes（./mvnw spring-boot:run／IDE 本機開發還是讀得到這個檔案，
+			     行為完全不變），只有 Docker 用的那支 jar 不會再含有這個檔案 -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>application-local.properties</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 
