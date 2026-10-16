@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 public record WorkoutRequest(
         @NotNull(message = "workoutDate 為必填")
@@ -20,6 +21,7 @@ public record WorkoutRequest(
         String bodyPart,
         String note,
         @Valid
+        @Size(max = 50, message = "單次訓練最多只能記錄 50 個動作")
         List<ExerciseDto> exercises
 ) {
     public record ExerciseDto(
@@ -30,6 +32,8 @@ public record WorkoutRequest(
             Integer sets,
             @PositiveOrZero(message = "reps 不能為負")
             Integer reps,
+            @PositiveOrZero(message = "restSeconds 不能為負")
+            Integer restSeconds,
             @DecimalMin(value = "0.0", message = "rpe 不能小於 0")
             @DecimalMax(value = "10.0", message = "rpe 不能大於 10")
             Double rpe,
@@ -37,7 +41,6 @@ public record WorkoutRequest(
             @PositiveOrZero(message = "actualReps 不能為負")
             Integer actualReps,
             @PositiveOrZero(message = "actualWeight 不能為負")
-            Double actualWeight,
-            String notes
+            Double actualWeight
     ) {}
 }

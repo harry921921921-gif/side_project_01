@@ -12,14 +12,19 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+// user_id+workout_date 幾乎每支查詢都會用到（依日期範圍查某使用者的訓練紀錄），
+// 沒有索引的話資料量大了之後這裡會是第一個變慢的地方
 @Entity
-@Table(name = "workout_session")
+@Table(name = "workout_session", indexes = {
+        @Index(name = "idx_workout_session_user_date", columnList = "user_id, workout_date")
+})
 public class WorkoutSession {
 
     @Id

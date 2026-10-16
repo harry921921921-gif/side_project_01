@@ -4,8 +4,11 @@ import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+// user_id+recorded_date 幾乎每支查詢都會用到，加索引避免資料量大了之後查詢變慢
 @Entity
-@Table(name = "body_weight")
+@Table(name = "body_weight", indexes = {
+        @Index(name = "idx_body_weight_user_date", columnList = "user_id, recorded_date")
+})
 public class BodyWeight {
 
     @Id

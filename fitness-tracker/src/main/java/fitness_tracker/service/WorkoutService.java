@@ -4,9 +4,12 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -16,38 +19,49 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import fitness_tracker.dto.WorkoutRequest;
 import fitness_tracker.entity.Exercise;
+import fitness_tracker.entity.LiftPr;
 import fitness_tracker.entity.User;
 import fitness_tracker.entity.WorkoutSession;
 import fitness_tracker.entity.WorkoutSet;
 import fitness_tracker.enums.CompletionStatus;
 import fitness_tracker.exception.ResourceNotFoundException;
 import fitness_tracker.repository.BodyPartRepository;
+import fitness_tracker.repository.TrainingPlanRepository;
 import fitness_tracker.repository.WorkoutSessionRepository;
+import fitness_tracker.repository.WorkoutSetRepository;
 
 @Service
 public class WorkoutService {
 
     private static final Logger log = LoggerFactory.getLogger(WorkoutService.class);
 
+    // 這幾個主項課表頁會用 1RM 百分比算重量，不能被單次記錄的次極限重量覆蓋回 PR
+    private static final Set<String> MAIN_LIFT_NAMES = Set.of("深蹲", "臥推", "硬舉", "肩推");
+
     private final WorkoutSessionRepository repository;
+    private final WorkoutSetRepository workoutSetRepository;
     private final ExerciseService exerciseService;
     private final BodyPartRepository bodyPartRepository;
+    private final LiftPrService liftPrService;
+    private final TrainingPlanRepository trainingPlanRepository;
 
     public WorkoutService(WorkoutSessionRepository repository,
+                          WorkoutSetRepository workoutSetRepository,
                           ExerciseService exerciseService,
-                          BodyPartRepository bodyPartRepository) {
+                          BodyPartRepository bodyPartRepository,
+                          LiftPrService liftPrService,
+                          TrainingPlanRepository trainingPlanRepository) {
         this.repository = repository;
+        this.workoutSetRepository = workoutSetRepository;
         this.exerciseService = exerciseService;
         this.bodyPartRepository = bodyPartRepository;
+        this.liftPrService = liftPrService;
+        this.trainingPlanRepository = trainingPlanRepository;
     }
 
     // ── 舊版（未過濾使用者）：保留給既有呼叫端/測試相容，正式流程請一律用帶 User 的版本 ──
-    @Transactional(readOnly = true)
-    public Optional<WorkoutSession> findById(long id) {
-        return repository.findById(id);
-    }
-
     @Transactional(readOnly = true)
     public List<WorkoutSession> findAll() {
         return repository.findAllByOrderByWorkoutDateDesc();
@@ -110,37 +124,106 @@ public class WorkoutService {
         return repository.countByUserAndWorkoutDateGreaterThanEqual(user, monday);
     }
 
+    // 本週（週一到週日）已經記錄過的 bodyPart 集合，給 /plan 頁的「本週完整課表」拿掉已完成的卡片用
+    @Transactional(readOnly = true)
+    public Set<String> completedBodyPartsThisWeek(User user) {
+        LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY);
+        LocalDate sunday = monday.plusDays(6);
+        return repository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateDesc(user, monday, sunday).stream()
+                .map(WorkoutSession::getBodyPart)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
+    // 新手模式主項重量要接續「上一次真的完成」的那次往上疊加，不能每次都停在空槓——查每個主項
+    // 最近一次 completionStatus=COMPLETE 的紀錄；失敗/中途放棄/疼痛那幾筆不算，維持原重量不貿然加重
+    @Transactional(readOnly = true)
+    public Map<String, WorkoutSet> lastCompletedMainLifts(User user) {
+        List<WorkoutSet> sets = workoutSetRepository
+                .findBySession_UserAndExerciseNameInAndCompletionStatusOrderBySession_WorkoutDateDescIdDesc(
+                        user, MAIN_LIFT_NAMES, CompletionStatus.COMPLETE);
+        Map<String, WorkoutSet> latest = new LinkedHashMap<>();
+        for (WorkoutSet ws : sets) {
+            latest.putIfAbsent(ws.getExerciseName(), ws);
+        }
+        return latest;
+    }
+
+    // 連續卡關次數的門檻：從最新一筆往回數，連續幾次不是 COMPLETE 就視為卡關
+    private static final int STALL_THRESHOLD = 3;
+
+    public record MainLiftProgress(double lastCompletedWeightKg, boolean stalled) {}
+
+    // 新手模式主項重量進階的完整版本：帶「是否卡關」——只會一直 +2.5/+5kg 疊加、完全不管
+    // 使用者其實一直練失敗的話，線性進步拉長時間會算出不合理的天文數字。這裡額外查每個主項
+    // 最近幾筆紀錄（不分完成狀態），如果從最新的往回數連續 N 次都不是 COMPLETE，
+    // 代表使用者已經卡在這個重量了，下次不該再往上加，而是先降回約 90% 讓對方重新累積信心。
+    //
+    // 使用者也可能在課表頁編輯彈窗手動指定過某個主項的重量（LiftPr.saveManual）——這個手動值
+    // 要接管漸進起點，直到使用者又真的完成一次新的訓練紀錄為止：比較「手動覆寫的存檔時間」
+    // 跟「最近一次真實完成紀錄的訓練日期」誰比較新，較新的那個當作這次的基準重量。
+    @Transactional(readOnly = true)
+    public Map<String, MainLiftProgress> mainLiftProgress(User user) {
+        Map<String, WorkoutSet> lastCompleted = lastCompletedMainLifts(user);
+        Map<String, MainLiftProgress> result = new LinkedHashMap<>();
+        Set<String> names = new LinkedHashSet<>(MAIN_LIFT_NAMES);
+        for (Map.Entry<String, WorkoutSet> entry : lastCompleted.entrySet()) {
+            names.add(entry.getKey());
+        }
+        for (String name : names) {
+            WorkoutSet last = lastCompleted.get(name);
+            Optional<LiftPr> override = liftPrService.findOverride(user, name);
+            boolean overrideWins = override.isPresent() && (last == null
+                    || !override.get().getUpdatedAt().toLocalDate().isBefore(last.getSession().getWorkoutDate()));
+            if (overrideWins) {
+                result.put(name, new MainLiftProgress(override.get().getWeightKg(), false));
+            } else if (last != null) {
+                double weight = last.getActualWeight() != null ? last.getActualWeight() : last.getWeightKg();
+                result.put(name, new MainLiftProgress(weight, isStalled(user, name)));
+            }
+        }
+        return result;
+    }
+
+    private boolean isStalled(User user, String exerciseName) {
+        List<WorkoutSet> recent = workoutSetRepository
+                .findTop10BySession_UserAndExerciseNameOrderBySession_WorkoutDateDescIdDesc(user, exerciseName);
+        int consecutiveFails = 0;
+        for (WorkoutSet ws : recent) {
+            if (ws.getCompletionStatus() == CompletionStatus.COMPLETE) break;
+            consecutiveFails++;
+        }
+        return consecutiveFails >= STALL_THRESHOLD;
+    }
+
+    // 本週已經練過的動作名稱集合，給 WorkoutPlanService 排配件動作時「一週去重」用
+    @Transactional(readOnly = true)
+    public Set<String> exerciseNamesThisWeek(User user) {
+        LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY);
+        LocalDate sunday = monday.plusDays(6);
+        return repository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateDesc(user, monday, sunday).stream()
+                .flatMap(s -> s.getSets().stream())
+                .map(WorkoutSet::getExerciseName)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
+    // exercises 是一個動作一筆的結構化資料（跟 REST API 的 WorkoutRequest.ExerciseDto 共用同一個
+    // 形狀），不是 8 個要靠 index 對齊的平行 List——不然兩個同型別的參數順序寫反，編譯器完全看不出來，
+    // 會安靜把重量存成組數。MVC 表單控制器負責把送出來的平行欄位 zip 成這個 list 再呼叫這裡。
     @Transactional
-    public void save(WorkoutSession session,
-                     List<String> exerciseNames,
-                     List<Double> weightKgs,
-                     List<Integer> sets,
-                     List<Integer> reps,
-                     List<Integer> restSeconds,
-                     List<Double> rpes,
-                     List<String> completionStatuses,
-                     List<Integer> actualRepsList,
-                     List<Double> actualWeights,
-                     List<String> notesList) {
-
+    public void save(WorkoutSession session, List<WorkoutRequest.ExerciseDto> exercises) {
         validateBodyPart(session.getBodyPart());
+        validateExerciseCount(exercises);
 
-        for (int i = 0; i < exerciseNames.size(); i++) {
-            String name = exerciseNames.get(i);
+        for (WorkoutRequest.ExerciseDto ex : exercises) {
+            String name = ex.exerciseName();
             if (name != null && !name.trim().isEmpty()) {
-                WorkoutSet workoutSet = new WorkoutSet();
-                workoutSet.setExerciseName(name.trim());
-                workoutSet.setWeightKg(safeGet(weightKgs, i));
-                workoutSet.setSets(safeGet(sets, i));
-                workoutSet.setReps(safeGet(reps, i));
-                workoutSet.setRestSeconds(safeGet(restSeconds, i));
-                workoutSet.setRpe(safeGet(rpes, i));
-                workoutSet.setCompletionStatus(parseCompletionStatus(safeGet(completionStatuses, i)));
-                workoutSet.setActualReps(safeGet(actualRepsList, i));
-                workoutSet.setActualWeight(safeGet(actualWeights, i));
-                workoutSet.setNotes(safeGet(notesList, i));
+                WorkoutSet workoutSet = toWorkoutSet(ex, name);
                 workoutSet.setSession(session);
+                validateSet(workoutSet);
                 session.getSets().add(workoutSet);
+                recordAccessoryPr(session.getUser(), workoutSet);
             }
         }
         log.info("Creating workout session for bodyPart={} with {} exercise(s)", session.getBodyPart(), session.getSets().size());
@@ -149,124 +232,81 @@ public class WorkoutService {
     }
 
     @Transactional
-    public void save(WorkoutSession session,
-                     List<String> exerciseNames,
-                     List<Double> weightKgs,
-                     List<Integer> sets,
-                     List<Integer> reps,
-                     List<Integer> restSeconds,
-                     List<Double> rpes,
-                     List<String> completionStatuses,
-                     List<Integer> actualRepsList,
-                     List<Double> actualWeights,
-                     List<String> notesList,
-                     User user) {
+    public void save(WorkoutSession session, List<WorkoutRequest.ExerciseDto> exercises, User user) {
         session.setUser(user);
-        save(session, exerciseNames, weightKgs, sets, reps, restSeconds,
-                rpes, completionStatuses, actualRepsList, actualWeights, notesList);
+        save(session, exercises);
     }
 
     @Transactional
-    public void update(Long id,
-                       LocalDate workoutDate,
-                       String bodyPart,
-                       String note,
-                       List<String> exerciseNames,
-                       List<Double> weightKgs,
-                       List<Integer> sets,
-                       List<Integer> reps,
-                       List<Integer> restSeconds,
-                       List<Double> rpes,
-                       List<String> completionStatuses,
-                       List<Integer> actualRepsList,
-                       List<Double> actualWeights,
-                       List<String> notesList) {
-
-        WorkoutSession existing = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄"));
-        applyUpdate(existing, workoutDate, bodyPart, note, exerciseNames, weightKgs, sets, reps,
-                restSeconds, rpes, completionStatuses, actualRepsList, actualWeights, notesList);
-        log.info("Updating workout session id={}", id);
-        repository.save(existing);
-        log.info("Updated workout session id={}", id);
-    }
-
-    @Transactional
-    public void update(Long id,
-                       LocalDate workoutDate,
-                       String bodyPart,
-                       String note,
-                       List<String> exerciseNames,
-                       List<Double> weightKgs,
-                       List<Integer> sets,
-                       List<Integer> reps,
-                       List<Integer> restSeconds,
-                       List<Double> rpes,
-                       List<String> completionStatuses,
-                       List<Integer> actualRepsList,
-                       List<Double> actualWeights,
-                       List<String> notesList,
-                       User user) {
-
+    public void update(Long id, LocalDate workoutDate, String bodyPart, String note,
+                       List<WorkoutRequest.ExerciseDto> exercises, User user) {
         WorkoutSession existing = repository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄"));
-        applyUpdate(existing, workoutDate, bodyPart, note, exerciseNames, weightKgs, sets, reps,
-                restSeconds, rpes, completionStatuses, actualRepsList, actualWeights, notesList);
+        applyUpdate(existing, workoutDate, bodyPart, note, exercises);
         log.info("Updating workout session id={}", id);
         repository.save(existing);
         log.info("Updated workout session id={}", id);
     }
 
-    private void applyUpdate(WorkoutSession existing,
-                             LocalDate workoutDate,
-                             String bodyPart,
-                             String note,
-                             List<String> exerciseNames,
-                             List<Double> weightKgs,
-                             List<Integer> sets,
-                             List<Integer> reps,
-                             List<Integer> restSeconds,
-                             List<Double> rpes,
-                             List<String> completionStatuses,
-                             List<Integer> actualRepsList,
-                             List<Double> actualWeights,
-                             List<String> notesList) {
+    private void applyUpdate(WorkoutSession existing, LocalDate workoutDate, String bodyPart, String note,
+                             List<WorkoutRequest.ExerciseDto> exercises) {
         validateBodyPart(bodyPart);
+        validateExerciseCount(exercises);
         existing.setWorkoutDate(workoutDate);
         existing.setBodyPart(bodyPart);
         existing.setNote(note);
         existing.getSets().clear();
 
-        if (exerciseNames != null) {
-            for (int i = 0; i < exerciseNames.size(); i++) {
-                String name = exerciseNames.get(i);
+        if (exercises != null) {
+            for (WorkoutRequest.ExerciseDto ex : exercises) {
+                String name = ex.exerciseName();
                 if (name != null && !name.trim().isEmpty()) {
-                    WorkoutSet ws = new WorkoutSet();
-                    ws.setExerciseName(name.trim());
-                    ws.setWeightKg(safeGet(weightKgs, i));
-                    ws.setSets(safeGet(sets, i));
-                    ws.setReps(safeGet(reps, i));
-                    ws.setRestSeconds(safeGet(restSeconds, i));
-                    ws.setRpe(safeGet(rpes, i));
-                    ws.setCompletionStatus(parseCompletionStatus(safeGet(completionStatuses, i)));
-                    ws.setActualReps(safeGet(actualRepsList, i));
-                    ws.setActualWeight(safeGet(actualWeights, i));
-                    ws.setNotes(safeGet(notesList, i));
+                    WorkoutSet ws = toWorkoutSet(ex, name);
                     ws.setSession(existing);
+                    validateSet(ws);
                     existing.getSets().add(ws);
+                    recordAccessoryPr(existing.getUser(), ws);
                 }
             }
         }
     }
 
-    public void delete(Long id) {
-        if (!repository.existsById(id)) {
-            log.warn("Attempted to delete missing workout session id={}", id);
-            throw new ResourceNotFoundException("找不到 id=" + id + " 的訓練紀錄");
-        }
-        log.info("Deleting workout session id={}", id);
-        repository.deleteById(id);
-        log.info("Deleted workout session id={}", id);
+    private WorkoutSet toWorkoutSet(WorkoutRequest.ExerciseDto ex, String trimmedName) {
+        WorkoutSet ws = new WorkoutSet();
+        ws.setExerciseName(trimmedName.trim());
+        ws.setWeightKg(ex.weightKg());
+        ws.setSets(ex.sets());
+        ws.setReps(ex.reps());
+        ws.setRestSeconds(ex.restSeconds());
+        ws.setRpe(ex.rpe());
+        ws.setCompletionStatus(ex.completionStatus());
+        ws.setActualReps(ex.actualReps());
+        ws.setActualWeight(ex.actualWeight());
+        return ws;
+    }
+
+    // 小動作沒有 1RM 公式可以算重量，訓練紀錄裡填過一次重量就記住，下次課表頁同一個動作會自動帶入。
+    // 組數/休息秒數要跟重量一起記，不能只記重量：這是使用者這個週期實際做的內容，跟在 /plan 編輯
+    // 彈窗手動存的覆寫（LiftPrService.saveManual）本來就該是同一個記憶，不該是兩條各記一半的資料。
+    // 記到哪個階段要看這筆訓練紀錄的日期（不是「現在」），這樣補記前幾天的訓練也不會算錯階段
+    private void recordAccessoryPr(User user, WorkoutSet set) {
+        if (user == null || MAIN_LIFT_NAMES.contains(set.getExerciseName())) return;
+        Double weight = set.getActualWeight() != null ? set.getActualWeight() : set.getWeightKg();
+        if (weight == null || weight <= 0) return;
+        Integer reps = set.getActualReps() != null ? set.getActualReps() : set.getReps();
+        Integer sets = set.getSets();
+        Integer restSeconds = set.getRestSeconds();
+        String phase = phaseKeyForDate(user, set.getSession().getWorkoutDate());
+        liftPrService.saveManual(user, set.getExerciseName(), phase, weight,
+                sets != null ? sets : 3, reps != null ? reps : 8, restSeconds != null ? restSeconds : 90);
+    }
+
+    // 還沒去過 /plan 建立課表的使用者（TrainingPlan 還不存在）就當作在第 1 週／肌耐力期——
+    // 跟全新課表預設的起算日語意一致，不用為了這裡另外建一筆 TrainingPlan
+    private String phaseKeyForDate(User user, LocalDate date) {
+        return trainingPlanRepository.findByUser(user)
+                .map(p -> PhaseCalendar.phaseForWeek(PhaseCalendar.currentWeek(p, date)).key)
+                .orElse(PhaseCalendar.PhaseType.ADAPT.key);
     }
 
     public void delete(Long id, User user) {
@@ -275,10 +315,6 @@ public class WorkoutService {
         log.info("Deleting workout session id={}", id);
         repository.delete(existing);
         log.info("Deleted workout session id={}", id);
-    }
-
-    private <T> T safeGet(List<T> list, int i) {
-        return (list != null && i < list.size()) ? list.get(i) : null;
     }
 
     private void validateBodyPart(String bodyPart) {
@@ -291,14 +327,42 @@ public class WorkoutService {
         }
     }
 
-    private CompletionStatus parseCompletionStatus(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
+    // 正常訓練一天不可能記錄到這種數量的動作——擋住異常大量的請求（不管是打錯還是刻意塞爆），
+    // 不讓它一路跑到每個動作都各查一次資料庫、寫一次 DB 的地步。REST API 那邊 WorkoutRequest 已經
+    // 用 @Size 擋過一次，但 MVC 表單控制器是自己 zip 平行參數，不會經過 Bean Validation，
+    // 這裡是兩條路徑共用的最後一道防線
+    private static final int MAX_EXERCISES_PER_SESSION = 50;
+
+    private void validateExerciseCount(List<WorkoutRequest.ExerciseDto> exercises) {
+        if (exercises != null && exercises.size() > MAX_EXERCISES_PER_SESSION) {
+            throw new IllegalArgumentException("單次訓練最多只能記錄 " + MAX_EXERCISES_PER_SESSION + " 個動作");
         }
-        try {
-            return CompletionStatus.valueOf(value.trim().toUpperCase());
-        } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("completionStatus 不合法");
+    }
+
+    // 重量/組數/次數/RPE 技術上都是合法數字，但負數、0、誇張大的數字（例如打錯多打了幾個 0）
+    // 完全不合理，不擋下來的話會悄悄污染歷史紀錄、PR 估算、還有課表頁後續帶入的重量建議
+    private void validateSet(WorkoutSet set) {
+        String name = set.getExerciseName();
+        if (set.getWeightKg() != null && (set.getWeightKg() < 0 || set.getWeightKg() > 500)) {
+            throw new IllegalArgumentException("「" + name + "」的重量必須介於 0～500 公斤之間");
+        }
+        if (set.getActualWeight() != null && (set.getActualWeight() < 0 || set.getActualWeight() > 500)) {
+            throw new IllegalArgumentException("「" + name + "」的實際重量必須介於 0～500 公斤之間");
+        }
+        if (set.getSets() != null && (set.getSets() < 1 || set.getSets() > 20)) {
+            throw new IllegalArgumentException("「" + name + "」的組數必須介於 1～20 之間");
+        }
+        if (set.getReps() != null && (set.getReps() < 1 || set.getReps() > 50)) {
+            throw new IllegalArgumentException("「" + name + "」的次數必須介於 1～50 之間");
+        }
+        if (set.getActualReps() != null && (set.getActualReps() < 0 || set.getActualReps() > 50)) {
+            throw new IllegalArgumentException("「" + name + "」的實際完成次數必須介於 0～50 之間");
+        }
+        if (set.getRestSeconds() != null && (set.getRestSeconds() < 0 || set.getRestSeconds() > 1800)) {
+            throw new IllegalArgumentException("「" + name + "」的休息秒數必須介於 0～1800 秒之間");
+        }
+        if (set.getRpe() != null && (set.getRpe() < 1 || set.getRpe() > 10)) {
+            throw new IllegalArgumentException("「" + name + "」的 RPE 必須介於 1～10 之間");
         }
     }
 

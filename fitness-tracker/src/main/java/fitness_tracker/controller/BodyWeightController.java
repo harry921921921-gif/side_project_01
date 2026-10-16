@@ -25,14 +25,28 @@ public class BodyWeightController {
         this.currentUserService = currentUserService;
     }
 
+    private static final int PAGE_SIZE = 30;
+
     @GetMapping
-    public String index(Model model) {
-        List<BodyWeight> records = service.findAll(currentUserService.getCurrentUser());
+    public String index(@RequestParam(defaultValue = "0") int page, Model model) {
+        // 全部歷史都要拿來給圖表/統計用（趨勢線、最低/平均/最高本來就要看全部紀錄，不能只看這一頁）
+        List<BodyWeight> all = service.findAll(currentUserService.getCurrentUser());
+
+        // 歷史紀錄表格才分頁：一直往下長、又完全沒有分頁的話，記錄久了一頁會塞進上百列
+        int totalPages = Math.max(1, (int) Math.ceil(all.size() / (double) PAGE_SIZE));
+        int currentPage = Math.max(0, Math.min(page, totalPages - 1));
+        int from = currentPage * PAGE_SIZE;
+        int to = Math.min(from + PAGE_SIZE, all.size());
+        List<BodyWeight> records = all.isEmpty() ? List.of() : all.subList(from, to);
+
         model.addAttribute("records", records);
+        model.addAttribute("currentPage", currentPage);
+        model.addAttribute("totalPages", totalPages);
+        model.addAttribute("totalRecords", all.size());
 
         // 直接傳 List<Map>，Thymeleaf 自動轉成 JS array
         List<Map<String, Object>> chartData = new ArrayList<>();
-        for (BodyWeight r : records) {
+        for (BodyWeight r : all) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("date", r.getRecordedDate().toString());
             m.put("weight", r.getWeightKg());
@@ -65,6 +79,7 @@ public class BodyWeightController {
         return REDIRECT;
     }
 
+    // 編輯/刪除都帶著目前在第幾頁一起送出，處理完導回同一頁，不會因為改一筆資料就被彈回第 1 頁
     @PostMapping("/update/{id}")
     public String update(
             @PathVariable Long id,
@@ -73,7 +88,8 @@ public class BodyWeightController {
             @RequestParam(required = false) String timeOfDay,
             @RequestParam(required = false) Double bodyFatPct,
             @RequestParam(required = false) Double skeletalMuscleKg,
-            @RequestParam(required = false) String note) {
+            @RequestParam(required = false) String note,
+            @RequestParam(defaultValue = "0") int page) {
 
         User user = currentUserService.getCurrentUser();
         service.findById(id, user).ifPresent(bw -> {
@@ -85,12 +101,12 @@ public class BodyWeightController {
             bw.setNote(note);
             service.save(bw);
         });
-        return REDIRECT;
+        return REDIRECT + "?page=" + page;
     }
 
     @PostMapping("/delete/{id}")
-    public String delete(@PathVariable Long id) {
+    public String delete(@PathVariable Long id, @RequestParam(defaultValue = "0") int page) {
         service.delete(id, currentUserService.getCurrentUser());
-        return REDIRECT;
+        return REDIRECT + "?page=" + page;
     }
 }

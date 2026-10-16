@@ -83,8 +83,7 @@ class WorkoutApiControllerTest {
                       "rpe": 20.0,
                       "completionStatus": "COMPLETE",
                       "actualReps": 10,
-                      "actualWeight": 80.0,
-                      "notes": "bad"
+                      "actualWeight": 80.0
                     }
                   ]
                 }

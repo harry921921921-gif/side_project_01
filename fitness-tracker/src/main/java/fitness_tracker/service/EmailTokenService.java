@@ -33,7 +33,7 @@ public class EmailTokenService {
 
     @Transactional(readOnly = true)
     public Optional<EmailToken> validate(String token, String type) {
-        return repo.findByToken(token)
+        return repo.findByTokenFetchUser(token)
                 .filter(t -> !t.isUsed()
                         && type.equals(t.getType())
                         && t.getExpiresAt().isAfter(LocalDateTime.now()));

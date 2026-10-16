@@ -39,16 +39,16 @@
                                 <td class="text-end pe-3">
                                     <!-- 上移 -->
                                     <form th:if="${!iter.first}" th:action="@{/manage/body-part/move-up/{id}(id=${bp.id})}" method="post" class="d-inline">
-                                        <button class="btn btn-sm btn-outline-secondary py-0 px-1">▲</button>
+                                        <button class="btn btn-sm btn-outline-secondary py-0 px-1" th:attr="aria-label='把「' + ${bp.name} + '」往上移'">▲</button>
                                     </form>
                                     <!-- 下移 -->
                                     <form th:if="${!iter.last}" th:action="@{/manage/body-part/move-down/{id}(id=${bp.id})}" method="post" class="d-inline">
-                                        <button class="btn btn-sm btn-outline-secondary py-0 px-1">▼</button>
+                                        <button class="btn btn-sm btn-outline-secondary py-0 px-1" th:attr="aria-label='把「' + ${bp.name} + '」往下移'">▼</button>
                                     </form>
                                     <!-- 刪除（自訂才能刪） -->
                                     <form th:unless="${bp.preset}" th:action="@{/manage/body-part/delete/{id}(id=${bp.id})}" method="post" class="d-inline"
                                           onsubmit="return confirm('確定刪除此部位？')">
-                                        <button class="btn btn-sm btn-outline-danger py-0 px-1">✕</button>
+                                        <button class="btn btn-sm btn-outline-danger py-0 px-1" th:attr="aria-label='刪除「' + ${bp.name} + '」'">✕</button>
                                     </form>
                                 </td>
                             </tr>
@@ -57,7 +57,7 @@
                 </div>
                 <div class="card-footer bg-white">
                     <form th:action="@{/manage/body-part/add}" method="post" class="d-flex gap-2">
-                        <input type="text" name="name" class="form-control form-control-sm"
+                        <input type="text" name="name" class="form-control form-control-sm" aria-label="新增部位名稱"
                                placeholder="新增部位名稱（如：上半身）" required>
                         <button class="btn btn-primary btn-sm text-nowrap">＋ 新增</button>
                     </form>
@@ -71,7 +71,7 @@
                 <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h5 class="mb-0">🏋️ 訓練動作庫</h5>
                     <div class="d-flex align-items-center gap-2">
-                        <label class="form-label mb-0 small text-muted">篩選部位：</label>
+                        <label class="form-label mb-0 small text-muted" for="filterBodyPart">篩選部位：</label>
                         <select id="filterBodyPart" class="form-select form-select-sm" style="width:120px" onchange="filterExercises()">
                             <option value="">全部</option>
                             <option th:each="bp : ${bodyParts}" th:value="${bp.name}" th:text="${bp.name}"></option>
@@ -102,14 +102,14 @@
                                 </td>
                                 <td class="text-end pe-3">
                                     <form th:action="@{/manage/exercise/move-up/{id}(id=${ex.id})}" method="post" class="d-inline">
-                                        <button class="btn btn-sm btn-outline-secondary py-0 px-1">▲</button>
+                                        <button class="btn btn-sm btn-outline-secondary py-0 px-1" th:attr="aria-label='把「' + ${ex.name} + '」往上移'">▲</button>
                                     </form>
                                     <form th:action="@{/manage/exercise/move-down/{id}(id=${ex.id})}" method="post" class="d-inline">
-                                        <button class="btn btn-sm btn-outline-secondary py-0 px-1">▼</button>
+                                        <button class="btn btn-sm btn-outline-secondary py-0 px-1" th:attr="aria-label='把「' + ${ex.name} + '」往下移'">▼</button>
                                     </form>
                                     <form th:unless="${ex.preset}" th:action="@{/manage/exercise/delete/{id}(id=${ex.id})}" method="post" class="d-inline"
                                           onsubmit="return confirm('確定刪除此動作？')">
-                                        <button class="btn btn-sm btn-outline-danger py-0 px-1">✕</button>
+                                        <button class="btn btn-sm btn-outline-danger py-0 px-1" th:attr="aria-label='刪除「' + ${ex.name} + '」'">✕</button>
                                     </form>
                                 </td>
                             </tr>
@@ -120,17 +120,17 @@
                     <form th:action="@{/manage/exercise/add}" method="post">
                         <div class="row g-2">
                             <div class="col-md-4">
-                                <input type="text" name="name" class="form-control form-control-sm"
+                                <input type="text" name="name" class="form-control form-control-sm" aria-label="動作名稱"
                                        placeholder="動作名稱" required>
                             </div>
                             <div class="col-md-3">
-                                <select name="bodyPart" class="form-select form-select-sm" required>
+                                <select name="bodyPart" class="form-select form-select-sm" aria-label="所屬部位" required>
                                     <option value="">選擇部位</option>
                                     <option th:each="bp : ${bodyParts}" th:value="${bp.name}" th:text="${bp.name}"></option>
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <select name="category" class="form-select form-select-sm">
+                                <select name="category" class="form-select form-select-sm" aria-label="動作類型">
                                     <option value="COMPOUND">複合動作</option>
                                     <option value="ISOLATION">孤立動作</option>
                                 </select>

@@ -1,150 +1,327 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>FitTracker - 訓練計劃</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .tl-track{display:flex;gap:6px;height:64px}
-        .tl-seg{border-radius:.5rem;padding:10px 12px;display:flex;flex-direction:column;justify-content:space-between;transition:.2s;opacity:.5;position:relative;overflow:hidden;cursor:pointer}
-        .tl-seg.on{opacity:1;box-shadow:0 2px 8px rgba(0,0,0,.12)}
-        .tl-seg .pn{font-size:.82rem;font-weight:800}
-        .tl-seg .pw{font-size:.72rem;font-weight:600;opacity:.85}
-        .tl-fill{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.35)}
-        .rprogress{display:flex;gap:5px;justify-content:center;margin:14px 0}
-        .rdot{width:26px;height:6px;border-radius:3px;background:#e2e8f0}
-        .rdot.done{background:#198754}
-        .rdot.cur{background:#212529}
-        @media(max-width:600px){.tl-seg .pw{display:none}}
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>訓練計劃 · FitTracker</title>
+<meta name="_csrf" th:content="${_csrf.token}">
+<meta name="_csrf_header" th:content="${_csrf.headerName}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;700;900&amp;display=swap" rel="stylesheet">
+<!-- 只有最上面導覽列跟其他頁一樣用 Bootstrap（共用 fragments/navbar.html），下面內容維持原本這頁自己的設計 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f6fb;--surface:#fff;--ink:#0f172a;--muted:#64748b;--faint:#7c8aa0;
+  --line:#eaeef5;--accent:#10b981;--accent-ink:#065f46;--accent-soft:#d1fae5;
+  --radius:18px;--radius-sm:12px;--shadow:0 6px 24px rgba(15,23,42,.06);--shadow-lg:0 12px 40px rgba(15,23,42,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter','Noto Sans TC',sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+.hero{padding:34px 0 10px}
+.hero h1{font-size:1.9rem;font-weight:800;letter-spacing:-.03em}
+.hero p{color:var(--muted);margin-top:6px;font-size:.98rem}
+.pl-card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line)}
+.pad{padding:24px}
+.setup{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:22px}
+.field label{display:block;font-size:.78rem;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:9px}
+.seg{display:inline-flex;background:#eef1f7;border-radius:12px;padding:4px;gap:3px;width:100%}
+.seg button{flex:1;border:0;background:transparent;padding:9px 8px;border-radius:9px;font:inherit;font-weight:600;font-size:.86rem;color:var(--muted);cursor:pointer;transition:.15s;white-space:nowrap}
+.seg button:hover{color:var(--ink)}
+.seg button.active{background:#fff;color:var(--ink);box-shadow:0 2px 6px rgba(15,23,42,.1)}
+.seg.accent button.active{background:var(--accent);color:#fff;box-shadow:0 2px 10px rgba(16,185,129,.4)}
+.lift-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:6px}
+.lift-input{border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px;background:#fbfcfe;transition:.15s}
+.lift-input:focus-within{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px var(--accent-soft)}
+.lift-input .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.lift-input .nm{font-weight:700;font-size:.95rem}
+.lift-input .orm{font-size:.72rem;font-weight:700;color:var(--accent-ink);background:var(--accent-soft);padding:3px 9px;border-radius:20px}
+.lift-input .ins{display:flex;align-items:center;gap:8px}
+.lift-input input{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;font-size:.95rem;font-weight:600;text-align:center;outline:none;transition:.15s}
+.lift-input input:focus{border-color:var(--accent)}
+.lift-input .x{color:var(--faint);font-weight:700}
+.hint{margin-top:16px;font-size:.85rem;color:var(--muted);display:flex;gap:9px;align-items:flex-start;background:#f0fdf9;border:1px solid var(--accent-soft);border-radius:var(--radius-sm);padding:12px 14px}
+.hint b{color:var(--accent-ink)}
+.sec-title{display:flex;align-items:center;gap:10px;margin:32px 0 16px;font-size:1.15rem;font-weight:800;letter-spacing:-.02em}
+.sec-title .ln{flex:1;height:1px;background:var(--line)}
+
+/* timeline / progress */
+.tl-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.tl-head .big{font-size:1.05rem;font-weight:800}
+.tl-head .nx{font-size:.86rem;color:var(--muted)}
+.tl-head .nx b{color:var(--accent-ink)}
+.tl-track{display:flex;gap:6px;height:64px}
+.tl-seg{border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;justify-content:space-between;transition:.2s;opacity:.5;position:relative;overflow:hidden;cursor:pointer}
+.tl-seg.on{opacity:1;box-shadow:var(--shadow)}
+.tl-seg .pn{font-size:.82rem;font-weight:800}
+.tl-seg .pw{font-size:.72rem;font-weight:600;opacity:.85}
+.tl-fill{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.35)}
+.tl-slider{margin-top:16px}
+.tl-slider input{width:100%}
+.tl-week{display:flex;justify-content:space-between;font-size:.78rem;color:var(--faint);margin-top:6px}
+.dl-check{display:inline-flex;align-items:center;gap:8px;margin-top:14px;font-size:.88rem;font-weight:600;color:var(--muted);cursor:pointer;user-select:none}
+.dl-check input{width:18px;height:18px;accent-color:var(--accent)}
+
+.today{position:relative;overflow:hidden}
+.today .bar{position:absolute;left:0;top:0;bottom:0;width:5px;background:linear-gradient(180deg,var(--accent),#059669)}
+.today .head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px}
+.today .head h3{font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
+.chip{font-size:.76rem;font-weight:700;padding:5px 12px;border-radius:20px}
+.exlist{margin-top:14px}
+.exrow{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.exrow:last-child{border-bottom:0}
+.exrow .l .nm{font-weight:700;font-size:1rem}
+.exrow .l .sub{font-size:.8rem;color:var(--faint);margin-top:2px}
+.exrow .r{text-align:right;display:flex;align-items:center;gap:12px}
+.exrow .wt{font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums}
+.exrow .wt small{font-weight:600;color:var(--muted);font-size:.8rem}
+.nbadge{font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
+.b-up{background:var(--accent-soft);color:var(--accent-ink)}
+.cta{display:flex;gap:10px;margin-top:20px}
+.pl-btn{border:0;border-radius:12px;padding:12px 20px;font:inherit;font-weight:700;font-size:.92rem;cursor:pointer;transition:.15s}
+.pl-btn-primary{background:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(16,185,129,.35)}
+.pl-btn-primary:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.pl-btn-ghost{background:#f1f5f9;color:var(--ink)}
+.pl-btn-ghost:hover{background:#e5ebf2}
+.deload{display:flex;gap:10px;align-items:center;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:var(--radius-sm);padding:12px 14px;font-size:.88rem;margin:14px 0 4px}
+.form-error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:var(--radius-sm);padding:12px 16px;font-size:.88rem;font-weight:600;margin-bottom:16px}
+.week{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.day{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;transition:.18s}
+.day:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.day.rest{background:#f8fafc;border-style:dashed}
+.day .dh{padding:14px 18px;font-weight:800;font-size:.98rem;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}
+.day.rest .dh{border-bottom:0;color:var(--muted)}
+.day .dh .tag{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.day .dsub{padding:9px 18px 0;font-size:.76rem;color:var(--faint);font-weight:600;display:flex;align-items:center;gap:5px}
+.day .db{padding:8px 18px 16px}
+.card-icon-btn{border:0;background:#f1f5f9;color:var(--muted);width:26px;height:26px;border-radius:8px;font-size:.85rem;cursor:pointer;flex-shrink:0;line-height:1}
+.card-icon-btn:hover{background:#e5ebf2;color:var(--ink)}
+.card-icon-btn:disabled{opacity:.35;cursor:default}
+.card-icon-btn:disabled:hover{background:#f1f5f9;color:var(--muted)}
+[data-card-idx]{cursor:grab}
+[data-card-idx].dragging{opacity:.35}
+[data-card-idx].drag-over{box-shadow:0 0 0 3px var(--accent) inset;background:var(--accent-soft)}
+.edit-label{display:block;font-size:.72rem;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin:10px 0 8px}
+.edit-list{display:flex;flex-direction:column;gap:2px}
+.ed-row .imp-field-name{flex:1 1 100%}
+.ed-row .imp-field-name input[type=text],.ed-row .imp-field-name select{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 8px;font:inherit;background:#fbfcfe}
+.ed-row .card-icon-btn{flex-shrink:0;align-self:center}
+.drow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.drow:last-child{border-bottom:0}
+.drow .dn{font-size:.9rem;font-weight:600}
+.drow .dn.acc{font-weight:500;color:var(--muted)}
+.drow .dw{font-size:.84rem;color:var(--muted);font-variant-numeric:tabular-nums;font-weight:600}
+footer{text-align:center;color:var(--faint);font-size:.82rem;padding:40px 0 30px}
+
+/* runner overlay */
+.runner{position:fixed;top:74px;right:20px;z-index:50;display:none;width:320px;max-width:calc(100vw - 32px)}
+.runner.on{display:block}
+.rbox{width:100%;background:var(--surface);border-radius:16px;padding:18px 16px;text-align:center;box-shadow:0 16px 44px rgba(15,23,42,.26);border:1px solid var(--line)}
+.rbox .step{font-size:.72rem;font-weight:700;color:var(--faint);letter-spacing:.05em;text-transform:uppercase}
+.rbox h2{font-size:1.2rem;font-weight:800;margin:6px 0 4px;letter-spacing:-.02em}
+.rbox .tgt{font-size:.86rem;color:var(--muted);font-weight:600}
+.rbox .big-wt{font-size:1.8rem;font-weight:900;margin:8px 0 2px;font-variant-numeric:tabular-nums}
+.rbox .big-wt small{font-size:.85rem;color:var(--muted);font-weight:600}
+.timer{font-size:2.3rem;font-weight:900;font-variant-numeric:tabular-nums;margin:10px 0;letter-spacing:-.02em}
+.timer.warn{color:var(--accent)}
+.rprogress{display:flex;gap:5px;justify-content:center;margin:14px 0}
+.rdot{width:26px;height:6px;border-radius:3px;background:#e2e8f0}
+.rdot.done{background:var(--accent)}
+.rdot.cur{background:var(--ink)}
+.rbtns{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.pl-btn-xl{border:0;border-radius:13px;padding:13px;font:inherit;font-weight:800;font-size:1rem;cursor:pointer;background:var(--accent);color:#fff;box-shadow:0 6px 20px rgba(16,185,129,.4);transition:.15s}
+.pl-btn-xl:hover{transform:translateY(-2px);filter:brightness(1.05)}
+.pl-btn-xl.dark{background:var(--ink);box-shadow:0 6px 20px rgba(15,23,42,.3)}
+.pl-btn-mini{border:0;border-radius:10px;padding:10px;font:inherit;font-weight:600;font-size:.86rem;cursor:pointer;background:#f1f5f9;color:var(--muted)}
+.pl-btn-mini:hover{background:#e5ebf2;color:var(--ink)}
+.rclose{position:absolute;top:12px;right:14px;background:#f1f5f9;border:0;color:var(--muted);width:30px;height:30px;border-radius:50%;font-size:1rem;cursor:pointer}
+.rclose:hover{background:#e5ebf2;color:var(--ink)}
+.rprogress{margin:10px 0}
+.q-row{display:flex;gap:8px;margin-top:14px}
+.q-row button{flex:1}
+
+/* 匯入訓練紀錄 modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:60;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.on{display:flex}
+.modal-box{width:100%;max-width:480px;max-height:86vh;overflow-y:auto;background:var(--surface);border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(15,23,42,.3)}
+.modal-box h2{font-size:1.15rem;font-weight:800;margin-bottom:4px}
+.modal-box .sub{font-size:.85rem;color:var(--muted);margin-bottom:16px}
+.imp-row{padding:10px 0;border-bottom:1px solid var(--line)}
+.imp-row:last-child{border-bottom:0}
+.imp-fields{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.imp-fields:last-child{margin-bottom:0}
+.imp-field{display:flex;align-items:center;gap:4px}
+.imp-field label{display:none}
+.imp-field input,.imp-field select{border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit;text-align:center;font-weight:600}
+.imp-field input{width:56px}
+.imp-fields-status .imp-field:first-child input{width:64px}
+.imp-field-name{flex:1}
+.imp-field-name .imp-nm{font-weight:700;font-size:.92rem;display:flex;align-items:center;gap:6px}
+.imp-main-tag{font-size:.66rem;font-weight:800;background:var(--accent-soft);color:var(--accent-ink);padding:2px 7px;border-radius:7px;flex-shrink:0}
+.imp-field-wide{flex:1}
+.imp-field-wide select{width:100%;text-align:left}
+.imp-field .unit{color:var(--faint);font-size:.8rem}
+.modal-btns{display:flex;gap:10px;margin-top:18px}
+.modal-btns button{flex:1}
+@media(max-width:600px){
+  .hero h1{font-size:1.5rem}
+  .pad{padding:18px}
+  .tl-seg .pw{display:none}
+  /* 本次課表動作列：重量／備註／徽章擠在同一行右邊時容易溢出，窄螢幕改成重量自己一行、
+     其餘資訊換到第二行，靠 flex-wrap 自然換行，不用另外判斷裝置 */
+  .exrow{flex-wrap:wrap;row-gap:6px}
+  .exrow .l{flex:1 1 100%}
+  .exrow .r{flex:1 1 100%;justify-content:space-between}
+  .exrow .wt{font-size:1.15rem}
+  /* 完成訓練彈窗每一列：桌面版維持原本緊湊的單行＋小字單位；窄螢幕改成有標籤的網格排列，
+     輸入框高度拉到 40px 方便手指點，動作名稱獨立一行不跟重量/組數/次數擠在一起 */
+  .imp-fields{flex-wrap:wrap;row-gap:8px}
+  .imp-field-name{flex:1 1 100%}
+  .imp-field:not(.imp-field-name){flex:1 1 0}
+  .imp-field label{display:block;font-size:.66rem;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px}
+  .imp-field{flex-direction:column;align-items:stretch;gap:0}
+  .imp-field-name{flex-direction:row;align-items:center}
+  .imp-field input,.imp-field select{width:100%;height:40px;font-size:.92rem}
+  .imp-field .unit{display:none}
+  .imp-field-wide{flex:1 1 160px}
+}
+</style>
 </head>
-<body class="bg-light">
+<body>
 
 <div th:replace="~{fragments/navbar :: navbar}"></div>
 
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
-        <div>
-            <h2 class="mb-1">📋 打造你的訓練計劃</h2>
-            <p class="text-muted mb-0">依程度、目標與週期階段，即時算出每個動作的建議重量</p>
+<main class="wrap">
+  <div class="form-error" th:if="${formError}" th:text="${formError}"></div>
+  <section class="hero">
+    <h1>打造你的訓練計劃</h1>
+    <p>依程度、目標與週期階段，即時算出每個動作的建議重量</p>
+  </section>
+
+  <!-- 設定 -->
+  <div class="pl-card pad">
+    <div class="setup">
+      <div class="field">
+        <label>程度</label>
+        <div class="seg accent" data-seg="mode"><button data-val="novice" class="active">新手</button><button data-val="veteran">中階／老手</button></div>
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <label>一週訓練天數（第 7 天建議休息）</label>
+        <div class="seg" data-seg="days">
+          <button data-val="1">1</button><button data-val="2">2</button><button data-val="3" class="active">3</button>
+          <button data-val="4">4</button><button data-val="5">5</button><button data-val="6">6</button><button data-val="7">7</button>
         </div>
-        <button type="button" class="btn btn-success" onclick="openImportModal()">✅ 我今天練完了，匯入紀錄</button>
+      </div>
     </div>
-
-    <!-- 課表設定 -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white"><h5 class="mb-0">⚙️ 課表設定</h5></div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold small text-uppercase text-muted">程度</label>
-                    <div class="btn-group seg w-100" role="group" data-seg="mode">
-                        <button type="button" class="btn btn-outline-primary active" data-val="novice">新手</button>
-                        <button type="button" class="btn btn-outline-primary" data-val="veteran">中階／老手</button>
-                    </div>
-                </div>
-                <div class="col-md-8">
-                    <label class="form-label fw-semibold small text-uppercase text-muted">一週訓練天數（第 7 天建議休息）</label>
-                    <div class="btn-group seg w-100 flex-wrap" role="group" data-seg="days">
-                        <button type="button" class="btn btn-outline-primary" data-val="1">1</button>
-                        <button type="button" class="btn btn-outline-primary" data-val="2">2</button>
-                        <button type="button" class="btn btn-outline-primary active" data-val="3">3</button>
-                        <button type="button" class="btn btn-outline-primary" data-val="4">4</button>
-                        <button type="button" class="btn btn-outline-primary" data-val="5">5</button>
-                        <button type="button" class="btn btn-outline-primary" data-val="6">6</button>
-                        <button type="button" class="btn btn-outline-primary" data-val="7">7</button>
-                    </div>
-                </div>
-            </div>
-            <div id="vetBox" style="display:none" class="mt-4">
-                <label class="form-label fw-semibold small text-uppercase text-muted">你的重量（填一組 6–10 下，自動估 1RM）</label>
-                <div class="row row-cols-2 row-cols-md-4 g-2" id="liftGrid"></div>
-            </div>
-            <div id="noviceHint" class="alert alert-success d-flex gap-2 align-items-start mt-3 mb-0">
-                <span>🌱</span><span>新手模式：主項從空槓／輕重量起（深蹲・臥推・肩推 20kg，硬舉 40kg），系統會依你每次的表現自動幫你調整。</span>
-            </div>
-            <div th:if="${param.saved}" class="alert alert-success mt-3 mb-0">✓ 課表已儲存（含你的 PR，下次登入自動帶回）</div>
-            <div class="d-flex align-items-center gap-3 mt-4 flex-wrap">
-                <button type="button" class="btn btn-primary" onclick="savePlan()">💾 儲存我的課表</button>
-                <span class="text-muted small">程度／天數／週次／你的 PR 都會存到帳號</span>
-            </div>
-            <form id="planForm" th:action="@{/plan/save}" method="post" style="display:none">
-                <input type="hidden" name="mode" id="f-mode">
-                <input type="hidden" name="days" id="f-days">
-                <input type="hidden" name="week" id="f-week">
-                <div id="f-prs"></div>
-            </form>
-        </div>
+    <div id="vetBox" style="display:none;margin-top:22px">
+      <label style="display:block;font-size:.78rem;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">你的重量（填一組 6–10 下，自動估 1RM）</label>
+      <div class="lift-grid" id="liftGrid"></div>
     </div>
-
-    <script th:inline="javascript">
-    window.__savedPlan = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, prs: /*[[${planPrs}]]*/ {} };
-    </script>
-
-    <!-- 週期進度 -->
-    <h5 class="mb-3">📆 週期進度</h5>
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 mb-3">
-                <div class="fw-bold" id="tlNow">肌肥大期</div>
-                <div class="text-muted small" id="tlNext"></div>
-            </div>
-            <div class="tl-track" id="tlTrack"></div>
-            <div class="mt-3">
-                <input type="range" class="form-range" id="weekSlider" min="1" max="20" value="8">
-                <div class="d-flex justify-content-between text-muted small">
-                    <span>第 1 週</span><span id="wkNow" class="fw-bold text-dark">第 8 週</span><span>第 20 週</span>
-                </div>
-            </div>
-            <div class="form-check mt-3">
-                <input class="form-check-input" type="checkbox" id="dlChk">
-                <label class="form-check-label fw-semibold small" for="dlChk">本週改為減量週（Deload）</label>
-            </div>
-        </div>
+    <div id="noviceHint" class="hint"><span>🌱</span><span>新手模式：主項從空槓／輕重量起（深蹲・臥推・肩推 20kg，硬舉 40kg），系統會依你每次的表現自動幫你調整。</span></div>
+    <div th:if="${param.saved}" style="background:var(--accent-soft);color:var(--accent-ink);border-radius:12px;padding:10px 12px;font-size:.85rem;margin-top:16px">✓ 課表已儲存（含你的 PR，下次登入自動帶回）</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:18px;flex-wrap:wrap">
+      <button type="button" class="pl-btn pl-btn-primary" onclick="savePlan()">💾 儲存我的課表</button>
+      <span style="font-size:.83rem;color:var(--muted)">程度／天數／週次／你的 PR 都會存到帳號</span>
     </div>
+    <form id="planForm" th:action="@{/plan/save}" method="post" style="display:none">
+      <input type="hidden" name="mode" id="f-mode">
+      <input type="hidden" name="days" id="f-days">
+      <div id="f-prs"></div>
+    </form>
+  </div>
 
-    <!-- 今日課表 -->
-    <h5 class="mb-3">🎯 今日課表</h5>
-    <div id="todayWrap" class="mb-4"></div>
+  <!-- 週期進度 -->
+  <script th:inline="javascript">
+  window.planSaved = { mode: /*[[${planMode}]]*/ 'NOVICE', days: /*[[${planDays}]]*/ 3, week: /*[[${planWeek}]]*/ 8, updatedAt: /*[[${planUpdatedAt}]]*/ '', prs: /*[[${planPrs}]]*/ {}, phasePrs: /*[[${planPhasePrs}]]*/ {}, mainProgress: /*[[${mainProgress}]]*/ {}, completed: /*[[${completedDays}]]*/ [], queue: /*[[${planQueue}]]*/ [], accPool: /*[[${accessoryPool}]]*/ [], overriddenDays: /*[[${overriddenDayNames}]]*/ [] };
+  </script>
 
-    <!-- 週課表 -->
-    <h5 class="mb-3">🗓️ 本週完整課表</h5>
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3" id="weekGrid"></div>
+  <h2 class="sec-title">週期進度<span class="ln"></span></h2>
+  <div class="pl-card pad">
+    <div class="tl-head">
+      <div><div class="big" id="tlNow">肌肥大期</div></div>
+      <div class="nx" id="tlNext"></div>
+    </div>
+    <div class="tl-track" id="tlTrack"></div>
+    <div class="tl-slider">
+      <input type="range" id="weekSlider" min="1" max="20" value="8">
+      <div class="tl-week"><span>第 1 週</span><span id="wkNow" style="font-weight:700;color:var(--ink)">第 8 週</span><span>第 20 週</span></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:14px">
+      <label class="dl-check" style="margin-top:0"><input type="checkbox" id="dlChk"><span>本週改為減量週（Deload）</span></label>
+      <button type="button" class="pl-btn pl-btn-ghost" style="padding:8px 14px;font-size:.82rem" onclick="confirmSetWeek()">✓ 目前實際就是這一週（拖曳上面滑桿後點這裡才會存）</button>
+    </div>
+    <form id="weekForm" th:action="@{/plan/week}" method="post" style="display:none">
+      <input type="hidden" name="week" id="f-week-only">
+    </form>
+  </div>
 
-    <footer class="text-center text-muted small py-5">FitTracker · 訓練計劃原型　·　規則引擎即時算重量，之後接 Spring AI 產生白話課表</footer>
-</div>
+  <!-- 課表卡片編輯完存檔／重設用：跟上面幾個表單一樣走隱藏表單送出，沿用既有 CSRF 機制 -->
+  <form id="cardOverrideForm" th:action="@{/plan/card/save}" method="post" style="display:none">
+    <input type="hidden" name="dayName" id="f-card-dayname">
+    <input type="hidden" name="phase" id="f-card-phase">
+    <input type="hidden" name="expectedUpdatedAt" id="f-card-expected-updated-at">
+    <div id="f-card-main"></div>
+    <div id="f-card-acc"></div>
+  </form>
+  <form id="cardResetForm" th:action="@{/plan/card/reset}" method="post" style="display:none">
+    <input type="hidden" name="dayName" id="f-card-reset-dayname">
+    <input type="hidden" name="expectedUpdatedAt" id="f-card-reset-expected-updated-at">
+  </form>
+
+  <!-- 本次課表：本週還沒完成的第一個分化天，不是死板的「今天固定練第一天」 -->
+  <h2 class="sec-title">本次課表<span class="ln"></span></h2>
+  <div id="todayWrap"></div>
+
+  <!-- 週課表 -->
+  <h2 class="sec-title">本週完整課表<span class="ln"></span><button type="button" class="pl-btn pl-btn-ghost" style="padding:6px 14px;font-size:.82rem" onclick="addNextCourse()">＋ 新增課表</button><span id="queueLoading" style="display:none;font-size:.78rem;font-weight:600;color:var(--muted)">載入中…</span></h2>
+  <div class="week" id="weekGrid"></div>
+
+  <footer>FitTracker · 訓練計劃原型　·　規則引擎即時算重量，之後接 Spring AI 產生白話課表</footer>
+</main>
 
 <!-- 訓練執行 runner -->
-<div class="modal fade" id="runnerModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">訓練執行</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body text-center" id="runnerBody"></div>
+<div class="runner" id="runner"><div class="rbox" style="position:relative">
+  <button class="rclose" onclick="Runner.close()">✕</button>
+  <div id="runnerBody"></div>
+</div></div>
+
+<!-- 匯入訓練紀錄 modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal-box">
+    <h2 id="impTitle">今天練完了嗎？</h2>
+    <div class="sub">確認每個動作實際完成的重量／組數／次數，沒問題就直接匯入；有調整就改一下再匯入，會存進「訓練紀錄」。</div>
+    <div id="impRows"></div>
+    <div class="modal-btns">
+      <button type="button" class="pl-btn pl-btn-ghost" onclick="closeImportModal()">取消</button>
+      <button type="button" class="pl-btn pl-btn-primary" onclick="confirmImport()">✅ 確認匯入</button>
     </div>
   </div>
 </div>
-
-<!-- 匯入訓練紀錄 modal -->
-<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="impTitle">今天練完了嗎？</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <p class="text-muted small">確認每個動作實際完成的重量／組數／次數，沒問題就直接匯入；有調整就改一下再匯入，會存進「訓練紀錄」。</p>
-        <div id="impRows"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
-        <button type="button" class="btn btn-success" onclick="confirmImport()">✅ 確認匯入</button>
-      </div>
+<!-- 取代原生 prompt()/confirm() 用的小型彈窗，跟頁面其他彈窗（上面完成訓練）視覺風格一致，
+     不會像瀏覽器原生對話框那樣風格突兀、也沒辦法客製 -->
+<div class="modal-overlay" id="promptModal">
+  <div class="modal-box" style="max-width:380px">
+    <h2 id="promptTitle">確認</h2>
+    <div class="sub" id="promptMessage"></div>
+    <div id="promptInputWrap" style="margin-bottom:16px">
+      <input type="number" id="promptInput" step="0.5" aria-label="輸入重量"
+             style="width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font:inherit;font-size:.95rem">
     </div>
+    <div class="modal-btns">
+      <button type="button" class="pl-btn pl-btn-ghost" onclick="closePromptModal(false)">取消</button>
+      <button type="button" class="pl-btn pl-btn-primary" onclick="closePromptModal(true)">確定</button>
+    </div>
+  </div>
+</div>
+<!-- 課表卡片編輯：換動作（可打字搜尋）+ 重量/組數/次數/休息，取代原本卡片內展開的陽春 <select> 清單 -->
+<div class="modal-overlay" id="cardEditModal">
+  <div class="modal-box">
+    <h2>編輯課表</h2>
+    <div class="sub">動作名稱可以直接打字搜尋；重量／組數／次數／休息只要改過就會記住，之後這個動作再出現都會帶入。</div>
+    <div id="cardEditBody"></div>
+    <button type="button" class="pl-btn pl-btn-ghost" style="width:100%;margin-top:10px" onclick="closeCardEditModal()">關閉</button>
   </div>
 </div>
 <form id="importForm" th:action="@{/workout}" method="post" style="display:none">
@@ -155,43 +332,23 @@
 </form>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/exercise-combobox.js}"></script>
 <script>
 /* ===== ProgressionService（JS 版，之後改寫成 Java）===== */
 /* 階段用「%1RM 區間 + 組數 + 目標 RIR」定義；次數由 %+RIR 公式算出，避免強度/次數矛盾 */
 const PHASE={
-  adapt:   {label:'解剖適應',color:'#059669',bg:'#d1fae5',pctLo:0.62,pctHi:0.68, sets:3,rir:3,rest:60},
-  hyper:   {label:'肌肥大',  color:'#1d4ed8',bg:'#dbeafe',pctLo:0.70,pctHi:0.80, sets:4,rir:2,rest:90},
+  adapt:   {label:'肌耐力',  color:'#059669',bg:'#d1fae5',pctLo:0.62,pctHi:0.68, sets:4,rir:3,rest:60,reps:'12–20'},
+  hyper:   {label:'肌肥大',  color:'#1d4ed8',bg:'#dbeafe',pctLo:0.70,pctHi:0.80, sets:4,rir:2,rest:90,reps:'6–12'},
   strength:{label:'最大力量',color:'#b45309',bg:'#fef3c7',pctLo:0.85,pctHi:0.875,sets:4,rir:1,rest:180},
   deload:  {label:'減量週',  color:'#475569',bg:'#e2e8f0',pctLo:0.50,pctHi:0.55, sets:2,rir:4,rest:60,reps:'5–6'},
 };
 const MACRO=[{key:'adapt',start:1,end:6},{key:'hyper',start:7,end:14},{key:'strength',start:15,end:20}];
 const TOTAL=20;
 const MAIN={'深蹲':{type:'lower',bar:20},'臥推':{type:'upper',bar:20},'硬舉':{type:'lower',bar:40},'肩推':{type:'upper',bar:20}};
-const SPLITS={
-  1:[{name:'全身',main:['深蹲','臥推'],acc:['槓鈴划船','肩推','二頭彎舉','三頭下壓']}],
-  2:[{name:'上半身',main:['臥推','肩推'],acc:['槓鈴划船','滑輪下拉','側平舉','二頭彎舉','三頭下壓']},
-     {name:'下半身',main:['深蹲'],acc:['羅馬尼亞硬舉','腿推','腿彎舉','小腿舉','保加利亞分腿蹲']}],
-  3:[{name:'推日',main:['臥推','肩推'],acc:['上斜啞鈴推','側平舉','三頭下壓','飛鳥','三頭伸展']},
-     {name:'拉日',main:['硬舉'],acc:['滑輪下拉','槓鈴划船','坐姿划船','二頭彎舉','面拉']},
-     {name:'腿日',main:['深蹲'],acc:['羅馬尼亞硬舉','腿推','腿彎舉','小腿舉','保加利亞分腿蹲']}],
-  4:[{name:'上肢 A',main:['臥推','肩推'],acc:['槓鈴划船','滑輪下拉','側平舉','三頭下壓','二頭彎舉']},
-     {name:'下肢 A',main:['深蹲'],acc:['羅馬尼亞硬舉','腿推','腿彎舉','小腿舉','弓步蹲']},
-     {name:'上肢 B',main:['肩推','臥推'],acc:['坐姿划船','面拉','側平舉','二頭彎舉','三頭伸展']},
-     {name:'下肢 B',main:['硬舉'],acc:['前蹲','腿推','腿彎舉','小腿舉','保加利亞分腿蹲']}],
-  5:[{name:'胸',main:['臥推'],acc:['上斜啞鈴推','雙槓臂屈伸','飛鳥','纜繩夾胸','伏地挺身']},
-     {name:'背',main:['硬舉'],acc:['滑輪下拉','槓鈴划船','坐姿划船','面拉','引體向上']},
-     {name:'腿',main:['深蹲'],acc:['羅馬尼亞硬舉','腿推','腿彎舉','小腿舉','保加利亞分腿蹲']},
-     {name:'肩',main:['肩推'],acc:['側平舉','面拉','前平舉','聳肩','反向飛鳥']},
-     {name:'手臂',main:[],acc:['二頭彎舉','三頭下壓','錘式彎舉','三頭伸展','集中彎舉','窄握推']}],
-  6:[{name:'推 A',main:['臥推','肩推'],acc:['上斜啞鈴推','側平舉','三頭下壓','飛鳥']},
-     {name:'拉 A',main:['硬舉'],acc:['滑輪下拉','槓鈴划船','二頭彎舉','面拉']},
-     {name:'腿 A',main:['深蹲'],acc:['羅馬尼亞硬舉','腿推','腿彎舉','小腿舉']},
-     {name:'推 B',main:['肩推','臥推'],acc:['上斜臥推','側平舉','三頭伸展','聳肩']},
-     {name:'拉 B',main:['硬舉'],acc:['坐姿划船','引體向上','錘式彎舉','面拉']},
-     {name:'腿 B',main:['深蹲'],acc:['前蹲','腿推','腿彎舉','保加利亞分腿蹲']}],
-};
-/* 時間預算：一天約 60 分鐘 = 熱身 10 分 + Σ每組(動作約 50 秒 + 組間休息) */
-const WARMUP_MIN=10, SET_WORK=50, TIME_CAP=62;
+/* 時間預算：一天約 60 分鐘 = 熱身 10 分 + Σ每個動作(換站/調重量的固定時間 + 組數×(動作約 50 秒 + 組間休息))。
+   TRANSITION_MIN 是換到下一個動作的固定成本（走去下一個器材、調椅子/槓片、等器材）——原本沒算這段，
+   動作數一多（新手模式常見排到 7-8 個配件）時間就會系統性低估，數學上湊得出 60 分鐘、實際上不可能 */
+const WARMUP_MIN=10, SET_WORK=50, TIME_CAP=62, TRANSITION_MIN=1.5;
 const r25=w=>Math.round(w/2.5)*2.5, fmt=w=>Number.isInteger(w)?w:w.toFixed(1);
 const fmtRest=s=>s>=60?(Math.floor(s/60)+'分'+(s%60?s%60+'秒':'')):s+'秒';
 /* %1RM ↔ 次數 ↔ RIR：Epley 反推力竭次數，再扣掉保留次數 */
@@ -200,54 +357,378 @@ const repsAtRir=(p,rir)=>Math.max(Math.round(maxRepsAt(p))-rir,1);
 const workPct=ph=>(ph.pctLo+ph.pctHi)/2;
 const repsRange=ph=>{if(ph.reps)return ph.reps;const lo=repsAtRir(ph.pctHi,ph.rir),hi=repsAtRir(ph.pctLo,ph.rir);return lo===hi?(''+lo):(lo+'–'+hi);};
 function estimate1RM(w,r){w=parseFloat(w)||0;r=Math.min(Math.max(parseInt(r)||1,1),12);const rc=Math.min(r,10);return r===1?w:w*(1+rc/30);}
-function mainWeight(mode,pk,name,orm){const ph=PHASE[pk];if(mode==='novice')return{w:MAIN[name]?MAIN[name].bar:20,note:'空槓起步'};const wp=workPct(ph);return{w:r25((orm||0)*wp),note:Math.round(wp*100)+'% 1RM'};}
+/* 新手模式主項重量：接續「上一次真的完成」的重量往上疊加（上肢+2.5kg／下肢+5kg），
+   還沒有任何完成紀錄的動作才從空槓起步；資料來自後端 mainProgress（真實訓練紀錄），不是 LiftPr。
+   stalled=連續好幾次都沒真的完成（後端判定，見 WorkoutService.isStalled）——這種情況不能再往上疊加，
+   不然線性進步拉長時間會算出不合理的天文數字，改成建議降到約 9 成重新累積。
+   減量週（pk==='deload'）要先判斷：新手模式沒有 1RM 可以像老手模式那樣直接算 50-55% 1RM，
+   只能拿「上次完成的重量」打折——用跟老手模式差不多的目標強度（約當 1RM 5 成出頭），
+   沒打折之前這裡完全沒讀 pk，減量週勾了也只有組數/次數變少、重量還是照常往上疊加，
+   起不到減量該有的恢復效果 */
+function mainWeight(mode,pk,name,orm){
+  const ph=PHASE[pk];
+  if(mode==='novice'){
+    const bar=MAIN[name]?MAIN[name].bar:20;
+    const last=((window.planSaved&&window.planSaved.mainProgress)||{})[name];
+    if(last&&last.w>0){
+      if(pk==='deload'){
+        const deload=Math.max(bar,r25(last.w*0.6));
+        return{w:deload,note:'減量週：降到約 6 成重量 '+fmt(deload)+'kg 恢復'};
+      }
+      if(last.stalled){
+        const deload=r25(last.w*0.9);
+        return{w:deload,note:'連續卡關，先降到 '+fmt(deload)+'kg 重新累積信心'};
+      }
+      const inc=MAIN[name]&&MAIN[name].type==='upper'?2.5:5;
+      return{w:r25(last.w+inc),note:'上次完成 '+fmt(last.w)+'kg · +'+inc};
+    }
+    return{w:bar,note:'空槓起步'};
+  }
+  const wp=workPct(ph);return{w:r25((orm||0)*wp),note:Math.round(wp*100)+'% 1RM'};
+}
 function accWeight(mode,pk){if(mode==='novice')return {adapt:10,hyper:12,strength:15,deload:8}[pk];return {adapt:12,hyper:20,strength:25,deload:10}[pk];}
+/* 配件動作沒有 1RM 可以算，重量準確度差，改成優先讀「自己存過的重量」（練完/在課表上手動記過一次就會記住），
+   沒存過才用階段預設值。這個覆寫是分階段存的（最大力量期存的重量不能套用到肌耐力期/肌肥大期），
+   所以要挑 phasePrs[name][pk] 這份「這個階段自己存過的」，不是不分階段的舊版 prs */
+function accWeightFor(name,mode,pk){
+  const phasePrs=(window.planSaved&&window.planSaved.phasePrs)||{};
+  const p=phasePrs[name]&&phasePrs[name][pk];
+  return (p&&p.w>0)?p.w:accWeight(mode,pk);
+}
 function nextWeight(w,type){const inc=type==='upper'?2.5:5;return{w:r25(w+inc),tag:'完成 +'+inc};}
 function weekToPhase(wk){for(const m of MACRO)if(wk<=m.end)return m.key;return 'strength';}
 
+/* ===== 課表卡片佇列：本次課表＝queue[0]，本週完整課表＝queue[1...]，可拖曳排序、可編輯動作、可刪除、可新增 =====
+   主項只能換另一個主項（重量才算得準，換成別的主項會用該動作自己的 PR 重新算 %1RM），配件可換成任何配件。
+   哪些動作排哪一天現在真的查後端 Exercise 表選（/plan/api/queue、/plan/api/next），不再是前端寫死的清單；
+   重量/組數/次數還是前端自己算（跟「打 PR 馬上看到建議重量」共用同一套公式），天數以外的切換不用打後端。 */
+const MAIN_NAMES=Object.keys(MAIN);
+const ACC_POOL=(window.planSaved&&window.planSaved.accPool)||[];
+function toQueueDay(dc){return {name:dc.dayName,main:[...dc.mainNames],acc:[...dc.accessoryPool]};}
+function applyServerQueue(list){state.queue=(list&&list.length?list:[]).map(toQueueDay);}
+function fetchQueue(days,week){
+  const loading=$('#queueLoading');
+  if(loading)loading.style.display='inline';
+  fetch('/plan/api/queue?days='+days+'&week='+week).then(r=>r.json()).then(list=>{
+    applyServerQueue(list);
+    state.queueDays=days;
+    state.queueWeek=week;
+    render();
+  }).finally(()=>{ if(loading)loading.style.display='none'; });
+}
+/* 天數/週次改變都要重打後端拿新組成（週次影響配件輪替），但週次滑桿拖曳時 input 事件會連續觸發，
+   debounce 一下避免拖曳過程中連續打很多次 API */
+let queueFetchTimer=null;
+function scheduleQueueFetch(days,week){
+  if(queueFetchTimer)clearTimeout(queueFetchTimer);
+  queueFetchTimer=setTimeout(()=>fetchQueue(days,week),200);
+}
+function addNextCourse(){
+  const last=state.queue[state.queue.length-1];
+  // extra=目前佇列已經有幾張卡：分化天數少時新增課表會在同一週繞回第二圈，同一天名（沒有A/B可分）
+  // 光靠 week 轉不出差異，帶這個遞增值讓後端疊加旋轉量，避免繞第二圈時配件跟第一圈一模一樣
+  const extra=state.queue.length;
+  fetch('/plan/api/next?lastDay='+encodeURIComponent(last.name)+'&days='+state.days+'&week='+state.week+'&extra='+extra)
+    .then(r=>r.json())
+    .then(dc=>{state.queue.push(toQueueDay(dc));render();});
+}
+function removeCard(i){
+  if(state.queue.length<=1){alert('至少要留一張課表卡喔。');return;}
+  state.queue.splice(i,1);
+  if(state.editingIdx===i)state.editingIdx=null;
+  render();
+}
+// 拖曳排序的鍵盤/觸控替代方案：跟下面 drop 事件用同一套 splice 邏輯，只是改成點一下移動一格，
+// 鍵盤跟螢幕閱讀器使用者才有辦法排序課表卡（純拖放對這兩種使用情境完全無法操作）
+function moveCard(i,delta){
+  const target=i+delta;
+  if(target<0||target>=state.queue.length)return;
+  const moved=state.queue.splice(i,1)[0];
+  state.queue.splice(target,0,moved);
+  if(state.editingIdx===i)state.editingIdx=target;
+  else if(state.editingIdx===target)state.editingIdx=i;
+  render();
+}
+/* d.acc 背後其實是「候選池」，比真正排進今天課表的動作多很多——planDay() 依時間預算（約 60 分鐘）
+   排到不夠時間就不排了，候選池後面那一大截從來沒有真的顯示過。編輯彈窗只該讓使用者管理「真的排進
+   今天課表」的這幾個，一打開就把 d.main/d.acc 收斂成 planDayFor(i) 實際排出來的那幾個名字，
+   不然大半欄位都是空的、看起來很亂。這個收斂只發生在本地 state，沒按「完成編輯」不會存回後端 */
+function openCardEditModal(i){
+  // 收斂到「現在正常畫面上實際顯示」的那幾個：沒編輯過的天型態要照預算收斂，已經編輯過的
+  // 天型態本來就不受預算限制，要收斂成已經存過的全部內容，不能誤刪使用者先前特意留著的動作
+  const dp=planDayFor(i,isOverridden(state.queue[i].name));
+  const shownMain=dp.items.filter(it=>it.isMain).map(it=>it.name);
+  const shownAcc=dp.items.filter(it=>!it.isMain).map(it=>it.name);
+  if(shownMain.length)state.queue[i].main=shownMain;
+  if(shownAcc.length)state.queue[i].acc=shownAcc;
+  sanitizeMainNames(state.queue[i]);
+  cardEditPending={};   // 開新的一次編輯，清掉上一次殘留的暫存值
+  state.editingIdx=i;
+  render();
+  document.getElementById('cardEditModal').classList.add('on');
+}
+function closeCardEditModal(){document.getElementById('cardEditModal').classList.remove('on');state.editingIdx=null;cardEditPending={};}
+/* 編輯過程中「按著鍵盤打字、還沒按完成編輯」的重量/組數/次數/休息，只存在畫面上的 input 裡，
+   不在 state.queue 裡——但每次新增/刪除/換動作都會呼叫 render() 把整個編輯彈窗的 HTML 砍掉重產生，
+   這些還沒送出的數字原本會被公式重算的預設值蓋掉（使用者一項一項調整、最後新增一個動作，
+   前面全部要重打）。用動作名稱當 key 把「畫面上現在打的值」暫存起來，重新產生 HTML 前先存一次、
+   產生後優先套用暫存值，不用公式預設值蓋過去，直到彈窗關掉或換編輯別張卡片才清空 */
+let cardEditPending={};
+function captureCardEditPending(){
+  document.querySelectorAll('#cardEditBody .ed-row').forEach(row=>{
+    const nameInput=row.querySelector('.imp-field-name input');
+    const w=row.querySelector('.ed-w'),s=row.querySelector('.ed-s'),r=row.querySelector('.ed-r'),rt=row.querySelector('.ed-rt');
+    if(!nameInput||!w)return;
+    const n=nameInput.value.trim();
+    if(!n)return;
+    cardEditPending[n]={w:w.value,s:s.value,r:r.value,rt:rt.value};
+  });
+}
+// 主要動作欄位在 v1（自由輸入框）時期存過的舊資料，可能卡著不合法的名字（不是深蹲/臥推/硬舉/肩推）
+// ——現在欄位已經鎖成 <select>，這種名字找不到對應選項，瀏覽器會自動退回顯示清單第一個（深蹲），
+// 畫面看起來選了深蹲，但沒被使用者手動點過的話，實際存的還是那個舊的不合法名字，兩邊會兜不起來。
+// 一打開編輯彈窗就先把這種名字直接修正掉，讓畫面顯示的跟接下來會存的保證一致
+function sanitizeMainNames(d){
+  d.main=d.main.map((n,idx)=>{
+    if(MAIN_NAMES.includes(n))return n;
+    const used=d.main.filter((_,j)=>j!==idx);
+    return MAIN_NAMES.find(m=>!used.includes(m))||MAIN_NAMES[0];
+  });
+}
+function removeCardExercise(i,list,idx){
+  const d=state.queue[i];
+  if(d.main.length+d.acc.length<=1){alert('至少要留一個動作喔。');return;}
+  d[list].splice(idx,1);
+  render();
+}
+// 新增時挑「還沒在清單裡」的第一個候選，不然連續按兩次「+新增」會因為預設值一樣而生出兩列一模一樣的動作
+function addCardExercise(i,list){
+  const pool=list==='main'?MAIN_NAMES:ACC_POOL;
+  const existing=state.queue[i][list];
+  const pick=pool.find(m=>!existing.includes(m))||pool[0];
+  existing.push(pick);
+  render();
+}
+function changeCardExercise(i,list,idx,name){state.queue[i][list][idx]=name;render();}
+/* 每個 slot（主要/配件動作）目前「有效」的組數/次數/休息：優先用使用者在「這個階段」存過的手動覆寫
+   （phasePrs[name][pk]），沒存過才落回階段公式算出來的預設值。覆寫是分階段存的——使用者在最大力量期
+   存的 5×5 只在最大力量期生效，換到肌耐力期/肌肥大期要看那個階段自己有沒有存過，沒存過就用該階段的預設值，
+   不能沿用其他階段存的數字 */
+function effFor(name,defSets,defReps,defRest,pk){
+  const phasePrs=(window.planSaved&&window.planSaved.phasePrs)||{};
+  const p=phasePrs[name]&&phasePrs[name][pk];
+  if(!p)return{sets:defSets,reps:defReps,rest:defRest};
+  return{
+    sets:p.sets!=null?p.sets:defSets,
+    reps:(p.sets!=null&&p.r!=null)?p.r:defReps,
+    rest:p.rest!=null?p.rest:defRest,
+  };
+}
+
+/* 拖曳排序：卡片標成 draggable，跨「本次課表」跟「本週完整課表」兩個容器都算同一個 queue，用事件代理不用每次重綁 */
+let dragSrcIdx=null;
+let dragOverEl=null;
+document.addEventListener('dragstart',e=>{
+  const card=e.target.closest('[data-card-idx]');
+  if(!card)return;
+  dragSrcIdx=+card.dataset.cardIdx;
+  e.dataTransfer.effectAllowed='move';
+  card.classList.add('dragging');
+});
+document.addEventListener('dragend',e=>{
+  const card=e.target.closest('[data-card-idx]');
+  if(card)card.classList.remove('dragging');
+  if(dragOverEl){dragOverEl.classList.remove('drag-over');dragOverEl=null;}
+});
+// 拖過每張卡片時加上高亮，讓使用者知道放開會插在哪裡，不是盲拖
+document.addEventListener('dragover',e=>{
+  const card=e.target.closest('[data-card-idx]');
+  if(!card)return;
+  e.preventDefault();
+  if(dragOverEl&&dragOverEl!==card)dragOverEl.classList.remove('drag-over');
+  if(+card.dataset.cardIdx!==dragSrcIdx){
+    card.classList.add('drag-over');
+    dragOverEl=card;
+  }
+});
+document.addEventListener('drop',e=>{
+  const card=e.target.closest('[data-card-idx]');
+  if(dragOverEl){dragOverEl.classList.remove('drag-over');dragOverEl=null;}
+  if(!card||dragSrcIdx===null)return;
+  e.preventDefault();
+  const targetIdx=+card.dataset.cardIdx;
+  if(dragSrcIdx!==targetIdx){
+    const moved=state.queue.splice(dragSrcIdx,1)[0];
+    const insertAt=dragSrcIdx<targetIdx?targetIdx-1:targetIdx;
+    state.queue.splice(insertAt,0,moved);
+    render();
+  }
+  dragSrcIdx=null;
+});
+function cardControlsHtml(i){
+  const canUp=i>0, canDown=i<state.queue.length-1;
+  return `<span style="display:inline-flex;gap:4px;margin-left:auto">
+    <button type="button" class="card-icon-btn" onclick="event.stopPropagation();moveCard(${i},-1)" ${canUp?'':'disabled'} title="往前移動這張課表卡" aria-label="往前移動這張課表卡">▲</button>
+    <button type="button" class="card-icon-btn" onclick="event.stopPropagation();moveCard(${i},1)" ${canDown?'':'disabled'} title="往後移動這張課表卡" aria-label="往後移動這張課表卡">▼</button>
+    <button type="button" class="card-icon-btn" onclick="event.stopPropagation();openCardEditModal(${i})" title="編輯動作" aria-label="編輯這張課表卡的動作">✎</button>
+    <button type="button" class="card-icon-btn" onclick="event.stopPropagation();removeCard(${i})" title="移除這張課表卡" aria-label="移除這張課表卡">✕</button>
+  </span>`;
+}
+/* dpItems：這張卡片目前算出來的每個動作的重量/組數/次數/休息（planDayFor(i)），用來預填每一列
+   輸入框「本來的」數字——不管那個數字是使用者存過的手動覆寫、還是階段公式現算出來的，都是使用者
+   打開彈窗當下實際看到的值，符合「第一行就是本來的數字」的需求 */
+function editRowHtml(i,list,idx,n,dpItems){
+  const it=(dpItems||[]).find(x=>x.name===n);
+  const pending=cardEditPending[n];
+  // 這個動作這次編輯過程中已經打過值（cardEditPending）就優先用那個，不要每次重新產生 HTML
+  // 都被公式重算的預設值蓋掉；data-orig 這種情況刻意留空，讓 finishEditCard() 的髒值判斷一定
+  // 為真——不然使用者剛剛才打的值，會因為「這次顯示值＝這次比對基準值」被誤判成沒改過而漏存
+  const w=pending?pending.w:(it?fmt(it.w):'');
+  const st=pending?pending.s:(it?it.sets:'');
+  const rp=pending?pending.r:(it?repsToInt(it.reps):'');
+  const rt=pending?pending.rt:((it&&it.rest!=null)?it.rest:'');
+  const origW=pending?'':w, origSt=pending?'':st, origRp=pending?'':rp, origRt=pending?'':rt;
+  // 主要動作永遠鎖定在深蹲/臥推/硬舉/肩推這 4 個（1RM、漸進式加重整套邏輯都是綁死這幾個名字算的，
+  // 換成別的名字重量永遠會算出 0——因為主要動作的重量從來不讀 LiftPr 手動覆寫，只認這 4 個名字）。
+  // 改用真正鎖死選項的 <select>，不能再像 <input list> 那樣打字打出清單以外的名字進去；
+  // 配件動作才開放搜尋式新增
+  const nameFieldHtml = list==='main'
+    ? `<select onchange="changeCardExercise(${i},'${list}',${idx},this.value)">${MAIN_NAMES.map(m=>`<option value="${m}" ${m===n?'selected':''}>${m}</option>`).join('')}</select>`
+    : `<input type="text" class="ed-name-input" value="${n}">`;
+  return `<div class="ed-row imp-row" data-list="${list}" data-idx="${idx}" data-i="${i}">
+    <div class="imp-fields imp-fields-main">
+      <div class="imp-field-name">
+        ${nameFieldHtml}
+      </div>
+    </div>
+    <div class="imp-fields">
+      <div class="imp-field"><label>重量</label><input type="number" class="ed-w" data-orig="${origW}" value="${w}" min="0" step="2.5"><span class="unit">kg</span></div>
+      <div class="imp-field"><label>組數</label><input type="number" class="ed-s" data-orig="${origSt}" value="${st}" min="1" max="20"><span class="unit">組</span></div>
+      <div class="imp-field"><label>次數</label><input type="number" class="ed-r" data-orig="${origRp}" value="${rp}" min="1" max="30"><span class="unit">下</span></div>
+      <div class="imp-field"><label>休息</label><input type="number" class="ed-rt" data-orig="${origRt}" value="${rt}" min="0" max="1800" step="15"><span class="unit">秒</span></div>
+      <button type="button" class="card-icon-btn" onclick="removeCardExercise(${i},'${list}',${idx})" title="移除這個動作" aria-label="移除這個動作">✕</button>
+    </div>
+  </div>`;
+}
+function editPanelHtml(i,dpItems){
+  const d=state.queue[i];
+  return `
+    <label class="edit-label">主要動作</label>
+    <div class="edit-list">${d.main.map((n,idx)=>editRowHtml(i,'main',idx,n,dpItems)).join('')}</div>
+    <button type="button" class="pl-btn pl-btn-ghost" style="padding:6px 12px;font-size:.8rem;margin:6px 0 12px" onclick="addCardExercise(${i},'main')">＋ 新增主要動作</button>
+    <label class="edit-label">配件動作</label>
+    <div class="edit-list">${d.acc.map((n,idx)=>editRowHtml(i,'acc',idx,n,dpItems)).join('')}</div>
+    <button type="button" class="pl-btn pl-btn-ghost" style="padding:6px 12px;font-size:.8rem;margin-top:6px" onclick="addCardExercise(${i},'acc')">＋ 新增配件動作</button>
+    <div class="modal-btns" style="margin-top:14px">
+      <button type="button" class="pl-btn pl-btn-ghost" onclick="resetEditCard(${i})">↺ 重設回自動排的動作</button>
+      <button type="button" class="pl-btn pl-btn-primary" onclick="finishEditCard(${i})">完成編輯（會記住這次調整）</button>
+    </div>`;
+}
+/* 卡片編輯完存檔：換動作/加/刪動作用「天型態名稱」記住，下次同型態的卡片會直接套用；重量/組數/
+   次數/休息用動作名稱存進 LiftPr（沿用原本只存配件重量的同一張表，只是欄位更完整、主要動作也適用）。
+   跟表單其他動作一樣走隱藏欄位送出（沿用既有 CSRF/驗證），不用另外拉 fetch。
+   每一列只有「使用者真的動過那個數字」才會送出去記住——不然只是打開彈窗看一眼、什麼都沒改也按了
+   完成編輯，會把當下公式算出來的數字（已經疊加過一次漸進幅度）誤存成新的手動覆寫，下次又再疊加一次，
+   重量會無中生有一直往上跳 */
+function finishEditCard(i){
+  const d=state.queue[i];
+  document.getElementById('f-card-dayname').value=d.name;
+  document.getElementById('f-card-phase').value=effPhase();
+  document.getElementById('f-card-expected-updated-at').value=(window.planSaved&&window.planSaved.updatedAt)||'';
+  const mainBox=document.getElementById('f-card-main'); mainBox.innerHTML='';
+  const accBox=document.getElementById('f-card-acc'); accBox.innerHTML='';
+  ['main','acc'].forEach(list=>{
+    const box=list==='main'?mainBox:accBox;
+    const wKey=list==='main'?'mainWeights':'accWeights', sKey=list==='main'?'mainSets':'accSets';
+    const rKey=list==='main'?'mainReps':'accReps', rtKey=list==='main'?'mainRests':'accRests';
+    const dKey=list==='main'?'mainDirty':'accDirty';
+    d[list].forEach((n,idx)=>{
+      const row=document.querySelector('#cardEditBody .ed-row[data-list="'+list+'"][data-idx="'+idx+'"]');
+      const w=row.querySelector('.ed-w'), s=row.querySelector('.ed-s'), r=row.querySelector('.ed-r'), rt=row.querySelector('.ed-rt');
+      const dirty=w.value!==w.dataset.orig||s.value!==s.dataset.orig||r.value!==r.dataset.orig||rt.value!==rt.dataset.orig;
+      box.insertAdjacentHTML('beforeend',
+        '<input type="hidden" name="'+list+'" value="'+n+'">'+
+        '<input type="hidden" name="'+wKey+'" value="'+(w.value||0)+'">'+
+        '<input type="hidden" name="'+sKey+'" value="'+(s.value||1)+'">'+
+        '<input type="hidden" name="'+rKey+'" value="'+(r.value||1)+'">'+
+        '<input type="hidden" name="'+rtKey+'" value="'+(rt.value||0)+'">'+
+        '<input type="hidden" name="'+dKey+'" value="'+(dirty?'1':'0')+'">');
+    });
+  });
+  document.getElementById('cardOverrideForm').submit();
+}
+function resetEditCard(i){
+  document.getElementById('f-card-reset-dayname').value=state.queue[i].name;
+  document.getElementById('f-card-reset-expected-updated-at').value=(window.planSaved&&window.planSaved.updatedAt)||'';
+  document.getElementById('cardResetForm').submit();
+}
+
 /* ===== state ===== */
-const state={mode:'novice',days:'3',week:8,deload:false};
+const state={mode:'novice',days:'3',week:8,deload:false,queue:null,queueDays:null,editingIdx:null};
 const $=s=>document.querySelector(s);
 function effPhase(){return state.deload?'deload':weekToPhase(state.week);}
 
 function buildLiftInputs(){
-  var prs=(window.__savedPlan&&window.__savedPlan.prs)||{};
+  var prs=(window.planSaved&&window.planSaved.prs)||{};
   $('#liftGrid').innerHTML=Object.keys(MAIN).map(function(n){
     var pr=prs[n]||null; var w=pr?pr.w:MAIN[n].bar*4; var r=pr?pr.r:5;
-    return '<div class="col"><div class="border rounded p-2 h-100">'
-      +'<div class="d-flex justify-content-between align-items-center mb-2">'
-      +'<span class="fw-semibold small">'+n+'</span>'
-      +'<span class="badge bg-success-subtle text-success-emphasis" id="orm-'+n+'">1RM –</span></div>'
-      +'<div class="input-group input-group-sm">'
-      +'<input type="number" class="form-control vw" data-l="'+n+'" value="'+w+'" min="0" step="2.5">'
-      +'<span class="input-group-text">×</span>'
-      +'<input type="number" class="form-control vr" data-l="'+n+'" value="'+r+'" min="1" max="12">'
-      +'<span class="input-group-text">下</span></div></div></div>';
+    return '<div class="lift-input"><div class="top"><span class="nm">'+n+'</span><span class="orm" id="orm-'+n+'">1RM \u2013</span></div>'
+      +'<div class="ins"><input type="number" class="vw" data-l="'+n+'" value="'+w+'" min="0" step="2.5">'
+      +'<span class="x">\u00d7</span><input type="number" class="lift-reps" data-l="'+n+'" value="'+r+'" min="1" max="12">'
+      +'<span class="x" style="font-size:.8rem;color:var(--faint)">\u4e0b</span></div></div>';
   }).join('');
   $('#liftGrid').querySelectorAll('input').forEach(function(el){el.addEventListener('input',render);});
 }
-function oneRMs(){const m={};document.querySelectorAll('.vw').forEach(el=>{const n=el.dataset.l,r=document.querySelector('.vr[data-l="'+n+'"]').value;m[n]=estimate1RM(el.value,r);const c=document.getElementById('orm-'+n);if(c)c.textContent='1RM '+fmt(r25(m[n]))+'kg';});return m;}
-function chip(pk){const p=PHASE[pk];return '<span class="badge rounded-pill" style="background:'+p.bg+';color:'+p.color+'">'+p.label+' · RIR '+p.rir+'</span>';}
+function oneRMs(){const m={};document.querySelectorAll('.vw').forEach(el=>{const n=el.dataset.l,r=document.querySelector('.lift-reps[data-l="'+n+'"]').value;m[n]=estimate1RM(el.value,r);const c=document.getElementById('orm-'+n);if(c)c.textContent='1RM '+fmt(r25(m[n]))+'kg';});return m;}
+function chip(pk){const p=PHASE[pk];return `<span class="chip" style="background:${p.bg};color:${p.color}">${p.label} · RIR ${p.rir}</span>`;}
 function savePlan(){
   document.getElementById('f-mode').value=state.mode;
   document.getElementById('f-days').value=state.days;
-  document.getElementById('f-week').value=state.week;
   var box=document.getElementById('f-prs'); box.innerHTML='';
   if(state.mode==='veteran'){
     document.querySelectorAll('.vw').forEach(function(el){
-      var n=el.dataset.l, r=(document.querySelector('.vr[data-l="'+n+'"]').value)||1;
+      var n=el.dataset.l, r=(document.querySelector('.lift-reps[data-l="'+n+'"]').value)||1;
       box.insertAdjacentHTML('beforeend','<input type="hidden" name="prName" value="'+n+'"><input type="hidden" name="prWeight" value="'+((el.value)||0)+'"><input type="hidden" name="prReps" value="'+r+'">');
     });
   }
   document.getElementById('planForm').submit();
 }
+/* 自訂輸入/確認彈窗，取代原生 prompt()/confirm()：withInput=true 顯示數字輸入框，
+   resolve 出來的值跟原生 prompt 對齊——按取消是 null，按確定是輸入框內容（或 true）*/
+let promptCallback=null;
+function showPromptModal(title,message,opts){
+  opts=opts||{};
+  return new Promise(function(resolve){
+    document.getElementById('promptTitle').textContent=title;
+    document.getElementById('promptMessage').textContent=message;
+    const inputWrap=document.getElementById('promptInputWrap');
+    const input=document.getElementById('promptInput');
+    inputWrap.style.display=opts.withInput?'block':'none';
+    input.value=opts.defaultValue!=null?opts.defaultValue:'';
+    promptCallback=function(confirmed){
+      resolve(confirmed?(opts.withInput?input.value:true):null);
+    };
+    document.getElementById('promptModal').classList.add('on');
+    if(opts.withInput)setTimeout(function(){input.focus();},50);
+  });
+}
+function closePromptModal(confirmed){
+  document.getElementById('promptModal').classList.remove('on');
+  if(promptCallback)promptCallback(confirmed);
+  promptCallback=null;
+}
+
+/* 手動校正「目前第幾週」——跟 savePlan() 分開，拖 slider 只是預覽，按這顆才會真的存 */
+async function confirmSetWeek(){
+  const ok=await showPromptModal('確認校正週次','確定把「目前第 '+state.week+' 週」存起來嗎？下次登入會停在這裡，之後才會照日曆自動往前走。',{});
+  if(!ok)return;
+  document.getElementById('f-week-only').value=state.week;
+  document.getElementById('weekForm').submit();
+}
 
 /* ===== 匯入訓練紀錄：把今天課表送進 /workout（沿用既有的驗證/CSRF/logging，不重造輪子）===== */
-/* 課表的分化名稱不是既有 BodyPart 清單裡的值，匯入時對應成資料庫已有的分類 */
-const BODYPART_MAP={'全身':'全身','上半身':'上半身','下半身':'下半身','推日':'胸','拉日':'背','腿日':'腿',
-  '上肢 A':'上半身','下肢 A':'下半身','上肢 B':'上半身','下肢 B':'下半身',
-  '胸':'胸','背':'背','腿':'腿','肩':'肩','手臂':'手臂',
-  '推 A':'胸','拉 A':'背','腿 A':'腿','推 B':'胸','拉 B':'背','腿 B':'腿'};
+/* 課表的分化名稱（推日/拉日/腿日…）已經在 BodyPartDataInitializer 建成資料庫裡的正式 BodyPart，
+   匯入時直接用 today.name 當 bodyPart，不用再轉換成別的分類，跟課表顯示的名稱保持一致 */
 
 function repsToInt(r){
   if(typeof r!=='string')return parseInt(r)||1;
@@ -257,58 +738,122 @@ function repsToInt(r){
 }
 function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 
-const importModalEl=document.getElementById('importModal');
-const importModal=new bootstrap.Modal(importModalEl);
-
+// 配件動作預設用 <details> 收起來，只留主項在最上面直接看得到——課表一天常常排到 7、8 個配件，
+// 全部攤開要逐一檢查很累，多數人配件都是照課表原封不動完成，需要調整的人再自己點開來改
+function impRowHtml(it,i){
+  const mainTag=it.isMain?'<span class="imp-main-tag">主項</span>':'';
+  return `<div class="imp-row" data-i="${i}">
+      <div class="imp-fields imp-fields-main">
+        <div class="imp-field imp-field-name"><span class="imp-nm">${mainTag}${it.name}</span></div>
+        <div class="imp-field"><label>重量</label><input type="number" class="imp-w" value="${fmt(it.w)}" min="0" step="2.5"><span class="unit">kg</span></div>
+        <div class="imp-field"><label>組數</label><input type="number" class="imp-s" value="${it.sets}" min="1" max="20"><span class="unit">組</span></div>
+        <div class="imp-field"><label>次數</label><input type="number" class="imp-r" value="${repsToInt(it.reps)}" min="1" max="30"><span class="unit">下</span></div>
+      </div>
+      <div class="imp-fields imp-fields-status">
+        <div class="imp-field"><label>RPE</label><input type="number" class="imp-rpe" min="1" max="10" step="0.5" placeholder="1–10"></div>
+        <div class="imp-field imp-field-wide"><label>完成度</label>
+          <select class="imp-status">
+            <option value="COMPLETE" selected>✅ 完成</option>
+            <option value="FAILED">❌ 失敗</option>
+            <option value="DROPPED">⏸️ 中途放棄</option>
+            <option value="PAIN">⚠️ 疼痛</option>
+          </select>
+        </div>
+      </div>
+    </div>`;
+}
 function openImportModal(){
-  const today=window.__today;
+  const today=window.planToday;
   if(!today||!today.items||today.items.length===0){alert('今天是休息日，沒有課表可以匯入喔。');return;}
   $('#impTitle').textContent=today.name+'，練完了嗎？';
-  $('#impRows').innerHTML=today.items.map((it,i)=>
-    '<div class="d-flex align-items-center gap-2 py-2 border-bottom imp-row" data-i="'+i+'">'
-    +'<span class="flex-grow-1 fw-semibold small">'+it.name+'</span>'
-    +'<div class="input-group input-group-sm" style="width:auto"><input type="number" class="form-control imp-w" style="width:64px" value="'+fmt(it.w)+'" min="0" step="2.5"><span class="input-group-text">kg</span></div>'
-    +'<div class="input-group input-group-sm" style="width:auto"><input type="number" class="form-control imp-s" style="width:52px" value="'+it.sets+'" min="1" max="20"><span class="input-group-text">組</span></div>'
-    +'<div class="input-group input-group-sm" style="width:auto"><input type="number" class="form-control imp-r" style="width:52px" value="'+repsToInt(it.reps)+'" min="1" max="30"><span class="input-group-text">下</span></div>'
-    +'</div>'
-  ).join('');
-  importModal.show();
+  const mainRows=today.items.map((it,i)=>({it,i})).filter(x=>x.it.isMain);
+  const accRows=today.items.map((it,i)=>({it,i})).filter(x=>!x.it.isMain);
+  const mainHtml=mainRows.map(x=>impRowHtml(x.it,x.i)).join('');
+  const accHtml=accRows.length===0?'':`<details class="imp-acc-details" style="margin-top:4px">
+      <summary style="cursor:pointer;padding:8px 0;color:var(--accent);font-size:.88rem;font-weight:600">配件動作（${accRows.length} 個，照課表都算完成，要調整再點開看）▾</summary>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">${accRows.map(x=>impRowHtml(x.it,x.i)).join('')}</div>
+    </details>`;
+  $('#impRows').innerHTML=mainHtml+accHtml;
+  $('#importModal').classList.add('on');
 }
+function closeImportModal(){$('#importModal').classList.remove('on');}
 function confirmImport(){
-  const today=window.__today;
+  const today=window.planToday;
   document.getElementById('imp-date').value=todayISO();
-  document.getElementById('imp-bodypart').value=BODYPART_MAP[today.name]||'全身';
+  document.getElementById('imp-bodypart').value=today.name;
   document.getElementById('imp-note').value='依課表匯入：'+today.name;
   const box=document.getElementById('imp-fields');box.innerHTML='';
   document.querySelectorAll('#impRows .imp-row').forEach(function(row){
     const item=today.items[+row.dataset.i];
     const w=row.querySelector('.imp-w').value, s=row.querySelector('.imp-s').value, r=row.querySelector('.imp-r').value;
+    const rpe=row.querySelector('.imp-rpe').value, status=row.querySelector('.imp-status').value;
     box.insertAdjacentHTML('beforeend',
       '<input type="hidden" name="exerciseNames" value="'+item.name+'">'+
       '<input type="hidden" name="weightKgs" value="'+w+'">'+
       '<input type="hidden" name="sets" value="'+s+'">'+
       '<input type="hidden" name="reps" value="'+r+'">'+
-      '<input type="hidden" name="restSeconds" value="'+(item.rest||90)+'">');
+      '<input type="hidden" name="restSeconds" value="'+(item.rest||90)+'">'+
+      '<input type="hidden" name="rpes" value="'+rpe+'">'+
+      '<input type="hidden" name="completionStatuses" value="'+status+'">');
   });
   document.getElementById('importForm').submit();
 }
 
-/* 依時間預算產生某天課表：核心動作必排，再依剩餘時間補配件到約 60 分鐘 */
-function planDay(day,mode,pk,orm){
-  const ph=PHASE[pk], accSets=pk==='deload'?2:3, tps=SET_WORK+ph.rest; // 每組秒數
-  const items=[]; let sets=0;
-  const mins=()=>WARMUP_MIN+sets*tps/60;
+/* 依時間預算產生某天課表：核心動作必排，再依剩餘時間補配件到約 60 分鐘——正常顯示（今天/本週課表）
+   一律套用這個預算，不管這個天型態是不是使用者編輯過，避免舊的（或編輯中還沒存檔的）動作清單
+   一次全部攤開變成好幾小時的課表。組數/次數/休息秒數先看 effFor()（使用者存過手動覆寫就用覆寫），
+   沒存過才落回階段公式預設值。
+   skipCap=true 只給「編輯彈窗正在編輯中」用：使用者按「+新增動作」是有意要多加一個，這個當下不該
+   被預算擋到看不見；但一旦按「完成編輯」存檔、回到正常顯示，一樣要照預算收斂，不會變成沒有上限 */
+function planDay(day,mode,pk,orm,skipCap){
+  const ph=PHASE[pk], accSetsDefault=pk==='deload'?2:3;
+  const items=[];
+  const mins=()=>{let m=WARMUP_MIN;for(const it of items)m+=TRANSITION_MIN+it.sets*(SET_WORK+it.rest)/60;return m;};
   (day.main||[]).forEach(name=>{
     const mw=mainWeight(mode,pk,name,orm[name]);
-    items.push({name,isMain:true,w:mw.w,sets:ph.sets,reps:repsRange(ph),rest:ph.rest,sub:mw.note});
-    sets+=ph.sets;
+    const eff=effFor(name,ph.sets,repsRange(ph),ph.rest,pk);
+    items.push({name,isMain:true,w:mw.w,sets:eff.sets,reps:eff.reps,rest:eff.rest,sub:mw.note});
   });
   for(const name of (day.acc||[])){
-    if(mins()+accSets*tps/60>TIME_CAP) break;      // 會超過 1 小時就停
-    items.push({name,isMain:false,w:accWeight(mode,pk),sets:accSets,reps:pk==='strength'?'6–8':'10–15',rest:ph.rest,sub:'配件 · 感受控制'});
-    sets+=accSets;
+    const eff=effFor(name,accSetsDefault,pk==='strength'?'6–8':'10–15',ph.rest,pk);
+    if(!skipCap&&mins()+TRANSITION_MIN+eff.sets*(SET_WORK+eff.rest)/60>TIME_CAP) break;      // 會超過 1 小時就停
+    items.push({name,isMain:false,w:accWeightFor(name,mode,pk),sets:eff.sets,reps:eff.reps,rest:eff.rest,sub:'配件 · 感受控制'});
   }
   return {items,minutes:Math.round(mins())};
+}
+// 這個天型態是不是使用者已經手動編輯、存過覆寫了——60 分鐘的時間預算只是給「系統自動排」的
+// 天型態當預設用，使用者已經編輯過的天型態，正常顯示也要完全忽略這個限制，不能悄悄砍動作
+function isOverridden(dayName){return ((window.planSaved&&window.planSaved.overriddenDays)||[]).includes(dayName);}
+/* 依目前 state（程度/週次/減量）幫某張卡片算一次課表——編輯彈窗打開/每次改動都要重算一次
+   當下的「有效值」，跟卡片正常顯示共用同一套 planDay() 公式，不會有兩套邏輯兜不起來的風險 */
+function planDayFor(i,skipCap){
+  const mode=state.mode, pk=effPhase();
+  const orm=mode==='veteran'?oneRMs():{};
+  return planDay(state.queue[i],mode,pk,orm,skipCap);
+}
+function renderCardEditModal(){
+  const i=state.editingIdx;
+  if(i==null||i<0||i>=state.queue.length){closeCardEditModal();return;}
+  captureCardEditPending();   // 洗掉舊 HTML 之前，先把現在畫面上打的值記下來
+  // 正在編輯中：一律不套用時間預算，使用者新增的動作要馬上看得到，不會因為預算被吃掉
+  document.getElementById('cardEditBody').innerHTML=editPanelHtml(i,planDayFor(i,true).items);
+  wireAccExerciseComboboxes();
+}
+// 配件動作的名稱輸入框：找不到就能直接「＋新增動作」（見 exercise-combobox.js）。
+// 每次 renderCardEditModal() 重新輸出 innerHTML 後都要重新掛一次，DOM 節點是重新生成的
+function wireAccExerciseComboboxes(){
+  document.querySelectorAll('#cardEditBody .ed-row[data-list="acc"] .ed-name-input').forEach(input=>{
+    const row=input.closest('.ed-row');
+    const rowI=+row.dataset.i, rowIdx=+row.dataset.idx;
+    attachExerciseCombobox(input,{
+      getOptions:()=>ACC_POOL,
+      onSelect:name=>changeCardExercise(rowI,'acc',rowIdx,name),
+      onCreate:name=>createPersonalExercise(name,'全身','ISOLATION').then(createdName=>{
+        if(!ACC_POOL.includes(createdName))ACC_POOL.push(createdName);
+        return createdName;
+      })
+    });
+  });
 }
 
 function renderTimeline(){
@@ -330,88 +875,94 @@ function renderTimeline(){
 function syncWeekUI(){$('#wkNow').textContent='第 '+state.week+' 週';}
 
 function render(){
-  const {mode,days}=state, pk=effPhase(), ph=PHASE[pk];
+  const {mode}=state, pk=effPhase(), ph=PHASE[pk];
   $('#vetBox').style.display=mode==='veteran'?'block':'none';
   $('#noviceHint').style.display=mode==='veteran'?'none':'flex';
   const orm=mode==='veteran'?oneRMs():{};
   renderTimeline();
 
-  const dn=+days;
-  const baseSplit = dn===7?SPLITS[6]:SPLITS[dn];
-  const today=baseSplit[0];
-  const todayPlan=planDay(today,mode,pk,orm);
-  window.__today={name:today.name,items:todayPlan.items};
+  const dn=+state.days;
+  if(!state.queue){
+    // 第一次渲染：頁面載入時後端已經照目前存的天數＋週次算好課表組成了，直接用，不用多打一次 API
+    applyServerQueue(window.planSaved&&window.planSaved.queue);
+    state.queueDays=dn;
+    state.queueWeek=state.week;
+  } else if(state.queueDays!==dn || state.queueWeek!==state.week){
+    // 天數或週次被改變：後端還沒算過這個組合的組成（週次會影響配件輪替），打 API 拿新的，
+    // 拿到後這支函式會自己再呼叫一次 render()；週次滑桿拖曳中會連續觸發，debounce 一下
+    scheduleQueueFetch(dn,state.week);
+    return;
+  }
 
-  const rows=todayPlan.items.map(it=>{
+  const today=state.queue[0];
+  const todayPlanRaw=planDay(today,mode,pk,orm,isOverridden(today.name));
+  window.planToday={name:today.name,items:todayPlanRaw.items};
+
+  const todayRows=todayPlanRaw.items.map(it=>{
     let badge='';
-    if(it.isMain&&pk!=='deload'){const nx=nextWeight(it.w,MAIN[it.name]?MAIN[it.name].type:'upper');badge='<span class="badge bg-success-subtle text-success-emphasis ms-2">下次 '+fmt(nx.w)+'kg</span>';}
-    return '<div class="d-flex justify-content-between align-items-center py-2 border-bottom">'
-      +'<div><div class="fw-semibold">'+it.name+'</div><div class="text-muted small">'+it.sub+' · 休息 '+fmtRest(it.rest)+'</div></div>'
-      +'<div class="text-end"><span class="fw-bold fs-5">'+fmt(it.w)+'<small class="text-muted fs-6">kg</small></span> <small class="text-muted">· '+it.sets+'×'+it.reps+'</small>'+badge+'</div></div>';
+    if(it.isMain&&pk!=='deload'){const nx=nextWeight(it.w,MAIN[it.name]?MAIN[it.name].type:'upper');badge=`<span class="nbadge b-up">下次 ${fmt(nx.w)}kg</span>`;}
+    return `<div class="exrow"><div class="l"><div class="nm">${it.name}</div><div class="sub">${it.sub} · 休息 ${fmtRest(it.rest)}</div></div>
+      <div class="r" style="display:flex;align-items:center"><div class="wt">${fmt(it.w)}<small>kg</small> <small>· ${it.sets}×${it.reps}</small></div>${badge}</div></div>`;
   }).join('');
-  const deload=pk==='deload'?'<div class="alert alert-warning d-flex gap-2 align-items-center mt-2 mb-0"><span>😴</span><span>減量週：重量降至約 55%、砍組數、<b>不練到力竭</b>，清除中樞神經疲勞。</span></div>':'';
-  $('#todayWrap').innerHTML='<div class="card shadow-sm" style="border-left:4px solid #198754">'
-    +'<div class="card-body">'
-    +'<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1"><h4 class="mb-0">'+today.name+'</h4>'+chip(pk)+'</div>'
-    +'<div class="text-muted small">⏱ 約 '+todayPlan.minutes+' 分鐘（含熱身 10 分）· 組間休息 '+fmtRest(ph.rest)+'</div>'+deload
-    +'<div class="mt-2">'+rows+'</div>'
-    +'<div class="d-flex gap-2 mt-3"><button class="btn btn-primary" onclick="Runner.start()">開始訓練</button><button class="btn btn-outline-secondary" onclick="render()">換一份</button></div>'
-    +'</div></div>';
+  const deload=pk==='deload'?`<div class="deload"><span>😴</span><span>減量週：重量降至約 55%、砍組數、<b>不練到力竭</b>，清除中樞神經疲勞。</span></div>`:'';
+  $('#todayWrap').innerHTML=`<div class="pl-card pad today"><div class="bar"></div>
+    <div class="head" draggable="true" data-card-idx="0" style="cursor:grab"><h3>${today.name}</h3>${chip(pk)}${cardControlsHtml(0)}</div>
+    <div style="font-size:.83rem;color:var(--faint);margin-top:2px">⏱ 約 ${todayPlanRaw.minutes} 分鐘（含熱身 10 分）· 組間休息 ${fmtRest(ph.rest)}</div>${deload}
+    <div class="exlist">${todayRows}</div>
+    <div class="cta"><button class="pl-btn pl-btn-primary" onclick="Runner.start()">開始訓練</button><button class="pl-btn pl-btn-ghost" onclick="openImportModal()">✅ 完成訓練</button></div></div>`;
 
-  let cards=baseSplit.map(day=>{
-    const dp=planDay(day,mode,pk,orm);
-    const dr=dp.items.map(it=>'<div class="d-flex justify-content-between align-items-center py-1 border-bottom small"><span class="'+(it.isMain?'fw-semibold':'text-muted')+'">'+it.name+'</span><span class="text-muted">'+fmt(it.w)+'kg · '+it.sets+'×'+it.reps+'</span></div>').join('');
-    return '<div class="col"><div class="card shadow-sm h-100">'
-      +'<div class="card-header bg-white d-flex align-items-center gap-2"><span class="badge rounded-pill" style="background:'+ph.color+'">&nbsp;</span><span class="fw-semibold">'+day.name+'</span></div>'
-      +'<div class="card-body py-2"><div class="text-muted small mb-1">⏱ 組間休息 '+fmtRest(ph.rest)+' · 約 '+dp.minutes+' 分</div>'+dr+'</div></div></div>';
+  let cards=state.queue.slice(1).map((day,idx0)=>{
+    const i=idx0+1;
+    const dp=planDay(day,mode,pk,orm,isOverridden(day.name));
+    const dr=dp.items.map(it=>`<div class="drow"><span class="dn ${it.isMain?'':'acc'}">${it.name}</span><span class="dw">${fmt(it.w)}kg · ${it.sets}×${it.reps}</span></div>`).join('');
+    return `<div class="day"><div class="dh" draggable="true" data-card-idx="${i}" style="cursor:grab"><span class="tag" style="background:${ph.color}"></span><span style="flex:1">${day.name}</span>${cardControlsHtml(i)}</div><div class="dsub">⏱ 組間休息 ${fmtRest(ph.rest)} · 約 ${dp.minutes} 分</div><div class="db">${dr}</div></div>`;
   });
-  if(dn===7)cards.push('<div class="col"><div class="card shadow-sm h-100 bg-light" style="border-style:dashed"><div class="card-header bg-transparent text-muted">第 7 天 · 休息日</div><div class="card-body py-2 text-muted small">完全休息或輕度活動（散步／伸展），讓身體恢復。</div></div></div>');
+  if(dn===7)cards.push(`<div class="day rest"><div class="dh"><span class="tag" style="background:#cbd5e1"></span>第 7 天 · 休息日</div><div class="db"><div class="drow" style="border:0"><span class="dn acc">完全休息或輕度活動（散步／伸展），讓身體恢復。</span></div></div></div>`);
+  if(cards.length===0)cards.push(`<div class="day"><div class="db" style="padding-top:16px;text-align:center;color:var(--faint)">目前只剩本次課表這一張，練完後可以按上面「＋ 新增課表」繼續排。</div></div>`);
   $('#weekGrid').innerHTML=cards.join('');
+
+  if(state.editingIdx!=null)renderCardEditModal();else closeCardEditModal();
 }
 
 /* ===== 訓練執行流程 ===== */
-const runnerModalEl=document.getElementById('runnerModal');
-const runnerModal=new bootstrap.Modal(runnerModalEl);
-runnerModalEl.addEventListener('hidden.bs.modal',()=>Runner.stop());
-
 const Runner={
   ex:[], exIdx:0, setIdx:0, remain:0, tid:null,
-  start(){this.ex=window.__today?window.__today.items:[];this.exIdx=0;this.setIdx=0;runnerModal.show();this.warmup();},
-  close(){this.stop();runnerModal.hide();},
+  start(){this.ex=window.planToday?window.planToday.items:[];this.exIdx=0;this.setIdx=0;$('#runner').classList.add('on');this.warmup();},
+  close(){this.stop();$('#runner').classList.remove('on');},
   stop(){if(this.tid){clearInterval(this.tid);this.tid=null;}},
   body(h){$('#runnerBody').innerHTML=h;},
-  warmup(){this.body('<p class="text-muted small text-uppercase fw-bold mb-1">開始前</p><h4>熱身了嗎？</h4>'
-    +'<p class="text-muted small">先做 5–10 分鐘動態熱身與輕重量暖身組，能大幅降低受傷風險。</p>'
-    +'<div class="d-flex gap-2 mt-3"><button class="btn btn-outline-secondary flex-fill" onclick="Runner.close()">還沒，先去熱身</button>'
-    +'<button class="btn btn-primary flex-fill" onclick="Runner.showSet()">已熱身，開始 →</button></div>');},
-  dots(total,cur){let h='<div class="rprogress">';for(let i=0;i<total;i++)h+='<span class="rdot '+(i<cur?'done':i===cur?'cur':'')+'"></span>';return h+'</div>';},
+  warmup(){this.body(`<div class="step">開始前</div><h2>熱身了嗎？</h2>
+    <p class="tgt">先做 5–10 分鐘動態熱身與輕重量暖身組，能大幅降低受傷風險。</p>
+    <div class="q-row"><button class="pl-btn-mini" onclick="Runner.close()">還沒，先去熱身</button>
+    <button class="pl-btn-xl" style="flex:1" onclick="Runner.showSet()">已熱身，開始 →</button></div>`);},
+  dots(total,cur){let h='<div class="rprogress">';for(let i=0;i<total;i++)h+=`<span class="rdot ${i<cur?'done':i===cur?'cur':''}"></span>`;return h+'</div>';},
   showSet(){this.stop();const e=this.ex[this.exIdx];
-    this.body('<p class="text-muted small text-uppercase fw-bold mb-1">動作 '+(this.exIdx+1)+' / '+this.ex.length+'</p><h4>'+e.name+'</h4>'
-      +this.dots(e.sets,this.setIdx)
-      +'<div class="display-6 fw-bold">'+fmt(e.w)+'<small class="fs-6 text-muted">kg</small></div>'
-      +'<p class="text-muted small">第 '+(this.setIdx+1)+' / '+e.sets+' 組　·　目標 '+e.reps+' 下</p>'
-      +'<button class="btn btn-primary btn-lg w-100 mt-2" onclick="Runner.startRest()">✓ 完成這一組</button>');},
+    this.body(`<div class="step">動作 ${this.exIdx+1} / ${this.ex.length}</div><h2>${e.name}</h2>
+      ${this.dots(e.sets,this.setIdx)}
+      <div class="big-wt">${fmt(e.w)}<small>kg</small></div>
+      <div class="tgt">第 ${this.setIdx+1} / ${e.sets} 組　·　目標 ${e.reps} 下</div>
+      <div class="rbtns"><button class="pl-btn-xl" onclick="Runner.startRest()">✓ 完成這一組</button></div>`);},
   startRest(secs){this.stop();const e=this.ex[this.exIdx];this.remain=secs||e.rest;
     this.renderRest();this.tid=setInterval(()=>{this.remain--;if(this.remain<=0){this.stop();this.restDone();}else this.renderRest();},1000);},
   renderRest(){const m=Math.floor(this.remain/60),s=this.remain%60;
-    this.body('<p class="text-muted small text-uppercase fw-bold mb-1">組間休息</p><h4>休息中</h4>'
-      +'<div class="display-4 fw-bold text-success">'+m+':'+(s<10?'0':'')+s+'</div>'
-      +'<p class="text-muted small">深呼吸、準備下一組</p>'
-      +'<button class="btn btn-outline-secondary" onclick="Runner.restDone()">略過休息</button>');},
+    this.body(`<div class="step">組間休息</div><h2>休息中</h2>
+      <div class="timer warn">${m}:${s<10?'0':''}${s}</div>
+      <p class="tgt">深呼吸、準備下一組</p>
+      <div class="rbtns"><button class="pl-btn-mini" onclick="Runner.restDone()">略過休息</button></div>`);},
   restDone(){this.stop();const e=this.ex[this.exIdx],last=this.setIdx>=e.sets-1;
-    this.body('<p class="text-muted small text-uppercase fw-bold mb-1">休息結束</p><h4>準備好了嗎？</h4>'
-      +'<p class="text-muted small">'+e.name+'　·　'+(last?'這是最後一組':'第 '+(this.setIdx+2)+' / '+e.sets+' 組')+'</p>'
-      +'<div class="d-grid gap-2 mt-2">'
-      +'<button class="btn btn-dark btn-lg" onclick="Runner.next()">'+(last?'完成此動作 →':'下一組 →')+'</button>'
-      +'<button class="btn btn-outline-secondary btn-sm" onclick="Runner.startRest(30)">再休息 30 秒</button>'
-      +'</div>');},
+    this.body(`<div class="step">休息結束</div><h2>準備好了嗎？</h2>
+      <p class="tgt">${e.name}　·　${last?'這是最後一組':'第 '+(this.setIdx+2)+' / '+e.sets+' 組'}</p>
+      <div class="rbtns">
+        <button class="pl-btn-xl dark" onclick="Runner.next()">${last?'完成此動作 →':'下一組 →'}</button>
+        <button class="pl-btn-mini" onclick="Runner.startRest(30)">再休息 30 秒</button>
+      </div>`);},
   next(){const e=this.ex[this.exIdx];this.setIdx++;
     if(this.setIdx>=e.sets){this.exIdx++;this.setIdx=0;if(this.exIdx>=this.ex.length){return this.finish();}}
     this.showSet();},
-  finish(){this.stop();this.body('<p class="text-muted small text-uppercase fw-bold mb-1">完成</p><h4>訓練完成 💪</h4>'
-    +'<p class="text-muted small">'+window.__today.name+' 全部做完了，好好休息、補充蛋白質。</p>'
-    +'<div class="d-grid gap-2 mt-2"><button class="btn btn-success btn-lg" onclick="Runner.saveAndClose()">✅ 存進訓練紀錄</button>'
-    +'<button class="btn btn-outline-secondary btn-sm" onclick="Runner.close()">先不存，關閉</button></div>');},
+  finish(){this.stop();this.body(`<div class="step">完成</div><h2>訓練完成 💪</h2>
+    <p class="tgt">${window.planToday.name} 全部做完了，好好休息、補充蛋白質。</p>
+    <div class="rbtns"><button class="pl-btn-xl" onclick="Runner.saveAndClose()">✅ 存進訓練紀錄</button>
+    <button class="pl-btn-mini" onclick="Runner.close()">先不存，關閉</button></div>`);},
   saveAndClose(){this.close();openImportModal();},
 };
 
@@ -424,7 +975,7 @@ document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
 $('#weekSlider').addEventListener('input',e=>{state.week=+e.target.value;syncWeekUI();render();});
 $('#dlChk').addEventListener('change',e=>{state.deload=e.target.checked;render();});
 
-if(window.__savedPlan){var sp=window.__savedPlan;state.mode=sp.mode==='VETERAN'?'veteran':'novice';state.days=String(Math.min(Math.max(sp.days||3,1),7));state.week=Math.min(Math.max(sp.week||8,1),20);document.querySelectorAll('[data-seg=\"mode\"] button').forEach(function(b){b.classList.toggle('active',b.dataset.val===state.mode);});document.querySelectorAll('[data-seg=\"days\"] button').forEach(function(b){b.classList.toggle('active',b.dataset.val===state.days);});var ws=document.getElementById('weekSlider');if(ws)ws.value=state.week;}
+if(window.planSaved){var sp=window.planSaved;state.mode=sp.mode==='VETERAN'?'veteran':'novice';state.days=String(Math.min(Math.max(sp.days||3,1),7));state.week=Math.min(Math.max(sp.week||8,1),20);document.querySelectorAll('[data-seg=\"mode\"] button').forEach(function(b){b.classList.toggle('active',b.dataset.val===state.mode);});document.querySelectorAll('[data-seg=\"days\"] button').forEach(function(b){b.classList.toggle('active',b.dataset.val===state.days);});var ws=document.getElementById('weekSlider');if(ws)ws.value=state.week;}
 buildLiftInputs();syncWeekUI();render();
 </script>
 </body>

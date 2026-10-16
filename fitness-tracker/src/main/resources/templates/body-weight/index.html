@@ -18,6 +18,8 @@
 <div class="container mt-4">
     <h2 class="mb-4">⚖️ 體重紀錄</h2>
 
+    <div class="alert alert-danger" th:if="${formError}" th:text="${formError}"></div>
+
     <!-- ── 新增紀錄 ── -->
     <div class="card mb-4 shadow-sm">
         <div class="card-header bg-white"><h5 class="mb-0">➕ 新增紀錄</h5></div>
@@ -25,35 +27,35 @@
             <form th:action="@{/body-weight}" method="post">
                 <div class="row g-3">
                     <div class="col-md-2">
-                        <label class="form-label fw-semibold">日期</label>
+                        <label class="form-label fw-semibold" for="recordedDate">日期</label>
                         <input type="date" name="recordedDate" id="recordedDate" class="form-control" required>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-semibold">體重 (kg)</label>
-                        <input type="number" name="weightKg" class="form-control" step="0.1" min="20" max="300" placeholder="72.5" required>
+                        <label class="form-label fw-semibold" for="bwWeightKg">體重 (kg)</label>
+                        <input type="number" name="weightKg" id="bwWeightKg" class="form-control" step="0.1" min="20" max="300" placeholder="72.5" required>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-semibold">時間點</label>
-                        <select name="timeOfDay" class="form-select">
+                        <label class="form-label fw-semibold" for="bwTimeOfDay">時間點</label>
+                        <select name="timeOfDay" id="bwTimeOfDay" class="form-select">
                             <option value="MORNING">☀️ 早上空腹</option>
                             <option value="EVENING">🌙 晚上</option>
                             <option value="OTHER">其他</option>
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-semibold">體脂率 (%)</label>
-                        <input type="number" name="bodyFatPct" class="form-control" step="0.1" min="1" max="70" placeholder="18.5">
+                        <label class="form-label fw-semibold" for="bwBodyFatPct">體脂率 (%)</label>
+                        <input type="number" name="bodyFatPct" id="bwBodyFatPct" class="form-control" step="0.1" min="1" max="70" placeholder="18.5">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-semibold">骨骼肌 (kg)</label>
-                        <input type="number" name="skeletalMuscleKg" class="form-control" step="0.1" min="1" max="100" placeholder="35.0">
+                        <label class="form-label fw-semibold" for="bwSkeletalMuscleKg">骨骼肌 (kg)</label>
+                        <input type="number" name="skeletalMuscleKg" id="bwSkeletalMuscleKg" class="form-control" step="0.1" min="1" max="100" placeholder="35.0">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-semibold">備註</label>
-                        <input type="text" name="note" class="form-control" placeholder="運動後、睡前...">
+                        <label class="form-label fw-semibold" for="bwNote">備註</label>
+                        <input type="text" name="note" id="bwNote" class="form-control" placeholder="運動後、睡前...">
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary mt-3">✔ 儲存</button>
+                <button type="submit" class="btn btn-primary mt-3">💾 儲存體重</button>
             </form>
         </div>
     </div>
@@ -83,6 +85,7 @@
                 <div class="text-muted small">最高</div>
             </div>
         </div>
+        <div class="text-muted text-center mt-2" style="font-size:.76rem">全部歷史紀錄，不受上方週/月/年切換影響</div>
     </div>
 
     <!-- ── 骨骼肌 & 體脂率圖表（有資料才顯示） ── -->
@@ -93,7 +96,11 @@
 
     <!-- ── 歷史紀錄 ── -->
     <div class="card shadow-sm">
-        <div class="card-header bg-white"><h5 class="mb-0">📋 歷史紀錄</h5></div>
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">📋 歷史紀錄</h5>
+            <span class="text-muted small" th:if="${totalRecords > 0}"
+                  th:text="'共 ' + ${totalRecords} + ' 筆 · 第 ' + (${currentPage} + 1) + ' / ' + ${totalPages} + ' 頁'"></span>
+        </div>
         <div class="card-body p-0">
             <div th:if="${records.empty}" class="text-muted text-center p-4">
                 尚無紀錄，開始記錄你的體重吧！
@@ -118,12 +125,13 @@
                             <td th:text="${record.skeletalMuscleKg != null ? record.skeletalMuscleKg + ' kg' : '-'}"></td>
                             <td th:text="${record.note}"></td>
                             <td>
-                                <button class="btn btn-sm btn-outline-secondary"
+                                <button class="btn btn-sm btn-outline-secondary" aria-label="編輯這筆體重紀錄"
                                         th:onclick="'toggleBwEdit(' + ${record.id} + ')'">✏️</button>
                                 <form th:action="@{/body-weight/delete/{id}(id=${record.id})}"
                                       method="post" class="d-inline"
                                       onsubmit="return confirm('確定刪除這筆紀錄？')">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">🗑</button>
+                                    <input type="hidden" name="page" th:value="${currentPage}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="刪除這筆體重紀錄">🗑</button>
                                 </form>
                             </td>
                         </tr>
@@ -134,6 +142,7 @@
                             style="display:none">
                             <td colspan="7">
                                 <form th:action="@{/body-weight/update/{id}(id=${record.id})}" method="post">
+                                    <input type="hidden" name="page" th:value="${currentPage}">
                                     <div class="row g-2 align-items-end">
                                         <div class="col-md-2">
                                             <label class="form-label small">日期</label>
@@ -169,7 +178,7 @@
                                                    th:value="${record.note}">
                                         </div>
                                         <div class="col-md-2 d-flex gap-1">
-                                            <button type="submit" class="btn btn-success btn-sm">💾</button>
+                                            <button type="submit" class="btn btn-success btn-sm">💾 儲存修改</button>
                                             <button type="button" class="btn btn-secondary btn-sm"
                                                     th:onclick="'toggleBwEdit(' + ${record.id} + ')'">取消</button>
                                         </div>
@@ -180,6 +189,19 @@
                     </tbody>
                 </table>
             </div>
+            <nav th:if="${totalPages > 1}" class="d-flex justify-content-center py-3">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item" th:classappend="${currentPage == 0} ? 'disabled'">
+                        <a class="page-link" th:href="@{/body-weight(page=${currentPage - 1})}">‹ 上一頁</a>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link" th:text="(${currentPage} + 1) + ' / ' + ${totalPages}"></span>
+                    </li>
+                    <li class="page-item" th:classappend="${currentPage >= totalPages - 1} ? 'disabled'">
+                        <a class="page-link" th:href="@{/body-weight(page=${currentPage + 1})}">下一頁 ›</a>
+                    </li>
+                </ul>
+            </nav>
         </div>
     </div>
 </div>
@@ -211,24 +233,46 @@
         return map;
     }
 
-    // ── 週視圖：本週一到本週日 ────────────────────────────
+    // ── 本地日期字串（YYYY-MM-DD）：故意不用 toISOString().slice(0,10)，那個是轉成 UTC 再切，
+    //    在 UTC+8 時區每天 00:00–07:59 之間會切出「前一天」的日期，跟後端存的 LocalDate 對不起來 ──
+    function toLocalDateStr(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    // 歸零時分秒，只留日期——兩個 Date 相減才會剛好是整數天，不會因為當下的時分秒而算錯天數
+    function startOfDay(d) {
+        const r = new Date(d);
+        r.setHours(0, 0, 0, 0);
+        return r;
+    }
+
+    // ── 使用者第一筆紀錄的日期：歷史不夠長時，視窗跟著縮短，讓線圖真的畫滿整個寬度，
+    //    不會像行事曆格線一樣把還沒開始記錄的空白日期也畫出來（一般健身 App 都是這樣處理）──
+    function firstRecordDate() {
+        if (!ascData.length) return null;
+        return startOfDay(new Date(ascData[0].date + 'T00:00:00'));
+    }
+
+    // ── 週視圖：過去 7 天（含今天），歷史不足 7 天就從第一筆紀錄畫起 ──────
     function getWeekData() {
-        const today = new Date();
-        const todayStr = today.toISOString().slice(0, 10);
-        const dow = today.getDay(); // 0=Sun
-        const monday = new Date(today);
-        monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+        const today = startOfDay(new Date());
+        const todayStr = toLocalDateStr(today);
+        const nominalStart = startOfDay(today);
+        nominalStart.setDate(today.getDate() - 6);
+        const first = firstRecordDate();
+        const start = (first && first > nominalStart) ? first : nominalStart;
+        const dayCount = Math.round((today - start) / 86400000) + 1;
 
-        const dayNames = ['一','二','三','四','五','六','日'];
+        const dayNames = ['日','一','二','三','四','五','六'];
         const labels = [], weights = [];
         const dayMap = buildDayMap(ascData);
         let lastKnown = null;
 
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(monday);
-            d.setDate(monday.getDate() + i);
-            const dateStr = d.toISOString().slice(0, 10);
-            labels.push(dayNames[i] + ' ' + dateStr.slice(5));
+        for (let i = 0; i < dayCount; i++) {
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
+            const dateStr = toLocalDateStr(d);
+            labels.push(dayNames[d.getDay()] + ' ' + dateStr.slice(5));
             let w = dayMap.get(dateStr);
             if (w == null) {
                 // 只往前帶入（過去空白日補上一次數值），未來還沒到的日期留空
@@ -241,23 +285,25 @@
         return { labels, weights };
     }
 
-    // ── 月視圖：本月 1 日到最後一日 ──────────────────────
+    // ── 月視圖：過去 30 天（含今天），歷史不足 30 天就從第一筆紀錄畫起 ──────
     function getMonthData() {
-        const today = new Date();
-        const todayStr = today.toISOString().slice(0, 10);
-        const year  = today.getFullYear();
-        const month = today.getMonth(); // 0-based
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const today = startOfDay(new Date());
+        const todayStr = toLocalDateStr(today);
+        const nominalStart = startOfDay(today);
+        nominalStart.setDate(today.getDate() - 29);
+        const first = firstRecordDate();
+        const start = (first && first > nominalStart) ? first : nominalStart;
+        const dayCount = Math.round((today - start) / 86400000) + 1;
 
         const labels = [], weights = [];
         const dayMap = buildDayMap(ascData);
         let lastKnown = null;
 
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = year + '-'
-                + String(month + 1).padStart(2, '0') + '-'
-                + String(d).padStart(2, '0');
-            labels.push(d + '日');
+        for (let i = 0; i < dayCount; i++) {
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
+            const dateStr = toLocalDateStr(d);
+            labels.push((d.getMonth() + 1) + '/' + d.getDate());
             let w = dayMap.get(dateStr);
             if (w == null) {
                 // 只往前帶入（過去空白日補上一次數值），未來還沒到的日期留空
@@ -270,11 +316,17 @@
         return { labels, weights };
     }
 
-    // ── 年視圖：近 12 個月，每月取最後一筆 ──────────────
+    // ── 年視圖：過去 12 個月，每月取最後一筆；歷史不足 12 個月就從第一筆紀錄那個月畫起 ──
     function getYearData() {
         const today = new Date();
+        const first = firstRecordDate();
+        let monthsBack = 11;
+        if (first) {
+            const monthsSinceFirst = (today.getFullYear() - first.getFullYear()) * 12 + (today.getMonth() - first.getMonth());
+            monthsBack = Math.min(11, Math.max(monthsSinceFirst, 0));
+        }
         const labels = [], weights = [];
-        for (let i = 11; i >= 0; i--) {
+        for (let i = monthsBack; i >= 0; i--) {
             const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
             const prefix = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
             labels.push(prefix);
@@ -329,14 +381,19 @@
                 }
             }
         });
-        // 統計
-        if (valid.length) {
-            document.getElementById('statMin').textContent = Math.min(...valid).toFixed(1) + ' kg';
-            document.getElementById('statMax').textContent = Math.max(...valid).toFixed(1) + ' kg';
-            document.getElementById('statAvg').textContent =
-                (valid.reduce((a,b) => a+b, 0) / valid.length).toFixed(1) + ' kg';
-        }
     }
+
+    // ── 最低/平均/最高：固定用「全部歷史紀錄」的每一筆原始資料計算，跟圖表目前顯示週/月/年無關，
+    //    也不像圖表那樣同一天只挑早上——早晚都記錄的話，晚上的數字一樣算進最高/平均 ──
+    function updateStats() {
+        const all = ascData.map(r => r.weight).filter(w => w != null);
+        if (!all.length) return;
+        document.getElementById('statMin').textContent = Math.min(...all).toFixed(1) + ' kg';
+        document.getElementById('statMax').textContent = Math.max(...all).toFixed(1) + ' kg';
+        document.getElementById('statAvg').textContent =
+            (all.reduce((a,b) => a+b, 0) / all.length).toFixed(1) + ' kg';
+    }
+    updateStats();
 
     function setChartView(view, btn) {
         document.querySelectorAll('.view-toggle .btn').forEach(b => b.classList.remove('active'));

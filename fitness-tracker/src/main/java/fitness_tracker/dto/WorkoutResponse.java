@@ -20,7 +20,6 @@ public record WorkoutResponse(
             Double rpe,
             String completionStatus,
             Integer actualReps,
-            Double actualWeight,
-            String notes
+            Double actualWeight
     ) {}
 }

@@ -7,13 +7,17 @@ public class StrengthPrescription {
     public record Prescription(double weightKg, int sets, int repsLow, int repsHigh, double workPct, int rir) {}
 
     public enum Phase {
-        ANATOMICAL_ADAPTATION(0.62, 0.68, 3, 3),  // 解剖適應
-        HYPERTROPHY          (0.70, 0.80, 4, 2),  // 肌肥大
-        MAX_STRENGTH         (0.85, 0.875, 4, 1); // 最大力量（修正：不再 90%x5x3-6）
+        ANATOMICAL_ADAPTATION(0.62, 0.68, 3, 3, 60),   // 解剖適應
+        HYPERTROPHY          (0.70, 0.80, 4, 2, 90),   // 肌肥大
+        MAX_STRENGTH         (0.85, 0.875, 4, 1, 180); // 最大力量（修正：不再 90%x5x3-6）
 
         final double pctLo, pctHi;
-        final int sets, targetRir;
-        Phase(double lo, double hi, int sets, int rir) { this.pctLo = lo; this.pctHi = hi; this.sets = sets; this.targetRir = rir; }
+        final int sets, targetRir, restSeconds;
+        Phase(double lo, double hi, int sets, int rir, int restSeconds) {
+            this.pctLo = lo; this.pctHi = hi; this.sets = sets; this.targetRir = rir; this.restSeconds = restSeconds;
+        }
+
+        public int restSeconds() { return restSeconds; }
     }
 
     // Epley 反推：某 %1RM 練到力竭(RIR 0)大約能做幾下

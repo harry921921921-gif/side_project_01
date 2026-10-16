@@ -16,19 +16,29 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item">
-                    <a class="nav-link" th:href="@{/}">🏠 首頁</a>
+                    <a class="nav-link" th:classappend="${currentPath == '/'} ? 'active'"
+                       th:attrappend="aria-current=${currentPath == '/'} ? 'page'"
+                       th:href="@{/}">🏠 首頁</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" th:href="@{/workout}">🏋️ 訓練紀錄</a>
+                    <a class="nav-link" th:classappend="${currentPath == '/workout'} ? 'active'"
+                       th:attrappend="aria-current=${currentPath == '/workout'} ? 'page'"
+                       th:href="@{/workout}">🏋️ 訓練紀錄</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" th:href="@{/body-weight}">⚖️ 體重紀錄</a>
+                    <a class="nav-link" th:classappend="${currentPath == '/body-weight'} ? 'active'"
+                       th:attrappend="aria-current=${currentPath == '/body-weight'} ? 'page'"
+                       th:href="@{/body-weight}">⚖️ 體重紀錄</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" th:href="@{/plan}">📋 訓練計劃</a>
+                    <a class="nav-link" th:classappend="${currentPath == '/plan'} ? 'active'"
+                       th:attrappend="aria-current=${currentPath == '/plan'} ? 'page'"
+                       th:href="@{/plan}">📋 訓練計劃</a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/manage}">⚙️ 管理清單</a>
+                <li class="nav-item" th:if="${currentUser != null and currentUser.role.name() == 'ADMIN'}">
+                    <a class="nav-link" th:classappend="${currentPath == '/manage'} ? 'active'"
+                       th:attrappend="aria-current=${currentPath == '/manage'} ? 'page'"
+                       th:href="@{/manage}">⚙️ 管理清單</a>
                 </li>
                 <li class="nav-item">
                     <form th:action="@{/logout}" method="post" style="margin:0">

@@ -1,0 +1,51 @@
+# ── FitTracker Docker Compose ──
+# 用法：
+#   1. 先跑一次 ./mvnw clean package -DskipTests（產生 target/*.jar，Dockerfile 需要它）
+#   2. 在這個檔案同一層建立 .env（可複製 .env.example 改名），填入 DB_PASSWORD、REMEMBER_ME_KEY
+#   3. docker compose up --build
+#   4. 開瀏覽器 http://localhost:8080
+#
+# 這個檔案只負責「怎麼啟動」，不含任何機密值本身——機密全部從 .env 讀取，
+# .env 已列在 .gitignore，不會進版控（跟 application-local.properties 是同一套原則）。
+
+services:
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # DB_HOST 在 Docker 網路裡要用「服務名稱」而不是 localhost，
+      # 因為對 app 這個容器來說，localhost 指的是它自己，不是隔壁的 mysql 容器
+      DB_HOST: mysql
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD}
+      REMEMBER_ME_KEY: ${REMEMBER_ME_KEY}
+      SPRING_PROFILES_ACTIVE: local
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: fitness_tracker
+      # utf8mb4 + bin collation 對應 User.java 裡 email 欄位要求的大小寫敏感排序
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_bin
+    ports:
+      - "3306:3306"
+    volumes:
+      - fittracker_mysql_data:/var/lib/mysql
+    healthcheck:
+      # app 容器要等 MySQL 真的「可以接受連線」才啟動，不能只等 MySQL 容器「跑起來」——
+      # MySQL 剛啟動時通常還在初始化，這時候接受連線會直接失敗
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  # 具名 volume：容器刪掉重建，資料庫內容還在（不會每次都要重新註冊帳號）
+  fittracker_mysql_data:

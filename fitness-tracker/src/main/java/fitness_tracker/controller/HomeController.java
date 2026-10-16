@@ -3,14 +3,14 @@ package fitness_tracker.controller;
 import fitness_tracker.entity.User;
 import fitness_tracker.entity.WorkoutSession;
 import fitness_tracker.service.BodyWeightService;
-import fitness_tracker.service.AiCoachService;
 import fitness_tracker.service.CurrentUserService;
-import fitness_tracker.service.SuggestionService;
 import fitness_tracker.service.WorkoutService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Controller  // 告訴 Spring 這個 class 是 Controller（處理 HTTP 請求）
@@ -18,18 +18,13 @@ public class HomeController {
 
     private final BodyWeightService bodyWeightService;
     private final WorkoutService workoutService;
-    private final SuggestionService suggestionService;
     private final CurrentUserService currentUserService;
-    private final AiCoachService aiCoachService;
 
     public HomeController(BodyWeightService bodyWeightService, WorkoutService workoutService,
-                          SuggestionService suggestionService, CurrentUserService currentUserService,
-                          AiCoachService aiCoachService) {
+                          CurrentUserService currentUserService) {
         this.bodyWeightService = bodyWeightService;
         this.workoutService = workoutService;
-        this.suggestionService = suggestionService;
         this.currentUserService = currentUserService;
-        this.aiCoachService = aiCoachService;
     }
 
     /**
@@ -37,9 +32,14 @@ public class HomeController {
      * Model → 用來把資料傳到 HTML 模板
      * return "index" → 回傳 templates/index.html
      */
+    private static final DateTimeFormatter MONTH_DAY = DateTimeFormatter.ofPattern("MM/dd");
+
     @GetMapping("/")
     public String home(Model model) {
         User user = currentUserService.getCurrentUser();
+
+        // 今天日期（月/日），Dashboard 標題旁邊顯示用
+        model.addAttribute("todayLabel", LocalDate.now().format(MONTH_DAY));
 
         // 查最新體重，放進 model 給 HTML 用
         bodyWeightService.findLatest(user)
@@ -54,12 +54,6 @@ public class HomeController {
 
         // 訓練統計（本週次數、近 7 天複合動作訓練量依部位、平均 RPE、最近摘要、近 3 次完成率）
         model.addAttribute("dashboardStats", workoutService.computeDashboardStats(user));
-
-        // 規則型訓練建議（細項）
-        model.addAttribute("suggestions", suggestionService.generateSuggestions(recentWorkouts));
-
-        // AI 教練建議（首頁主卡；LLM 失敗或無金鑰會自動退回規則版，永不空白）
-        model.addAttribute("coachAdvice", aiCoachService.getTodayAdvice(user));
 
         return "index";
     }
