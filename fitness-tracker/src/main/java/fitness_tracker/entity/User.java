@@ -25,8 +25,8 @@ public class User {
     @Column(nullable = false)
     private boolean enabled = true;
 
-    // 故意留 nullable：沒有遷移工具（ddl-auto=update），舊帳號這欄位加上去時是 NULL，
-    // 用 getRole() 把 NULL 當成 USER 處理，不需要一次性把既有資料表都補值
+    // 故意留 nullable：早期還沒有 Flyway（當時用 ddl-auto=update），舊帳號這欄位加上去時是 NULL，
+    // 用 getRole() 把 NULL 當成 USER 處理。要改成 NOT NULL 的話，記得用新的 Flyway migration 先補值再改欄位
     @Enumerated(EnumType.STRING)
     private Role role = Role.USER;
 

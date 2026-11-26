@@ -34,6 +34,18 @@
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
 
+		<!-- Flyway：資料庫結構的「版本控制」。啟動時自動依序執行 src/main/resources/db/migration
+		     底下還沒跑過的 V1__xxx.sql、V2__xxx.sql……，並在資料庫的 flyway_schema_history 表記錄跑到第幾版。
+		     版本號由 Spring Boot 統一管理，不用自己寫；MySQL 需要額外加 flyway-mysql 這個模組 -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-mysql</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>com.mysql</groupId>
 			<artifactId>mysql-connector-j</artifactId>
