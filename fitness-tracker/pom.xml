@@ -63,6 +63,25 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
+
+		<!-- 測試用：Testcontainers 會在跑測試時自動用 Docker 開一個「用完即丟」的 MySQL，
+		     測試結束就刪掉，所以任何有 Docker 的電腦（包含 GitHub Actions）都不用先自己裝 MySQL。
+		     版本由 Spring Boot parent 統一管理，不用自己寫版本號 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>mysql</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
