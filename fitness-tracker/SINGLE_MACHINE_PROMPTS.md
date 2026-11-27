@@ -1,219 +1,128 @@
-# 單機版強化 Prompt 清單（先把本機版做好）
+# FitTracker 改進 Prompt 清單
 
-> 目標：在**不部署上線、不引入使用者系統**的前提下，把 FitTracker 的本機版做穩、做完整，並逐步往「大公司標準」靠攏。
-> 用法：**一次只貼一個階段**給 AI（Claude Code / Cursor 等），跑得起來、驗證通過、`git commit` 後，再貼下一個。**不要一次全貼**，避免 AI 一次改太多、彼此衝突、難以除錯。
-> 建議順序：階段 0 →1 →2 →3 →4 →5 →6 →7（數字越小越優先、風險越低）。
-
----
-
-## 專案問題總覽（體檢結果）
-
-### 🔴 必須先處理（資安 / 會壞）
-- **崩潰日誌 `hs_err_pid*.log`、`replay_pid*.log` 被 commit 進公開 GitHub repo**（含系統路徑等環境資訊，不該公開）。
-- 崩潰原因是 **記憶體不足（OOM）**——程式曾因 RAM 不夠而當機數次。
-- **資料庫密碼在本機明碼儲存**，且 repo 為公開；密碼雖未進 git 歷史，但保險起見應更換一次。
-- **`orElseThrow()` 找不到資料直接噴 HTTP 500 + stack trace**（狀態碼錯、洩漏內部堆疊、無全域例外處理）。
-
-### 🟠 品質 / 大公司標準落差
-- **API 直接回傳 JPA Entity**（如 `List<WorkoutSession>`），未使用輸出用 Response DTO，內部結構外洩、欄位不可控。
-- **完全沒有輸入驗證**（無 `@Valid` / Bean Validation）。
-- **`bodyPart`、`completionStatus` 是自由字串**，打錯字會造成統計漏資料（命名不一致風險）。
-- **`ExerciseApiController` 用 `Map<String,String>` 當 request body**，非型別安全，應改 DTO。
-- **`HelloController` 三個 `/hello` 是測試殘留**，應刪除。
-- **沒有分頁（pagination）**，`findAll()` 全撈，資料量大會慢甚至 OOM。
-- **`@OneToMany` 用 `FetchType.EAGER`**，每次載入全部 sets，效能差；大公司用 `LAZY` + fetch join。
-- **幾乎沒有 logging**（只有 `show-sql`，無分級 SLF4J log）。
-- **測試覆蓋率極低**（只有 `contextLoads()`）。
-- **AI 建議規則引擎尚未實作**（Dashboard 只有統計，沒有建議）。
-
-### 🟢 已經做得對的地方（不用改）
-- 三層架構 Controller→Service→Repository 分層清楚。
-- 用建構子注入（非 `@Autowired` 欄位）——Spring 官方推薦。
-- 輸入有用 DTO；寫入方法有 `@Transactional`。
-- `@JsonIgnore` 擋住 JPA 序列化迴圈；已關閉 `open-in-view`。
+> 用法：**一次只貼一個任務**給 AI（Claude Code / Cursor 等），跑得起來、驗證通過、`git commit` 後再貼下一個。不要一次全貼，避免 AI 一次改太多、彼此衝突、難以除錯。
+>
+> 最後更新：2026-11-26。這份清單原本是「單機版強化」的 0–7 階段，大部分已經做完，下面先列進度，再列還沒做的任務。
+> 專案怎麼執行請看根目錄的 [README.md](../README.md)。
 
 ---
 
-## 共用前言（每個階段開頭都先貼這段）
+## 原本 0–7 階段的進度
+
+| 階段 | 內容 | 狀態 | 現況 |
+|---|---|---|---|
+| 0 | 資安清理（崩潰日誌、.gitignore、密碼改讀環境變數） | ✅ 完成 | `hs_err_pid*.log` 已從目前檔案移除並加入 `.gitignore`；但舊的 git 歷史裡還找得到（見任務 E） |
+| 1 | 輸入驗證＋資料一致性 | ✅ 完成 | `CompletionStatus` enum、Bean Validation（`@Valid`） |
+| 2 | 全域錯誤處理 | ✅ 完成 | `ResourceNotFoundException`、`GlobalExceptionHandler`、`error.html` |
+| 3 | API 輸出 DTO 化、刪除測試殘留 | ✅ 完成 | `WorkoutResponse` 等 Response DTO、`ExerciseRequest`；`HelloController` 已刪 |
+| 4 | 分頁＋延遲載入 | ✅ 完成 | `/api/workouts`、`/api/body-weights` 支援 `?page=&size=`；`sets` 改 `LAZY` + `@EntityGraph` |
+| 5 | Logging | 🟡 大致完成 | 主要 Service 與例外處理器已用 SLF4J；`application-prod.properties` 有分級設定 |
+| 6 | AI 建議規則引擎 | ❌ 尚未開始 | Dashboard 還沒有「建議」卡片（見任務 D） |
+| 7 | 單元測試補強 | 🟡 大致完成 | 共 131 個測試；其中 9 個需要真的 MySQL 才會過（見任務 A） |
+
+另外，原本清單寫的「不引入使用者系統、不部署上線」已經不成立：專案現在有帳號系統（註冊、登入、記住我、忘記密碼、ADMIN 角色）、訓練計劃引擎，以及 Docker 部署設定。
+
+---
+
+## 共用前言（每個任務開頭都先貼這段）
 
 ```
-你是一位熟悉 Java 17、Spring Boot 3、Spring Data JPA、Thymeleaf、MySQL 的全端工程師。
+你是一位熟悉 Java 17、Spring Boot 3.5、Spring Data JPA、Spring Security、Thymeleaf、MySQL 8 的全端工程師。
 請基於我現有的 FitTracker 專案「最小改動」地實作以下任務，保持與現有架構相容。
 
 現有架構重點：
+- 程式碼在 fitness-tracker/，套件名 fitness_tracker
 - 三層結構：Controller → Service → Repository
-- Entity：WorkoutSession、WorkoutSet、BodyWeight、Exercise、BodyPart
-- DTO：WorkoutRequest（含內層 ExerciseDto）、BodyWeightRequest
-- 網頁路由用 Thymeleaf（如 /workout），API 路由回 JSON（如 /api/workouts）
-- ddl-auto=update，欄位由 JPA 自動建立
+- Entity：User、WorkoutSession、WorkoutSet、BodyWeight、Exercise、BodyPart、TrainingPlan、LiftPr、EmailToken
+- 每筆訓練/體重資料都屬於某個 User，Controller 透過 CurrentUserService 取得目前登入者
+- 網頁路由用 Thymeleaf（/、/plan、/workout、/body-weight、/manage），API 路由回 JSON（/api/...、/plan/api/...）
+- API 輸入輸出都用 DTO（dto/ 資料夾），錯誤由 GlobalExceptionHandler 統一處理
+- 資料庫帳密與 REMEMBER_ME_KEY 一律從環境變數讀取，不要寫進會被 git 追蹤的檔案
+- ddl-auto=update，欄位由 JPA 自動建立（還沒有 Flyway）
 
 限制：
-- 不要重構整個專案、不要引入使用者系統 / JWT / OAuth2
-- 不要引入新前端框架
-- 只做「本階段」要求的事，不要順手改其他無關的地方
-- 每次改動後要能正常編譯、正常啟動（mvn spring-boot:run）
+- 不要重構整個專案、不要引入新前端框架
+- 只做「本任務」要求的事，不要順手改其他無關的地方
+- 每次改動後要能正常編譯、正常啟動（mvnw spring-boot:run），既有測試要繼續通過
 
-完成後請說明：改了哪些檔案、實作了什麼、如何驗證可正常啟動。
+完成後請說明：改了哪些檔案、實作了什麼、如何驗證。
 ```
 
 ---
 
-## 階段 0：資安清理（最優先，先做）
+## 建議順序
 
-```
-請做以下資安與清理工作，讓專案乾淨、避免敏感資料留在公開 repo：
-
-1. 這些崩潰日誌目前是被 git 追蹤的，請「從 git 移除追蹤並刪除檔案」：
-   - fitness-tracker/hs_err_pid*.log
-   - 專案根目錄的 hs_err_pid*.log、replay_pid*.log
-   做法：對每個檔案執行 `git rm --cached <檔案>` 後再實體刪除，或直接 `git rm <檔案>`。
-2. 在 .gitignore 補上（若尚未存在）：
-   hs_err_pid*.log
-   replay_pid*.log
-   *.log
-3. 確認 .env 與 application-local.properties 已被 .gitignore 忽略，
-   用 `git status` 確認它們不會被追蹤。
-4. 請「不要」把我的資料庫密碼寫進任何會被 git 追蹤的檔案。
-   （密碼更換我會自己在 MySQL 端手動處理，你不用改密碼值，只要確保設定檔讀環境變數即可。）
-5. 完成後列出你 git rm / 刪除 / 修改了哪些檔案，並提醒我最後要 git commit。
-
-注意：這階段只做清理，不要動任何 Java 原始碼。
-```
-
-> 做完這階段後，我（使用者）要記得：到 MySQL 手動把 root 密碼改掉一次，並更新本機 `application-local.properties`。
+1. **任務 A**（測試不依賴 MySQL）→ **任務 B**（GitHub Actions 自動測試）：先有安全網，之後每次改動都有人幫你檢查。
+2. **任務 C**（部署小修正）：風險低、改動小。
+3. **任務 D**（AI 建議規則引擎）：補上唯一還沒做的功能。
+4. **任務 E、F**：選做，等前面穩了再評估。
 
 ---
 
-## 階段 1：輸入驗證 + 資料一致性
+## 任務 A：測試不依賴本機 MySQL
 
-> 解決：使用者亂填不會炸、`bodyPart` 與 `completionStatus` 不會因打錯字漏資料。
+> 目前 `FitnessTrackerApplicationTests`、`WorkoutPlanServiceIntegrationTest` 用 `@SpringBootTest` 連真正的 MySQL，沒開 MySQL 就失敗（9 個測試）。
 
 ```
-請為訓練與體重的輸入加入驗證，並把兩個「自由字串」欄位改成受控值：
+請讓 mvnw test 在「沒有安裝 MySQL」的電腦上也能全部通過：
 
-A. completionStatus 改為 enum
-- 新增 enum CompletionStatus { COMPLETE, FAILED, DROPPED, PAIN }
-- WorkoutSet.completionStatus 由 String 改為此 enum（用 @Enumerated(EnumType.STRING) 存字串）
-- Service、DTO、Controller、Thymeleaf 表單的下拉選單都改用這個 enum 的值
-- 舊資料相容：值本來就一致，直接對應即可
-
-B. bodyPart 一致性
-- 表單新增訓練時，bodyPart 一律從既有 BodyPart 清單「下拉選取」，不要自由輸入
-- 後端 save/update 時驗證傳入的 bodyPart 必須存在於 BodyPart 表，否則回錯誤
-
-C. 加入 Bean Validation
-- pom.xml 加入 spring-boot-starter-validation
-- WorkoutRequest / BodyWeightRequest 欄位加驗證：
-  - workoutDate / recordedDate：@NotNull，不可未來日期（@PastOrPresent）
-  - bodyPart：@NotBlank
-  - weightKg / actualWeight：@PositiveOrZero（允許 null）
-  - sets / reps / actualReps：非負整數
-  - rpe：0~10（@DecimalMin/@DecimalMax，允許 null）
-- API Controller 的 @RequestBody 前加 @Valid
+1. 在 pom.xml 加入 H2（scope=test），新增 src/test/resources/application-test.properties：
+   - 用 H2 記憶體資料庫，並開 MySQL 相容模式（MODE=MySQL）
+   - 給 DB_USERNAME、DB_PASSWORD、REMEMBER_ME_KEY 測試用的假值
+2. 兩個 @SpringBootTest 測試類別加上 @ActiveProfiles("test")
+3. 注意 schema.sql（persistent_logins 表）與 User.email 欄位的 columnDefinition
+   （VARCHAR(255) COLLATE utf8mb4_bin）在 H2 是否能執行；不能的話在 test profile 下做最小調整，
+   不要改到正式環境的行為
+4. 如果 H2 相容性問題太多，改用 Testcontainers（需要 Docker），並說明取捨
 
 驗收：
-- 送不合法資料（未來日期、rpe=20、空 bodyPart）時 API 回 400 有清楚訊息，不是 500
-- 表單的 bodyPart 與完成狀態都是下拉選單
-- 現有新增/編輯/刪除仍正常
+- 關掉 MySQL、不設任何環境變數，mvnw test 全部通過
+- 正式啟動（mvnw spring-boot:run）行為不變
 ```
 
 ---
 
-## 階段 2：全域錯誤處理
+## 任務 B：GitHub Actions 自動跑測試
 
 ```
-目前 Service 用 orElseThrow()，找不到資料會回 500。請加入統一錯誤處理：
+請新增 .github/workflows/ci.yml，讓每次 push 與 pull request 都自動跑測試：
 
-1. 新增自訂例外 ResourceNotFoundException（繼承 RuntimeException）
-2. Service 中 findById(...).orElseThrow() 改丟 ResourceNotFoundException，附清楚訊息
-   （例：「找不到 id=5 的訓練紀錄」）
-3. 新增 @RestControllerAdvice 全域例外處理器：
-   - ResourceNotFoundException → 404 + JSON { "error": "...", "message": "..." }
-   - MethodArgumentNotValidException（驗證失敗）→ 400 + 欄位錯誤清單
-   - 其他未預期例外 → 500 + 通用訊息（不要回 stack trace）
-4. 新增簡單 error.html，網頁遇錯顯示友善畫面而非白頁
+1. 使用 ubuntu-latest、actions/setup-java（Temurin 17，開啟 Maven 快取）
+2. working-directory 設為 fitness-tracker
+3. 執行 sh ./mvnw -B test（mvnw 在 git 裡沒有執行權限，用 sh 執行）
+4. 測試失敗時讓 workflow 失敗
+
+前提：任務 A 已完成（測試不需要 MySQL）。
 
 驗收：
-- GET /api/workouts/99999 回 404 而非 500
-- 送不合法資料回 400 並列出錯誤欄位
-- 瀏覽器遇錯看到自訂 error 頁面
+- 開一個 PR 後，GitHub 上看得到綠色勾勾
 ```
 
 ---
 
-## 階段 3：API 輸出 DTO 化 + 清掉測試殘留
-
-> 讓 API 不再直接吐 JPA Entity，並移除殘留程式。
+## 任務 C：部署小修正
 
 ```
-請調整 API 層，讓輸入與輸出都用 DTO，不直接暴露 Entity：
+請做以下幾個小修正，每一項都要最小改動：
 
-1. 新增輸出用的 Response DTO（例如 WorkoutResponse、BodyWeightResponse、ExerciseResponse），
-   只放前端真正需要的欄位；在 Service 或 Controller 做 Entity → DTO 的轉換。
-2. 所有 REST API（/api/workouts、/api/body-weights、/api/exercises）的回傳型別，
-   改成回 Response DTO（或 DTO 清單），不要再回 WorkoutSession 等 Entity。
-3. ExerciseApiController 的 POST 目前用 Map<String,String> 當 body，
-   請改成一個明確的 ExerciseRequest DTO（含 name、bodyPart、category），並加 @Valid。
-4. 刪除 HelloController（/api/hello、/hello2、/hello3 是測試殘留，沒有用途）。
-
-限制：不要改動網頁 Thymeleaf 頁面的資料流，只調整 REST API 與相關 DTO。
+1. mvnw 在 git 裡沒有執行權限：執行 git update-index --chmod=+x fitness-tracker/mvnw
+2. docker-compose.yml 目前 SPRING_PROFILES_ACTIVE=local，請改成可以用 .env 切換：
+   SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}，並在 .env.example 補上說明
+3. Dockerfile 改成「多階段建置」：第一階段用 maven + JDK 17 編譯打包，第二階段只放 JRE 和 jar，
+   這樣使用者不用先在本機跑 mvnw package 才能 docker compose up
+4. 同步更新根目錄 README.md 的 Docker 章節
 
 驗收：
-- GET /api/workouts 回的 JSON 是 DTO 結構，不含 JPA 內部欄位
-- 新增動作的 API 用型別安全的 DTO
-- 專案正常啟動、現有頁面不受影響
+- 全新 clone 下來，只要建立 .env 再 docker compose up --build 就能跑起來
+- 本機 mvnw spring-boot:run 不受影響
 ```
 
 ---
 
-## 階段 4：效能（分頁 + 延遲載入）
+## 任務 D：AI 建議規則引擎（原階段 6）
 
-```
-請做兩個效能改善，避免資料變多後變慢或記憶體不足（先前有 OOM 崩潰紀錄）：
-
-1. 分頁：
-   - 為列表型 API（至少 /api/workouts、/api/body-weights）加入分頁支援，
-     使用 Spring Data 的 Pageable（參數如 ?page=0&size=20，預設 size=20）
-   - Repository 對應方法回 Page<...>，Controller 回分頁結果
-   - 網頁頁面若一次載入全部，也改成合理上限或分頁（可先只做 API，網頁維持現狀）
-
-2. 延遲載入：
-   - WorkoutSession 的 @OneToMany sets 由 FetchType.EAGER 改為 LAZY
-   - 需要一次帶出 sets 的查詢，改用 JPQL 的 fetch join 或 @EntityGraph，避免 N+1
-   - 確認 Dashboard 統計、workout 頁面仍能正確取得 sets（必要處補 fetch join）
-
-限制：改 LAZY 後要特別測試「首頁 Dashboard」與「訓練頁面」是否還能正常顯示動作明細
-（因為 open-in-view 已關閉，LAZY 若沒 fetch join 可能報 LazyInitializationException）。
-
-驗收：
-- 列表 API 可用 ?page=&size= 分頁
-- 改 LAZY 後所有頁面仍正常、無 LazyInitializationException
-- 專案正常啟動
-```
-
----
-
-## 階段 5：導入 Logging
-
-```
-請導入結構化的日誌，取代目前只靠 show-sql 的做法：
-
-1. 在 Service 層加入 SLF4J logger（private static final Logger log = LoggerFactory.getLogger(...)）
-2. 關鍵操作記錄 INFO（新增/更新/刪除訓練、體重）
-3. 例外處理器（@RestControllerAdvice）記錄 WARN/ERROR，包含足夠除錯資訊但不含密碼等敏感值
-4. application.properties 設定合理的 log level（例如 root=INFO、fitness_tracker=DEBUG）
-5. 可考慮把 spring.jpa.show-sql 關掉，改用 logging.level.org.hibernate.SQL=DEBUG 控制
-
-驗收：
-- 啟動與 CRUD 操作時 console 有清楚的分級日誌
-- 錯誤發生時 log 有記錄，但不外洩敏感資料
-```
-
----
-
-## 階段 6：AI 建議規則引擎（補齊未完成功能）
-
-> Dashboard 目前只有統計數字，還沒有「建議」。這階段補上規則引擎並顯示在首頁。
+> Dashboard 目前只有統計數字，還沒有「建議」。這個任務補上規則引擎並顯示在首頁。
+> 注意：課表頁的新手模式已經有「卡關就退回約 90%」的漸進邏輯（WorkoutService），規則要跟它一致、不要互相矛盾。
 
 ```
 請實作「規則型」訓練建議引擎（不要用機器學習），並顯示在首頁 Dashboard。
@@ -222,7 +131,7 @@ C. 加入 Bean Validation
    record Suggestion(String level, String exerciseName, String message)
    level 為 INFO / WARN / DANGER（前端決定卡片顏色）
 
-2. 依「每個動作名稱」分組，取最近幾次紀錄套用規則：
+2. 只看「目前登入者」的資料，依每個動作名稱分組，取最近幾次紀錄套用規則：
    規則 A（減量）：某動作最近連續 2 次 RPE >= 9 且 completionStatus = FAILED
      → WARN，例：「深蹲 連續兩次高強度失敗，建議下次減量 10%」
    規則 B（加重）：某動作最近 3 次都 COMPLETE 且平均 RPE < 8
@@ -231,55 +140,47 @@ C. 加入 Bean Validation
      → DANGER，例：「上次訓練出現疼痛，建議安排休息或降低強度」
 
 3. HomeController 的 home() 把 suggestions 放進 model
-4. templates/index.html 加「AI 建議」卡片區塊：
+4. templates/index.html 加「訓練建議」卡片區塊：
    - 無建議顯示「目前沒有特別建議，保持節奏 👍」
    - 有建議依 level 用 Bootstrap alert-info / alert-warning / alert-danger
    - 沿用現有 Bootstrap 樣式，不引入新框架
+5. 為 SuggestionService 寫單元測試（Mockito），分別觸發 A、B、C 與「沒有建議」
 
 驗收：
-- 造測試資料能分別觸發 A、B、C
+- 測試能分別觸發 A、B、C
 - 首頁看得到建議卡片，樣式一致
 - 沒有訓練資料時不報錯，顯示預設訊息
 ```
 
 ---
 
-## 階段 7：單元測試補強
+## 任務 E（選做）：清掉 git 歷史裡的崩潰日誌
+
+> 崩潰日誌（`hs_err_pid*.log`、`replay_pid*.log`）已經從目前的檔案移除，但在舊的 commit 裡還看得到，裡面有電腦路徑等環境資訊。
+> 要徹底清除必須「改寫 git 歷史」（例如用 git filter-repo），會影響所有 clone 過這個 repo 的人，而且**無法復原**。
+> 如果 repo 是公開的、你在意這些資訊，再做；做之前先把整個 repo 備份一份。這一步建議自己手動做，不要交給 AI 自動執行。
+
+---
+
+## 任務 F（選做）：導入 Flyway 資料庫遷移
 
 ```
-請為核心邏輯補單元測試，使用 JUnit 5 + Mockito（Spring Boot Test 已內建）。
+目前 ddl-auto=update，只會「加」欄位/表格，改欄位型別或改名不會報錯，會悄悄留下不一致的結構。
+請導入 Flyway：
 
-1. WorkoutService（用 Mockito mock Repository）：
-   - save(...)：正確組出 WorkoutSet 並過濾空的 exerciseName
-   - update(...)：清掉舊 sets 再寫入新的
-   - computeDashboardStats()：平均 RPE、只計 COMPOUND 訓練量、近 3 次完成率
-   - countThisWeek() / findRecentWithinDays() 的日期邊界（剛好 7 天內/外）
-
-2. SuggestionService（若已完成階段 6）：
-   - 分別建構觸發規則 A / B / C 的假資料，驗證產生正確 Suggestion
-   - 無符合條件時回空清單
-
-3. Controller（@WebMvcTest + MockMvc，mock Service）：
-   - GET /api/workouts 回 200 與 JSON
-   - GET /api/workouts/{不存在} 回 404
-   - POST /api/workouts 帶不合法資料回 400（需先完成階段 1、2）
+1. pom.xml 加入 flyway-core 與 flyway-mysql
+2. 以目前的資料表結構產生 V1__baseline.sql（含 schema.sql 的 persistent_logins）
+3. 既有資料庫用 baseline-on-migrate=true 銜接，不要刪任何資料
+4. ddl-auto 改為 validate
+5. 在 README 補一段「改資料表結構要新增 migration 檔」的說明
 
 驗收：
-- mvn test 全部通過
-- 至少涵蓋 WorkoutService 主要方法與三條建議規則
-- 說明覆蓋了哪些邏輯、還有哪些未覆蓋
+- 全新資料庫可以從 0 建好所有表
+- 既有資料庫啟動後資料完整、不報錯
 ```
 
 ---
 
-## 附註：關於 MySQL（單機版可選）
-
-目前用 MySQL，需要本機先開好 MySQL 才能啟動。若希望「單機版更易一鍵執行、不依賴外部 MySQL」，可另開一個 profile 用 H2 記憶體資料庫做開發/展示——但這會動到設定，屬選配，**不列入上面階段**，等單機都穩了再評估。
-
----
-
-### 建議節奏
-- **先做 0（資安清理）→ 1（驗證＋一致性）→ 2（錯誤處理）**：CP 值最高、風險最低，做完專案就「乾淨又不易壞」。
-- 接著 **3（DTO 化）→ 4（效能）→ 5（logging）**：往大公司標準靠攏。
-- 最後 **6（AI 建議）→ 7（測試）**：補功能與安全網。
-- **每完成一階段就 `git commit` 一次**，出問題方便回退。一次只貼一個階段給 AI。
+### 節奏提醒
+- **每完成一個任務就 `git commit` 一次**，出問題方便回退。
+- 做完一個任務，回來把上面的進度表更新一下。
