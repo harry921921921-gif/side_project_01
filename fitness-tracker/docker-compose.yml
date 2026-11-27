@@ -1,9 +1,8 @@
 # ── FitTracker Docker Compose ──
 # 用法：
-#   1. 先跑一次 ./mvnw clean package -DskipTests（產生 target/*.jar，Dockerfile 需要它）
-#   2. 在這個檔案同一層建立 .env（可複製 .env.example 改名），填入 DB_PASSWORD、REMEMBER_ME_KEY
-#   3. docker compose up --build
-#   4. 開瀏覽器 http://localhost:8080
+#   1. 在這個檔案同一層建立 .env（可複製 .env.example 改名），填入 DB_PASSWORD、REMEMBER_ME_KEY
+#   2. docker compose up --build（Dockerfile 是多階段建置，會自動編譯打包，不用先手動跑 mvnw）
+#   3. 開瀏覽器 http://localhost:8080
 #
 # 這個檔案只負責「怎麼啟動」，不含任何機密值本身——機密全部從 .env 讀取，
 # .env 已列在 .gitignore，不會進版控（跟 application-local.properties 是同一套原則）。
@@ -21,7 +20,9 @@ services:
       DB_USERNAME: root
       DB_PASSWORD: ${DB_PASSWORD}
       REMEMBER_ME_KEY: ${REMEMBER_ME_KEY}
-      SPRING_PROFILES_ACTIVE: local
+      # 用 prod 設定（application-prod.properties）：日誌較少、不印出個資、cookie 加上 Secure 旗標。
+      # 想在 Docker 裡用本機開發設定時，可在 .env 寫 SPRING_PROFILES_ACTIVE=local 覆蓋
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
     depends_on:
       mysql:
         condition: service_healthy
@@ -34,8 +35,12 @@ services:
       # utf8mb4 + bin collation 對應 User.java 裡 email 欄位要求的大小寫敏感排序
       MYSQL_CHARACTER_SET_SERVER: utf8mb4
       MYSQL_COLLATION_SERVER: utf8mb4_bin
-    ports:
-      - "3306:3306"
+    # 刻意「不」開 ports：app 容器透過 Docker 內部網路就連得到 mysql，
+    # 資料庫不需要、也不應該對外（包含區網、公網）開放 3306。
+    # 若你真的想用 MySQL Workbench 之類工具從本機連進來，可以加上下面兩行，
+    # 127.0.0.1 代表「只有這台電腦自己連得到」，別人連不到：
+    #   ports:
+    #     - "127.0.0.1:3307:3306"
     volumes:
       - fittracker_mysql_data:/var/lib/mysql
     healthcheck:
