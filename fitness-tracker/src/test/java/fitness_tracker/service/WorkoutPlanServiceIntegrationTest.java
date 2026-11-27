@@ -9,7 +9,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import fitness_tracker.entity.User;
@@ -19,11 +18,13 @@ import fitness_tracker.service.SplitCatalog.DaySplitDef;
 import fitness_tracker.service.TrainingPlanService.PhaseType;
 import fitness_tracker.service.WorkoutPlanService.GeneratedDayPlan;
 import fitness_tracker.service.WorkoutPlanService.PlannedExercise;
+import fitness_tracker.support.MySqlIntegrationTest;
 
 // 真的接資料庫的整合測試（不 mock ExerciseRepository）：證明 WorkoutPlanService 對著實際重新命名過的
 // Exercise 表也能選出正確、乾淨（不跨分化污染）的課表。@Transactional 讓寫入的測試帳號在測試結束後自動回滾，
 // 不會留垃圾資料在資料庫。
-@SpringBootTest
+// 資料庫由 Testcontainers 自動開的 MySQL 容器提供（見 MySqlIntegrationTest），沒有 Docker 時整個類別會被跳過
+@MySqlIntegrationTest
 @Transactional
 class WorkoutPlanServiceIntegrationTest {
 
